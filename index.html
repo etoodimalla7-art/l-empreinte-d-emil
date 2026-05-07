@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Bienvenue sur le site officiel de L'Empreinte d'Émil — Boutique de luxe à Douala, Cameroun Découvrez nos produits.">
+<meta name="description" content="L'Empreinte D'Emil — Boutique de luxe à Douala, Cameroun">
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -2240,7 +2240,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
       <h3 id="priv-h6">6. Contact</h3>
       <p id="priv-p6">Pour toute question relative à notre politique de confidentialité : L'Empreinte D'Emil, PK12, Douala, Cameroun — disponible via WhatsApp.</p>
       <div style="margin-top:20px;padding:14px;background:var(--dark-2);border-radius:6px;font-size:11px;color:var(--muted)">
-        <span id="priv-date">Dernière mise à jour : Janvier 2026</span>
+        <span id="priv-date">Dernière mise à jour : Janvier 2025</span>
       </div>
     </div>
   </div>
@@ -2251,7 +2251,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   <div class="login-box">
     <div class="logo">⚙️ Admin</div>
     <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
-    <p>Panneau d'administration </p>
+    <p>Panneau d'administration — Mot de passe par défaut: admin123</p>
     <div class="form-group">
       <label class="form-label">Mot de passe</label>
       <input class="form-input" id="admin-pwd" type="password" placeholder="••••••••">
@@ -2290,6 +2290,12 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
       </button>
       <button class="admin-btn admin-btn-ghost admin-btn-sm" onclick="closeAdmin()">✕ Fermer</button>
     </div>
+  </div>
+  <!-- SYNC STATUS BAR -->
+  <div id="sync-topbar-status" style="display:none;align-items:center;gap:8px;padding:5px 20px;background:rgba(201,168,76,.04);border-bottom:1px solid rgba(201,168,76,.06);font-size:11px;color:var(--muted);flex-shrink:0">
+    <span id="sync-status-dot-top" style="width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+    <span id="sync-status-txt-top">Sync désactivé</span>
+    <span style="margin-left:auto">Dernier sync: <span id="sync-last-time-top">—</span></span>
   </div>
   <div class="admin-body">
     <div class="admin-sidebar">
@@ -3184,6 +3190,8 @@ Action: Immediate restocking required.</textarea></div>
       <!-- SETTINGS -->
       <div class="admin-section" id="admin-settings">
         <div class="admin-section-title">Paramètres</div>
+        <!-- SYNC ADMIN PANEL -->
+        <div id="sync-admin-panel"></div>
         <div style="max-width:500px">
           <div style="margin-bottom:14px"><label class="admin-label">Nom boutique (FR)</label><input class="admin-input" id="store-name-fr"></div>
           <div style="margin-bottom:14px"><label class="admin-label">Nom boutique (EN)</label><input class="admin-input" id="store-name-en"></div>
@@ -3688,11 +3696,11 @@ Action: Immediate restocking required.</textarea></div>
         <p data-i18n="footer_desc">Boutique de luxe à Douala, Cameroun. Parfums, cosmétiques, mode — livrés via WhatsApp.</p>
         <div class="footer-social" style="display:flex;gap:10px;margin-top:16px">
           <!-- Instagram -->
-          <a class="social-link" href="https://instagram.com/lempreinte.demil" target="_blank" rel="noopener" title="Instagram" id="footer-instagram">
+          <a class="social-link" href="https://instagram.com" target="_blank" rel="noopener" title="Instagram" id="footer-instagram">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           </a>
           <!-- TikTok -->
-          <a class="social-link" href="https://tiktok.com/@lempreinte_demil" target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
+          <a class="social-link" href="https://tiktok.com" target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.16 8.16 0 004.77 1.52V6.77a4.85 4.85 0 01-1-.08z"/></svg>
           </a>
           <!-- WhatsApp -->
@@ -3700,7 +3708,7 @@ Action: Immediate restocking required.</textarea></div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.12 1.527 5.852L0 24l6.338-1.504A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.808 9.808 0 01-5.007-1.371l-.358-.214-3.765.893.945-3.671-.234-.375A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182c5.421 0 9.818 4.398 9.818 9.818 0 5.421-4.397 9.818-9.818 9.818z"/></svg>
           </a>
           <!-- Facebook -->
-          <a class="social-link" href="https://facebook.com/profile.php?id=61572098811025" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
+          <a class="social-link" href="https://facebook.com" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
         </div>
@@ -3729,7 +3737,7 @@ Action: Immediate restocking required.</textarea></div>
       </div>
     </div>
     <div class="footer-bottom">
-      <p>© 2026 L'Empreinte D'Emil — Douala, Cameroun</p>
+      <p>© 2025 L'Empreinte D'Emil — Douala, Cameroun</p>
       <p style="color:var(--gold);font-family:var(--font-display);font-style:italic" id="footer-slogan">Signez votre passage, imposez votre style</p>
     </div>
   </div>
@@ -3878,9 +3886,418 @@ Action: Immediate restocking required.</textarea></div>
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
 
+
+
 // ============================================================
 // DATA STORE
 // ============================================================
+
+// ╔══════════════════════════════════════════════════════════════╗
+// ║         SYNC LAYER — Multi-device shared database           ║
+// ║         JSONBin.io (free) + localStorage cache              ║
+// ╚══════════════════════════════════════════════════════════════╝
+
+// ── CONFIGURATION ────────────────────────────────────────────
+// JSONBin.io setup — admin sets these in Settings panel
+// After creating account at jsonbin.io, fill in:
+const SYNC_CONFIG = {
+  enabled:   false,                           // set to true after configuring
+  binId:     '',                              // your JSONBin BIN ID
+  apiKey:    '',                              // your JSONBin API key ($2a$...)
+  autoSync:  30,                              // seconds between auto-sync
+};
+
+// Load from localStorage so admin can configure without code changes
+function loadSyncConfig() {
+  try {
+    const raw = localStorage.getItem('lemil_syncConfig');
+    const saved = raw ? JSON.parse(raw) : {};
+    SYNC_CONFIG.enabled  = saved.enabled  || false;
+    SYNC_CONFIG.binId    = saved.binId    || '';
+    SYNC_CONFIG.apiKey   = saved.apiKey   || '';
+    SYNC_CONFIG.autoSync = saved.autoSync || 30;
+  } catch(e) { /* use defaults */ }
+}
+loadSyncConfig(); // Safe: only uses localStorage directly, no other deps
+
+// Keys that MUST be shared across all devices (admin-managed data)
+const SHARED_KEYS = [
+  'categories','products','settings','colors','reviews',
+  'deliveryFees','deliveryRules','quartiers',
+  'pillars','whyItems','lookProducts','aboutTagline',
+  'promos','quizQuestions','bundleRelations',
+  'loyaltyRules','loyaltyCustomers',
+  'showcasePhotos','countdowns','orderStatuses','statusLabels',
+  'faqItems','giftSettings',
+  'stockNotifConfig','stockNotifications',
+  'pendingReviews','emilConvs','emilConfig',
+  'videoLibrary','orders',
+  // FT (feature toggles)
+  'ft_'
+];
+
+// Keys that stay LOCAL (per-device)
+const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
+
+function isSharedKey(k) {
+  if (LOCAL_ONLY_KEYS.includes(k)) return false;
+  return SHARED_KEYS.some(sk => k.startsWith(sk));
+}
+
+// ── JSONBIN API ───────────────────────────────────────────────
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+
+async function syncRead() {
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) return null;
+  try {
+    const res = await fetch(`${JSONBIN_BASE}/b/${SYNC_CONFIG.binId}/latest`, {
+      headers: { 'X-Master-Key': SYNC_CONFIG.apiKey, 'X-Bin-Meta': 'false' }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch(e) {
+    console.warn('[Sync] Read failed:', e.message);
+    return null;
+  }
+}
+
+async function syncWrite(data) {
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) return false;
+  try {
+    const res = await fetch(`${JSONBIN_BASE}/b/${SYNC_CONFIG.binId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': SYNC_CONFIG.apiKey,
+        'X-Bin-Meta': 'false'
+      },
+      body: JSON.stringify(data)
+    });
+    return res.ok;
+  } catch(e) {
+    console.warn('[Sync] Write failed:', e.message);
+    return false;
+  }
+}
+
+// ── LOCAL CACHE ───────────────────────────────────────────────
+const PREFIX = 'lemil_';
+
+function cacheGet(k, def) {
+  try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
+}
+
+function cacheSet(k, v) {
+  try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
+}
+
+// ── REMOTE DATA STORE ─────────────────────────────────────────
+// Build the full remote object from all shared localStorage keys
+function buildRemotePayload() {
+  const payload = { _v: Date.now() };
+  SHARED_KEYS.forEach(k => {
+    if (k === 'ft_') {
+      // Collect all FT keys
+      const ft = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(PREFIX + 'ft_')) {
+          const ftKey = key.slice(PREFIX.length);
+          try { ft[ftKey] = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+        }
+      }
+      payload['ft_'] = ft;
+    } else {
+      const v = cacheGet(k, undefined);
+      if (v !== undefined) payload[k] = v;
+    }
+  });
+  return payload;
+}
+
+// ── RELOAD ALL VARIABLES FROM CACHE ──────────────────────────
+function reloadAllFromCache() {
+  try { categories       = cacheGet('categories',    DEFAULT_CATS); } catch(e){}
+  try { products         = cacheGet('products',      DEFAULT_PRODUCTS); } catch(e){}
+  try { settings         = cacheGet('settings',      DEFAULT_SETTINGS); } catch(e){}
+  try { reviews          = cacheGet('reviews',       DEFAULT_REVIEWS); } catch(e){}
+  try { orders           = cacheGet('orders',        []); } catch(e){}
+  try { deliveryFees     = cacheGet('deliveryFees',  DEFAULT_DELIVERY_FEES); } catch(e){}
+  try { deliveryRules    = cacheGet('deliveryRules', DEFAULT_DELIVERY_RULES); } catch(e){}
+  try { pillars          = cacheGet('pillars',       DEFAULT_PILLARS); } catch(e){}
+  try { whyItems         = cacheGet('whyItems',      DEFAULT_WHY_ITEMS); } catch(e){}
+  try { lookProducts     = cacheGet('lookProducts',  DEFAULT_LOOK); } catch(e){}
+  try { aboutTagline     = cacheGet('aboutTagline',  DEFAULT_ABOUT_TAGLINE); } catch(e){}
+  try { promos           = cacheGet('promos',        []); } catch(e){}
+  try { quizQuestions    = cacheGet('quizQuestions', quizQuestions); } catch(e){}
+  try { bundleRelations  = cacheGet('bundleRelations', []); } catch(e){}
+  try { loyaltyRules     = cacheGet('loyaltyRules',  loyaltyRules); } catch(e){}
+  try { loyaltyCustomers = cacheGet('loyaltyCustomers', {}); } catch(e){}
+  try { showcasePhotos   = cacheGet('showcasePhotos', []); } catch(e){}
+  try { countdowns       = cacheGet('countdowns',    []); } catch(e){}
+  try { orderStatuses    = cacheGet('orderStatuses', {}); } catch(e){}
+  try { statusLabels     = cacheGet('statusLabels',  DEFAULT_STATUS_LABELS); } catch(e){}
+  try { faqItems         = cacheGet('faqItems',      faqItems); } catch(e){}
+  try { giftSettings     = cacheGet('giftSettings',  giftSettings); } catch(e){}
+  try { pendingReviews   = cacheGet('pendingReviews', []); } catch(e){}
+  try { emilConvs        = cacheGet('emilConvs',     []); } catch(e){}
+  try { emilConfig       = cacheGet('emilConfig',    {featuredIds:[],welcomeFR:'',welcomeEN:''}); } catch(e){}
+  try { videoLibrary     = cacheGet('videoLibrary',  []); } catch(e){}
+  try { stockNotifConfig = cacheGet('stockNotifConfig', stockNotifConfig); } catch(e){}
+  try { applySavedColors(); } catch(e){}
+}
+
+
+
+// Apply remote payload to localStorage cache
+function applyRemotePayload(data) {
+  if (!data || typeof data !== 'object') return;
+  Object.entries(data).forEach(([k, v]) => {
+    if (k === '_v') return;
+    if (k === 'ft_' && typeof v === 'object') {
+      // Restore all FT keys
+      Object.entries(v).forEach(([ftKey, ftVal]) => {
+        cacheSet(ftKey, ftVal);
+      });
+    } else if (!LOCAL_ONLY_KEYS.includes(k)) {
+      cacheSet(k, v);
+    }
+  });
+}
+
+// ── SYNC STATUS UI ────────────────────────────────────────────
+function setSyncStatus(state) {
+  const map = {
+    ok:       { color:'var(--success)', label:'Synchronisé' },
+    syncing:  { color:'#E67E22',        label:'Sync...' },
+    offline:  { color:'var(--danger)',  label:'Hors ligne' },
+    disabled: { color:'var(--muted)',   label:'Sync désactivé' },
+  };
+  const s = map[state] || map.disabled;
+  // Update panel dots
+  ['sync-status-dot','sync-status-dot-top'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.background = s.color;
+  });
+  ['sync-status-txt','sync-status-txt-top'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = s.label;
+  });
+  // Update last time for both
+  const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if (state === 'ok') {
+    ['sync-last-time','sync-last-time-top'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = now;
+    });
+  }
+}
+
+// ── PUSH (local → remote): called after every admin save ─────
+let syncPushDebounce = null;
+async function syncPush() {
+  if (!SYNC_CONFIG.enabled) return;
+  clearTimeout(syncPushDebounce);
+  syncPushDebounce = setTimeout(async () => {
+    setSyncStatus('syncing');
+    const payload = buildRemotePayload();
+    const ok = await syncWrite(payload);
+    setSyncStatus(ok ? 'ok' : 'offline');
+    if (ok) {
+      const timeEl = document.getElementById('sync-last-time');
+      if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    }
+  }, 500); // debounce 500ms
+}
+
+// ── FORCE PUSH (Envoyer données button) ──────────────────────
+async function forceSyncPush() {
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) {
+    showToast("Activez la sync et configurez BIN ID + cle API", "⚠️");
+    return;
+  }
+  setSyncStatus('syncing');
+  showToast("Envoi des données...", "⬆");
+  var payload = buildRemotePayload();
+  var ok = await syncWrite(payload);
+  setSyncStatus(ok ? 'ok' : 'offline');
+  showToast(ok ? "Données envoyées ✅" : "Échec envoi ❌", ok ? "🌐" : "❌");
+}
+
+
+
+// ── PULL (remote → local → re-render): called on page load ───
+let lastPullTimestamp = 0;
+async function syncPull(silent) {
+  if (!SYNC_CONFIG.enabled) { setSyncStatus('disabled'); return; }
+  if (!silent) setSyncStatus('syncing');
+  const remote = await syncRead();
+  if (!remote) { setSyncStatus('offline'); return; }
+
+  // Only apply if remote is newer than our last pull
+  if (remote._v && remote._v <= lastPullTimestamp) { setSyncStatus('ok'); return; }
+  lastPullTimestamp = remote._v || Date.now();
+
+  applyRemotePayload(remote);
+  reloadAllFromCache();
+  setSyncStatus('ok');
+
+  // Reload variables from fresh cache (mirrors what init() does)
+  categories    = cacheGet('categories', DEFAULT_CATS);
+  products      = cacheGet('products', DEFAULT_PRODUCTS);
+  settings      = cacheGet('settings', DEFAULT_SETTINGS);
+  reviews       = cacheGet('reviews', DEFAULT_REVIEWS);
+  orders        = cacheGet('orders', []);
+  deliveryFees  = cacheGet('deliveryFees', DEFAULT_DELIVERY_FEES);
+  deliveryRules = cacheGet('deliveryRules', DEFAULT_DELIVERY_RULES);
+  pillars       = cacheGet('pillars', DEFAULT_PILLARS);
+  whyItems      = cacheGet('whyItems', DEFAULT_WHY_ITEMS);
+  lookProducts  = cacheGet('lookProducts', DEFAULT_LOOK);
+  aboutTagline  = cacheGet('aboutTagline', DEFAULT_ABOUT_TAGLINE);
+  promos        = cacheGet('promos', []);
+  quizQuestions = cacheGet('quizQuestions', quizQuestions);
+  bundleRelations = cacheGet('bundleRelations', []);
+  loyaltyRules    = cacheGet('loyaltyRules', loyaltyRules);
+  loyaltyCustomers= cacheGet('loyaltyCustomers', {});
+  showcasePhotos  = cacheGet('showcasePhotos', []);
+  countdowns      = cacheGet('countdowns', []);
+  orderStatuses   = cacheGet('orderStatuses', {});
+  statusLabels    = cacheGet('statusLabels', DEFAULT_STATUS_LABELS);
+  faqItems        = cacheGet('faqItems', faqItems);
+  giftSettings    = cacheGet('giftSettings', giftSettings);
+  pendingReviews  = cacheGet('pendingReviews', []);
+  emilConvs       = cacheGet('emilConvs', []);
+  emilConfig      = cacheGet('emilConfig', { featuredIds:[], welcomeFR:'', welcomeEN:'' });
+  videoLibrary    = cacheGet('videoLibrary', []);
+  stockNotifConfig= cacheGet('stockNotifConfig', stockNotifConfig);
+  applySavedColors();
+
+  if (!silent) renderAll();
+  else {
+    // Silent: re-render only if currently on home page
+    if (currentPage === 'home') renderAll();
+  }
+
+  const timeEl = document.getElementById('sync-last-time');
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+// ── AUTO-SYNC ─────────────────────────────────────────────────
+let autoSyncInterval = null;
+function startAutoSync() {
+  clearInterval(autoSyncInterval);
+  if (!SYNC_CONFIG.enabled) return;
+  autoSyncInterval = setInterval(() => syncPull(true), SYNC_CONFIG.autoSync * 1000);
+}
+
+// ── DB.set and FT.set are patched inside installSyncPatches()
+// which is called from initNewFeatures() AFTER DB and FT are defined
+// DO NOT add top-level DB.set.bind here — DB doesn't exist yet at this point
+
+// ── ADMIN SYNC PANEL (rendered in Settings section) ───────────
+function renderSyncAdmin() {
+  const el = document.getElementById('sync-admin-panel'); if (!el) return;
+  const cfg = SYNC_CONFIG;
+  el.innerHTML = `
+    <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Multi-Appareils</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        Partagez vos données (produits, catégories, paramètres) entre tous vos appareils en temps réel.<br>
+        Utilisez <strong style="color:var(--light)">JSONBin.io</strong> (gratuit) — créez un compte sur <a href="https://jsonbin.io" target="_blank" style="color:var(--gold)">jsonbin.io</a>, créez un bin, copiez l'ID et la clé API ci-dessous.
+      </p>
+
+      <div class="feature-toggle-row" style="margin-bottom:14px">
+        <div class="feature-toggle-info"><h4>Activer la synchronisation</h4><p>Les modifications admin seront visibles sur tous les appareils</p></div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="sync-enabled-chk" ${cfg.enabled?'checked':''} onchange="toggleSync(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <label class="admin-label">BIN ID (ex: 6851abc...)</label>
+          <input class="admin-input" id="sync-bin-id" value="${cfg.binId}" placeholder="64abc123def456...">
+        </div>
+        <div>
+          <label class="admin-label">API Key ($2a$10$...)</label>
+          <input class="admin-input" id="sync-api-key" value="${cfg.apiKey}" placeholder="$2a$10$..." type="password">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label class="admin-label">Intervalle de sync automatique (secondes)</label>
+        <input class="admin-input" id="sync-interval" value="${cfg.autoSync}" type="number" min="10" max="300" style="width:100px">
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="admin-btn" onclick="saveSyncConfig()">💾 Enregistrer configuration</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Récupérer données</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Envoyer données</button>
+        <button class="admin-btn admin-btn-ghost" onclick="testSyncConnection()">🔌 Tester connexion</button>
+      </div>
+
+      <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="sync-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+        <span id="sync-status-txt" style="font-size:12px;color:var(--muted)">Non configuré</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto">Dernier sync: <span id="sync-last-time">—</span></span>
+      </div>
+    </div>
+
+    <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;padding:16px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Guide de configuration rapide</div>
+      <ol style="font-size:12px;color:var(--muted);line-height:2;padding-left:18px">
+        <li>Créez un compte gratuit sur <a href="https://jsonbin.io" target="_blank" style="color:var(--gold)">jsonbin.io</a></li>
+        <li>Cliquez <strong style="color:var(--light)">Create Bin</strong> → collez <code style="color:var(--gold)">{}</code> → Save</li>
+        <li>Copiez le <strong style="color:var(--light)">BIN ID</strong> depuis l'URL (ex: <code>64abc123...</code>)</li>
+        <li>Allez dans <strong style="color:var(--light)">API Keys</strong> → créez une clé → copiez-la</li>
+        <li>Collez les deux ci-dessus → Enregistrer → Activer</li>
+        <li>Cliquez <strong style="color:var(--light)">Envoyer données</strong> pour la première synchronisation</li>
+      </ol>
+    </div>
+  `;
+
+  // Init status
+  if (cfg.enabled && cfg.binId && cfg.apiKey) setSyncStatus('ok');
+  else setSyncStatus('disabled');
+}
+
+function saveSyncConfig() {
+  SYNC_CONFIG.binId    = document.getElementById('sync-bin-id')?.value?.trim() || '';
+  SYNC_CONFIG.apiKey   = document.getElementById('sync-api-key')?.value?.trim() || '';
+  SYNC_CONFIG.autoSync = parseInt(document.getElementById('sync-interval')?.value) || 30;
+  try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
+  startAutoSync();
+  showToast('Configuration sync enregistrée !');
+  renderSyncAdmin();
+}
+
+function toggleSync(enabled) {
+  SYNC_CONFIG.enabled = enabled;
+  try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
+  if (enabled) {
+    startAutoSync();
+    setSyncStatus('ok');
+    showToast('Synchronisation activée ✅');
+  } else {
+    clearInterval(autoSyncInterval);
+    setSyncStatus('disabled');
+    showToast('Synchronisation désactivée');
+  }
+}
+
+async function testSyncConnection() {
+  if (!SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) {
+    showToast('Entrez d\'abord le BIN ID et la clé API', '⚠️'); return;
+  }
+  setSyncStatus('syncing');
+  showToast('Test de connexion...', '🔌');
+  const data = await syncRead();
+  if (data) {
+    setSyncStatus('ok');
+    showToast('Connexion réussie ! ✅', '🌐');
+  } else {
+    setSyncStatus('offline');
+    showToast('Échec de connexion — vérifiez le BIN ID et la clé API', '❌');
+  }
+}
+
 const DB = {
   get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
   set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
@@ -4998,11 +5415,7 @@ function doSearch() { const q=document.getElementById('search-input').value.trim
 // ============================================================
 // ADMIN
 // ============================================================
-function openAdmin() {
-  if (!adminLoggedIn) { document.getElementById('admin-login').style.display='flex'; }
-  else showAdminPanel();
-}
-
+// openAdmin: secured version defined below (always requires password)
 // loginAdmin replaced with session-secured version above
 
 document.getElementById('admin-pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') loginAdmin(); });
@@ -5506,27 +5919,27 @@ const DEFAULT_REVIEWS = [
   { id:'rev1', name:'Amina B.', productId:'p1', stars:5,
     textFR:"Absolument magnifique ! Le parfum Oud Royal est envoûtant, il tient toute la journée. Je recommande vivement !",
     textEN:"Absolutely magnificent! The Royal Oud perfume is enchanting, it lasts all day. Highly recommend!",
-    date:'2026-03-15', verified:true },
+    date:'2025-03-15', verified:true },
   { id:'rev2', name:'Christelle M.', productId:'p5', stars:5,
     textFR:"Ces talons sont d'une élégance rare. Le cuir est de qualité supérieure et le confort est au rendez-vous. Parfait pour mes soirées !",
     textEN:"These heels are of rare elegance. The leather is top quality and comfort is there. Perfect for my evenings!",
-    date:'2026-03-10', verified:true },
+    date:'2025-03-10', verified:true },
   { id:'rev3', name:'Sandra F.', productId:'p7', stars:5,
     textFR:"Le pack beauté complète est incroyable ! Tout est de haute qualité, du fond de teint au parfum. Je suis une cliente fidèle maintenant.",
     textEN:"The complete beauty pack is incredible! Everything is high quality, from foundation to perfume. I'm a loyal customer now.",
-    date:'2026-02-28', verified:true },
+    date:'2025-02-28', verified:true },
   { id:'rev4', name:'Kevin D.', productId:'', stars:5,
     textFR:"Service impeccable, livraison rapide à Douala. L'équipe est très professionnelle et les produits sont exactement comme sur les photos.",
     textEN:"Impeccable service, fast delivery in Douala. The team is very professional and the products are exactly as in the photos.",
-    date:'2026-02-20', verified:false },
+    date:'2025-02-20', verified:false },
   { id:'rev5', name:'Pauline N.', productId:'p3', stars:5,
     textFR:"Le pack prestige parfums est un vrai bijou ! Mes amies me demandent d'où vient mon parfum à chaque fois. Merci L'Empreinte D'Emil !",
     textEN:"The prestige perfumes pack is a real gem! My friends always ask where my perfume is from. Thank you L'Empreinte D'Emil!",
-    date:'2026-02-14', verified:true },
+    date:'2025-02-14', verified:true },
   { id:'rev6', name:'Ibrahim T.', productId:'p6', stars:4,
     textFR:"La casquette dorée est vraiment stylée ! La qualité est au rendez-vous. Livraison en 24h comme promis. 4 étoiles car j'aurais aimé plus de coloris.",
     textEN:"The golden cap is really stylish! Quality is there. Delivery in 24h as promised. 4 stars as I wished for more colors.",
-    date:'2026-01-30', verified:true },
+    date:'2025-01-30', verified:true },
 ];
 
 let reviews = DB.get('reviews', DEFAULT_REVIEWS);
@@ -8296,6 +8709,10 @@ showAdminPanel = function() {
   renderEngravingAdmin();
   renderStockNotifAdmin();
   updateNotifBell();
+  renderSyncAdmin();
+  // Show sync topbar
+  const stb = document.getElementById('sync-topbar-status');
+  if (stb) stb.style.display = SYNC_CONFIG.enabled ? 'flex' : 'none';
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -8345,6 +8762,21 @@ renderCart = function() {
 // I. INIT NEW DATA ON PAGE LOAD
 // ════════════════════════════════════════════════════════════════
 // These run after init() via DOMContentLoaded or direct call
+
+function installSyncPatches() {
+  // Called after DB and FT are fully initialized
+  if (typeof DB === 'undefined' || typeof FT === 'undefined') return;
+  const _origDBset = DB.set.bind(DB);
+  DB.set = function(k, v) {
+    _origDBset(k, v);
+    if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
+  };
+  const _origFTset = FT.set.bind(FT);
+  FT.set = function(k, v) {
+    _origFTset(k, v);
+    if (SYNC_CONFIG.enabled) syncPush();
+  };
+}
 function initNewFeatures() {
   stockNotifConfig     = DB.get('stockNotifConfig', stockNotifConfig);
   stockNotifications   = DB.get('stockNotifications', []);
@@ -8353,6 +8785,8 @@ function initNewFeatures() {
   emilConfig = DB.get('emilConfig', { featuredIds:[], welcomeFR:'', welcomeEN:'' });
   updateNotifBell();
   startStockMonitor();
+  // Install sync patches NOW that DB and FT are fully defined
+  installSyncPatches();
   // Apply all FABs after full init
   setTimeout(() => {
     applyAllFeatures();
@@ -10221,7 +10655,7 @@ function openPrivacyModal() {
     'priv-p6': isFR
       ? "L'Empreinte D'Emil — PK12, Douala, Cameroun — disponible via WhatsApp."
       : "L'Empreinte D'Emil — PK12, Douala, Cameroon — available via WhatsApp.",
-    'priv-date': isFR ? 'Dernière mise à jour : Janvier 2026' : 'Last updated: January 2026',
+    'priv-date': isFR ? 'Dernière mise à jour : Janvier 2025' : 'Last updated: January 2025',
   };
   Object.entries(content).forEach(([id, txt]) => {
     const el = document.getElementById(id); if (el) el.textContent = txt;
@@ -10425,7 +10859,15 @@ function init() {
   faqItems = DB.get('faqItems', faqItems);
   giftSettings = DB.get('giftSettings', giftSettings);
   cart = DB.get('cart',[]);
+
+  // Pull remote data on load (async — won't block initial render)
   renderAll();
+
+  // After render, silently sync from remote if configured
+  if (SYNC_CONFIG.enabled && SYNC_CONFIG.binId && SYNC_CONFIG.apiKey) {
+    setTimeout(() => syncPull(true), 800);
+  }
+  startAutoSync();
 }
 
 init();
@@ -10447,6 +10889,7 @@ window.addEventListener('load', function() {
     }
   }, 200);
 });
+
 </script>
 </body>
 </html>
