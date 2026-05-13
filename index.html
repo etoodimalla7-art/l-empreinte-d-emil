@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="L'Empreinte D'Emil — Boutique de luxe à Douala, Cameroun">
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -2094,7 +2097,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
       </div>
 
       <button class="btn-whatsapp" onclick="sendWhatsApp()">
-        <span>💬</span><span data-i18n="send_order">Envoyer la commande sur WhatsApp</span>
+        <span data-i18n="send_order">Envoyer la commande sur WhatsApp</span>
       </button>
     </div>
   </div>
@@ -2113,10 +2116,10 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
         Votre commande a été envoyée sur WhatsApp. N'oubliez pas d'envoyer une capture d'écran pour confirmer.
       </p>
       <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:6px;padding:14px;margin-bottom:20px;font-size:12px;color:var(--gold)">
-        ⚠️ <span id="receipt-screenshot-note">Envoyez une capture d'écran de votre commande WhatsApp au vendeur pour confirmer.</span>
+        <span id="receipt-screenshot-note">Envoyez une capture d'écran de votre commande WhatsApp au vendeur pour confirmer.</span>
       </div>
       <button class="btn-receipt" id="btn-dl-receipt" onclick="downloadReceiptPDF()" style="width:100%;margin-bottom:10px;font-size:13px;padding:14px">
-        📄 <span id="receipt-dl-label">Télécharger mon reçu (PDF)</span>
+         <span id="receipt-dl-label">Télécharger mon reçu (PDF)</span>
       </button>
       <button class="btn-outline" onclick="closeModal('receipt-modal')" style="width:100%;padding:12px;font-size:12px" id="receipt-close-btn">
         Fermer
@@ -2135,7 +2138,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     <div class="order-modal-header">
       <div>
         <div class="order-modal-id" id="odm-id"></div>
-        <div class="order-modal-title">📋 Détail de la commande</div>
+        <div class="order-modal-title">Détail de la commande</div>
       </div>
       <button class="order-modal-close" onclick="closeOrderModal()">✕</button>
     </div>
@@ -2148,7 +2151,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 <div class="cat-edit-modal-overlay" id="cat-edit-modal-overlay">
   <div class="cat-edit-modal">
     <div class="cat-edit-modal-header">
-      <div class="cat-edit-modal-title" id="cat-edit-modal-title">✏️ Modifier la catégorie</div>
+      <div class="cat-edit-modal-title" id="cat-edit-modal-title"> Modifier la catégorie</div>
       <button class="modal-close" onclick="closeCatEditModal()" style="font-size:22px;background:none;border:none;color:var(--muted);cursor:pointer">✕</button>
     </div>
     <div style="padding:24px">
@@ -2249,7 +2252,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 <!-- ADMIN LOGIN -->
 <div class="admin-login" id="admin-login" style="display:none">
   <div class="login-box">
-    <div class="logo">⚙️ Admin</div>
+    <div class="logo"> Admin</div>
     <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
     <p>Panneau d'administration — Mot de passe par défaut: admin123</p>
     <div class="form-group">
@@ -2543,7 +2546,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
         <div style="margin-top:36px">
           <div class="admin-section-title" style="font-size:18px">Numéro WhatsApp</div>
           <div style="display:flex;gap:10px;align-items:flex-end;max-width:400px">
-            <div style="flex:1"><label class="admin-label">Numéro (ex: 237600000000)</label><input class="admin-input" id="wa-number" placeholder="237600000000"></div>
+            <div style="flex:1"><label class="admin-label">Numéro (ex: 237600000000)</label><input class="admin-input" id="wa-number" placeholder="237694092202"></div>
             <button class="admin-btn" onclick="saveWANumber()">💾</button>
           </div>
         </div>
@@ -3696,19 +3699,19 @@ Action: Immediate restocking required.</textarea></div>
         <p data-i18n="footer_desc">Boutique de luxe à Douala, Cameroun. Parfums, cosmétiques, mode — livrés via WhatsApp.</p>
         <div class="footer-social" style="display:flex;gap:10px;margin-top:16px">
           <!-- Instagram -->
-          <a class="social-link" href="https://instagram.com/emil_perfumes" target="_blank" rel="noopener" title="Instagram" id="footer-instagram">
+          <a class="social-link" href="https://instagram.com" target="_blank" rel="noopener" title="Instagram" id="footer-instagram">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           </a>
           <!-- TikTok -->
-          <a class="social-link" href="https://www.tiktok.com/@emil_perfume17" target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
+          <a class="social-link" href="https://tiktok.com" target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.16 8.16 0 004.77 1.52V6.77a4.85 4.85 0 01-1-.08z"/></svg>
           </a>
           <!-- WhatsApp -->
-          <a class="social-link" href="https://wa.me/237694092202" target="_blank" rel="noopener" title="WhatsApp" id="footer-wa-btn" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366">
+          <a class="social-link" href="#" target="_blank" rel="noopener" title="WhatsApp" id="footer-wa-btn" style="background:rgba(37,211,102,.1);border-color:rgba(37,211,102,.3);color:#25D366">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zM12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.12 1.527 5.852L0 24l6.338-1.504A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.808 9.808 0 01-5.007-1.371l-.358-.214-3.765.893.945-3.671-.234-.375A9.818 9.818 0 012.182 12C2.182 6.58 6.58 2.182 12 2.182c5.421 0 9.818 4.398 9.818 9.818 0 5.421-4.397 9.818-9.818 9.818z"/></svg>
           </a>
           <!-- Facebook -->
-          <a class="social-link" href="https://www.facebook.com/profile.php?id=61572098811025" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
+          <a class="social-link" href="https://facebook.com" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
         </div>
@@ -3894,33 +3897,58 @@ Action: Immediate restocking required.</textarea></div>
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║         SYNC LAYER — Multi-device shared database           ║
-// ║         JSONBin.io (free) + localStorage cache              ║
+// ║         Firebase Realtime Database + localStorage cache      ║
 // ╚══════════════════════════════════════════════════════════════╝
 
-// ── CONFIGURATION ────────────────────────────────────────────
-// JSONBin.io setup — admin sets these in Settings panel
-// After creating account at jsonbin.io, fill in:
 const SYNC_CONFIG = {
-  enabled:   false,                           // set to true after configuring
-  binId:     '',                              // your JSONBin BIN ID
-  apiKey:    '',                              // your JSONBin API key ($2a$...)
-  autoSync:  30,                              // seconds between auto-sync
+  enabled: false,
+  apiKey: '',
+  authDomain: '',
+  databaseURL: '',
+  projectId: '',
+  storageBucket: '',
+  messagingSenderId: '',
+  appId: '',
+  autoSync: 30
 };
 
-// Load from localStorage so admin can configure without code changes
 function loadSyncConfig() {
   try {
     const raw = localStorage.getItem('lemil_syncConfig');
     const saved = raw ? JSON.parse(raw) : {};
-    SYNC_CONFIG.enabled  = saved.enabled  || false;
-    SYNC_CONFIG.binId    = saved.binId    || '';
-    SYNC_CONFIG.apiKey   = saved.apiKey   || '';
-    SYNC_CONFIG.autoSync = saved.autoSync || 30;
-  } catch(e) { /* use defaults */ }
+    Object.assign(SYNC_CONFIG, saved);
+  } catch(e) {}
 }
-loadSyncConfig(); // Safe: only uses localStorage directly, no other deps
+loadSyncConfig();
 
-// Keys that MUST be shared across all devices (admin-managed data)
+let firebaseApp = null;
+let firebaseDb = null;
+
+function initFirebase() {
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
+  try {
+    const config = {
+      apiKey: SYNC_CONFIG.apiKey,
+      authDomain: SYNC_CONFIG.authDomain,
+      databaseURL: SYNC_CONFIG.databaseURL,
+      projectId: SYNC_CONFIG.projectId,
+      storageBucket: SYNC_CONFIG.storageBucket,
+      messagingSenderId: SYNC_CONFIG.messagingSenderId,
+      appId: SYNC_CONFIG.appId
+    };
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firebaseDb = firebase.database();
+    return true;
+  } catch (e) {
+    console.error("Firebase Init Error:", e);
+    return false;
+  }
+}
+
 const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
   'deliveryFees','deliveryRules','quartiers',
@@ -3932,11 +3960,9 @@ const SHARED_KEYS = [
   'stockNotifConfig','stockNotifications',
   'pendingReviews','emilConvs','emilConfig',
   'videoLibrary','orders',
-  // FT (feature toggles)
   'ft_'
 ];
 
-// Keys that stay LOCAL (per-device)
 const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
 
 function isSharedKey(k) {
@@ -3944,43 +3970,6 @@ function isSharedKey(k) {
   return SHARED_KEYS.some(sk => k.startsWith(sk));
 }
 
-// ── JSONBIN API ───────────────────────────────────────────────
-const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
-
-async function syncRead() {
-  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) return null;
-  try {
-    const res = await fetch(`${JSONBIN_BASE}/b/${SYNC_CONFIG.binId}/latest`, {
-      headers: { 'X-Master-Key': SYNC_CONFIG.apiKey, 'X-Bin-Meta': 'false' }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return await res.json();
-  } catch(e) {
-    console.warn('[Sync] Read failed:', e.message);
-    return null;
-  }
-}
-
-async function syncWrite(data) {
-  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) return false;
-  try {
-    const res = await fetch(`${JSONBIN_BASE}/b/${SYNC_CONFIG.binId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': SYNC_CONFIG.apiKey,
-        'X-Bin-Meta': 'false'
-      },
-      body: JSON.stringify(data)
-    });
-    return res.ok;
-  } catch(e) {
-    console.warn('[Sync] Write failed:', e.message);
-    return false;
-  }
-}
-
-// ── LOCAL CACHE ───────────────────────────────────────────────
 const PREFIX = 'lemil_';
 
 function cacheGet(k, def) {
@@ -3991,13 +3980,10 @@ function cacheSet(k, v) {
   try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
 }
 
-// ── REMOTE DATA STORE ─────────────────────────────────────────
-// Build the full remote object from all shared localStorage keys
 function buildRemotePayload() {
   const payload = { _v: Date.now() };
   SHARED_KEYS.forEach(k => {
     if (k === 'ft_') {
-      // Collect all FT keys
       const ft = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -4015,47 +4001,11 @@ function buildRemotePayload() {
   return payload;
 }
 
-// ── RELOAD ALL VARIABLES FROM CACHE ──────────────────────────
-function reloadAllFromCache() {
-  try { categories       = cacheGet('categories',    DEFAULT_CATS); } catch(e){}
-  try { products         = cacheGet('products',      DEFAULT_PRODUCTS); } catch(e){}
-  try { settings         = cacheGet('settings',      DEFAULT_SETTINGS); } catch(e){}
-  try { reviews          = cacheGet('reviews',       DEFAULT_REVIEWS); } catch(e){}
-  try { orders           = cacheGet('orders',        []); } catch(e){}
-  try { deliveryFees     = cacheGet('deliveryFees',  DEFAULT_DELIVERY_FEES); } catch(e){}
-  try { deliveryRules    = cacheGet('deliveryRules', DEFAULT_DELIVERY_RULES); } catch(e){}
-  try { pillars          = cacheGet('pillars',       DEFAULT_PILLARS); } catch(e){}
-  try { whyItems         = cacheGet('whyItems',      DEFAULT_WHY_ITEMS); } catch(e){}
-  try { lookProducts     = cacheGet('lookProducts',  DEFAULT_LOOK); } catch(e){}
-  try { aboutTagline     = cacheGet('aboutTagline',  DEFAULT_ABOUT_TAGLINE); } catch(e){}
-  try { promos           = cacheGet('promos',        []); } catch(e){}
-  try { quizQuestions    = cacheGet('quizQuestions', quizQuestions); } catch(e){}
-  try { bundleRelations  = cacheGet('bundleRelations', []); } catch(e){}
-  try { loyaltyRules     = cacheGet('loyaltyRules',  loyaltyRules); } catch(e){}
-  try { loyaltyCustomers = cacheGet('loyaltyCustomers', {}); } catch(e){}
-  try { showcasePhotos   = cacheGet('showcasePhotos', []); } catch(e){}
-  try { countdowns       = cacheGet('countdowns',    []); } catch(e){}
-  try { orderStatuses    = cacheGet('orderStatuses', {}); } catch(e){}
-  try { statusLabels     = cacheGet('statusLabels',  DEFAULT_STATUS_LABELS); } catch(e){}
-  try { faqItems         = cacheGet('faqItems',      faqItems); } catch(e){}
-  try { giftSettings     = cacheGet('giftSettings',  giftSettings); } catch(e){}
-  try { pendingReviews   = cacheGet('pendingReviews', []); } catch(e){}
-  try { emilConvs        = cacheGet('emilConvs',     []); } catch(e){}
-  try { emilConfig       = cacheGet('emilConfig',    {featuredIds:[],welcomeFR:'',welcomeEN:''}); } catch(e){}
-  try { videoLibrary     = cacheGet('videoLibrary',  []); } catch(e){}
-  try { stockNotifConfig = cacheGet('stockNotifConfig', stockNotifConfig); } catch(e){}
-  try { applySavedColors(); } catch(e){}
-}
-
-
-
-// Apply remote payload to localStorage cache
 function applyRemotePayload(data) {
   if (!data || typeof data !== 'object') return;
   Object.entries(data).forEach(([k, v]) => {
     if (k === '_v') return;
     if (k === 'ft_' && typeof v === 'object') {
-      // Restore all FT keys
       Object.entries(v).forEach(([ftKey, ftVal]) => {
         cacheSet(ftKey, ftVal);
       });
@@ -4063,6 +4013,28 @@ function applyRemotePayload(data) {
       cacheSet(k, v);
     }
   });
+}
+
+async function syncWrite(data) {
+  if (!initFirebase()) return false;
+  try {
+    await firebaseDb.ref('storeData').set(data);
+    return true;
+  } catch(e) {
+    console.warn('[Sync] Write failed:', e.message);
+    return false;
+  }
+}
+
+async function syncRead() {
+  if (!initFirebase()) return null;
+  try {
+    const snapshot = await firebaseDb.ref('storeData').once('value');
+    return snapshot.val();
+  } catch(e) {
+    console.warn('[Sync] Read failed:', e.message);
+    return null;
+  }
 }
 
 // ── SYNC STATUS UI ────────────────────────────────────────────
@@ -4197,10 +4169,10 @@ function renderSyncAdmin() {
   const cfg = SYNC_CONFIG;
   el.innerHTML = `
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Multi-Appareils</div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Firebase</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Partagez vos données (produits, catégories, paramètres) entre tous vos appareils en temps réel.<br>
-        Utilisez <strong style="color:var(--light)">JSONBin.io</strong> (gratuit) — créez un compte sur <a href="https://jsonbin.io" target="_blank" style="color:var(--gold)">jsonbin.io</a>, créez un bin, copiez l'ID et la clé API ci-dessous.
+        Utilisez <strong style="color:var(--light)">Firebase Realtime Database</strong> pour synchroniser vos données en temps réel.<br>
+        Créez un projet sur <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--gold)">console.firebase.google.com</a>, activez Realtime Database, et copiez vos clés ci-dessous.
       </p>
 
       <div class="feature-toggle-row" style="margin-bottom:14px">
@@ -4213,12 +4185,20 @@ function renderSyncAdmin() {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div>
-          <label class="admin-label">BIN ID (ex: 6851abc...)</label>
-          <input class="admin-input" id="sync-bin-id" value="${cfg.binId}" placeholder="64abc123def456...">
+          <label class="admin-label">API Key</label>
+          <input class="admin-input" id="fb-api-key" value="${cfg.apiKey}" type="password" placeholder="AIzaSy...">
         </div>
         <div>
-          <label class="admin-label">API Key ($2a$10$...)</label>
-          <input class="admin-input" id="sync-api-key" value="${cfg.apiKey}" placeholder="$2a$10$..." type="password">
+          <label class="admin-label">Database URL</label>
+          <input class="admin-input" id="fb-db-url" value="${cfg.databaseURL}" placeholder="https://project-id.firebaseio.com">
+        </div>
+        <div>
+          <label class="admin-label">Project ID</label>
+          <input class="admin-input" id="fb-project-id" value="${cfg.projectId}" placeholder="project-id-123">
+        </div>
+        <div>
+          <label class="admin-label">App ID</label>
+          <input class="admin-input" id="fb-app-id" value="${cfg.appId}" placeholder="1:123456789:web:abc123">
         </div>
       </div>
       <div style="margin-bottom:14px">
@@ -4241,30 +4221,31 @@ function renderSyncAdmin() {
     </div>
 
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;padding:16px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Guide de configuration rapide</div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Guide Firebase</div>
       <ol style="font-size:12px;color:var(--muted);line-height:2;padding-left:18px">
-        <li>Créez un compte gratuit sur <a href="https://jsonbin.io" target="_blank" style="color:var(--gold)">jsonbin.io</a></li>
-        <li>Cliquez <strong style="color:var(--light)">Create Bin</strong> → collez <code style="color:var(--gold)">{}</code> → Save</li>
-        <li>Copiez le <strong style="color:var(--light)">BIN ID</strong> depuis l'URL (ex: <code>64abc123...</code>)</li>
-        <li>Allez dans <strong style="color:var(--light)">API Keys</strong> → créez une clé → copiez-la</li>
-        <li>Collez les deux ci-dessus → Enregistrer → Activer</li>
-        <li>Cliquez <strong style="color:var(--light)">Envoyer données</strong> pour la première synchronisation</li>
+        <li>Créez un projet sur <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--gold)">Firebase Console</a></li>
+        <li>Allez dans <strong style="color:var(--light)">Build > Realtime Database</strong> > Create Database</li>
+        <li>Dans l'onglet <strong style="color:var(--light)">Rules</strong>, réglez sur public pour tester: <code>{".read":true, ".write":true}</code></li>
+        <li>Allez dans <strong style="color:var(--light)">Project Settings</strong> pour trouver l'API Key, Project ID et App ID</li>
+        <li>Collez les infos ci-dessus > Enregistrer > Activer</li>
       </ol>
     </div>
   `;
 
-  // Init status
-  if (cfg.enabled && cfg.binId && cfg.apiKey) setSyncStatus('ok');
+  if (cfg.enabled && cfg.apiKey && cfg.databaseURL) setSyncStatus('ok');
   else setSyncStatus('disabled');
 }
 
 function saveSyncConfig() {
-  SYNC_CONFIG.binId    = document.getElementById('sync-bin-id')?.value?.trim() || '';
-  SYNC_CONFIG.apiKey   = document.getElementById('sync-api-key')?.value?.trim() || '';
-  SYNC_CONFIG.autoSync = parseInt(document.getElementById('sync-interval')?.value) || 30;
+  SYNC_CONFIG.apiKey      = document.getElementById('fb-api-key')?.value?.trim() || '';
+  SYNC_CONFIG.databaseURL = document.getElementById('fb-db-url')?.value?.trim() || '';
+  SYNC_CONFIG.projectId   = document.getElementById('fb-project-id')?.value?.trim() || '';
+  SYNC_CONFIG.appId       = document.getElementById('fb-app-id')?.value?.trim() || '';
+  SYNC_CONFIG.autoSync    = parseInt(document.getElementById('sync-interval')?.value) || 30;
   try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
+  initFirebase();
   startAutoSync();
-  showToast('Configuration sync enregistrée !');
+  showToast('Configuration Firebase enregistrée !');
   renderSyncAdmin();
 }
 
@@ -4272,6 +4253,7 @@ function toggleSync(enabled) {
   SYNC_CONFIG.enabled = enabled;
   try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
   if (enabled) {
+    initFirebase();
     startAutoSync();
     setSyncStatus('ok');
     showToast('Synchronisation activée ✅');
@@ -4283,18 +4265,18 @@ function toggleSync(enabled) {
 }
 
 async function testSyncConnection() {
-  if (!SYNC_CONFIG.binId || !SYNC_CONFIG.apiKey) {
-    showToast('Entrez d\'abord le BIN ID et la clé API', '⚠️'); return;
+  if (!SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) {
+    showToast('Entrez d\'abord les informations Firebase', '⚠️'); return;
   }
   setSyncStatus('syncing');
   showToast('Test de connexion...', '🔌');
   const data = await syncRead();
-  if (data) {
+  if (data !== null) {
     setSyncStatus('ok');
-    showToast('Connexion réussie ! ✅', '🌐');
+    showToast('Connexion Firebase réussie ! ✅', '🌐');
   } else {
     setSyncStatus('offline');
-    showToast('Échec de connexion — vérifiez le BIN ID et la clé API', '❌');
+    showToast('Échec de connexion — vérifiez votre configuration Firebase', '❌');
   }
 }
 
@@ -4360,7 +4342,7 @@ const DEFAULT_DELIVERY_RULES = [
 const DEFAULT_SETTINGS = {
   storeFR:"L'Empreinte D'Emil", storeEN:"L'Empreinte D'Emil",
   sloganFR:"Signez votre passage, imposez votre style", sloganEN:"Make your mark, define your style",
-  address:"Douala, Cameroun", email:"lemprentedemil.contact@gmail.com", waNumber:"237694092202",
+  address:"Douala, Cameroun", email:"contact@lemil.cm", waNumber:"237694092202",
   bannerTitleFR:"Imposez votre style", bannerTitleEN:"Define your style",
 };
 
@@ -10864,7 +10846,7 @@ function init() {
   renderAll();
 
   // After render, silently sync from remote if configured
-  if (SYNC_CONFIG.enabled && SYNC_CONFIG.binId && SYNC_CONFIG.apiKey) {
+  if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
     setTimeout(() => syncPull(true), 800);
   }
   startAutoSync();
