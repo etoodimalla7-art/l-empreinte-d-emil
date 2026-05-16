@@ -1891,24 +1891,6 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
-  
-  /* Sauvegarde du design pour L'Empreinte d'Emil */
-.product-card img, 
-.product-image, 
-img[src*="firebasestorage"],
-img[src^="data:image"] {
-    width: 100% !important;
-    height: 220px !important; /* Ajustez cette hauteur selon votre ancien design */
-    object-fit: cover !important; /* Empêche l'image d'être écrasée ou déformée */
-    max-width: 100% !important;
-}
-
-/* Si vos produits sont dans une grille */
-.products-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
-    gap: 20px !important;
-}
 </style>
 </head>
 <body>
@@ -3919,15 +3901,15 @@ Action: Immediate restocking required.</textarea></div>
 // ╚══════════════════════════════════════════════════════════════╝
 
 const SYNC_CONFIG = {
-  enabled: true,
-  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
-  authDomain: 'lempreinte-d-emil.firebaseapp.com',
-  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'lempreinte-d-emil',
-  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
-  messagingSenderId: '979069264735',
-  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
-  autoSync: 30
+  enabled: true,
+  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
+  authDomain: 'lempreinte-d-emil.firebaseapp.com',
+  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'lempreinte-d-emil',
+  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
+  messagingSenderId: '979069264735',
+  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
+  autoSync: 30
 };
 
 function loadSyncConfig() { /* Hardcoded */ }
@@ -3937,253 +3919,268 @@ let firebaseDb = null;
 let isSyncInitialized = false;
 
 function initFirebase() {
-  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
-  if (isSyncInitialized) return true;
-  try {
-    const config = {
-      apiKey: SYNC_CONFIG.apiKey,
-      authDomain: SYNC_CONFIG.authDomain,
-      databaseURL: SYNC_CONFIG.databaseURL,
-      projectId: SYNC_CONFIG.projectId,
-      storageBucket: SYNC_CONFIG.storageBucket,
-      messagingSenderId: SYNC_CONFIG.messagingSenderId,
-      appId: SYNC_CONFIG.appId
-    };
-    if (!firebase.apps.length) {
-      firebaseApp = firebase.initializeApp(config);
-    } else {
-      firebaseApp = firebase.app();
-    }
-    firebaseDb = firebase.database();
-    
-    // Écoute des modifications par morceaux séparés
-    firebaseDb.ref('storeData_split').on('value', (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        syncPull(true, data);
-      }
-    });
-    
-    isSyncInitialized = true;
-    return true;
-  } catch (e) {
-    console.error("Firebase Init Error:", e);
-    return false;
-  }
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
+  if (isSyncInitialized) return true;
+  try {
+    const config = {
+      apiKey: SYNC_CONFIG.apiKey,
+      authDomain: SYNC_CONFIG.authDomain,
+      databaseURL: SYNC_CONFIG.databaseURL,
+      projectId: SYNC_CONFIG.projectId,
+      storageBucket: SYNC_CONFIG.storageBucket,
+      messagingSenderId: SYNC_CONFIG.messagingSenderId,
+      appId: SYNC_CONFIG.appId
+    };
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firebaseDb = firebase.database();
+    
+    // Live Stream Listener
+    firebaseDb.ref('storeData').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        syncPull(true, data);
+      }
+    });
+    
+    isSyncInitialized = true;
+    return true;
+  } catch (e) {
+    console.error("Firebase Init Error:", e);
+    return false;
+  }
 }
 
 const SHARED_KEYS = [
-  'categories','products','settings','colors','reviews',
-  'deliveryFees','deliveryRules','quartiers',
-  'pillars','whyItems','lookProducts','aboutTagline',
-  'promos','quizQuestions','bundleRelations',
-  'loyaltyRules','loyaltyCustomers',
-  'showcasePhotos','countdowns','orderStatuses','statusLabels',
-  'faqItems','giftSettings',
-  'stockNotifConfig','stockNotifications',
-  'pendingReviews','emilConvs','emilConfig',
-  'videoLibrary','orders',
-  'ft_'
+  'categories','products','settings','colors','reviews',
+  'deliveryFees','deliveryRules','quartiers',
+  'pillars','whyItems','lookProducts','aboutTagline',
+  'promos','quizQuestions','bundleRelations',
+  'loyaltyRules','loyaltyCustomers',
+  'showcasePhotos','countdowns','orderStatuses','statusLabels',
+  'faqItems','giftSettings',
+  'stockNotifConfig','stockNotifications',
+  'pendingReviews','emilConvs','emilConfig',
+  'videoLibrary','orders',
+  'ft_'
 ];
 
 const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
 
+function isSharedKey(k) {
+  if (LOCAL_ONLY_KEYS.includes(k)) return false;
+  return SHARED_KEYS.some(sk => k.startsWith(sk));
+}
+
 const PREFIX = 'lemil_';
 
 function cacheGet(k, def) {
-  try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
+  try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
 }
 
 function cacheSet(k, v) {
-  try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
+  try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
 }
 
 function buildRemotePayload() {
-  const payload = { _v: Date.now() };
-  SHARED_KEYS.forEach(k => {
-    if (k === 'ft_') {
-      const ft = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(PREFIX + 'ft_')) {
-          const ftKey = key.slice(PREFIX.length);
-          try { ft[ftKey] = JSON.parse(localStorage.getItem(key)); } catch(e) {}
-        }
-      }
-      payload['ft_'] = ft;
-    } else {
-      const v = cacheGet(k, undefined);
-      if (v !== undefined) payload[k] = v;
-    }
-  });
-  return payload;
+  const payload = { _v: Date.now() };
+  SHARED_KEYS.forEach(k => {
+    if (k === 'ft_') {
+      const ft = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(PREFIX + 'ft_')) {
+          const ftKey = key.slice(PREFIX.length);
+          try { ft[ftKey] = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+        }
+      }
+      payload['ft_'] = ft;
+    } else {
+      const v = cacheGet(k, undefined);
+      if (v !== undefined) payload[k] = v;
+    }
+  });
+  return payload;
 }
 
 function applyRemotePayload(data) {
-  if (!data || typeof data !== 'object') return;
-  Object.entries(data).forEach(([k, v]) => {
-    if (k === '_v') return;
-    if (k === 'ft_' && typeof v === 'object') {
-      Object.entries(v).forEach(([ftKey, ftVal]) => {
-        cacheSet(ftKey, ftVal);
-      });
-    } else if (!LOCAL_ONLY_KEYS.includes(k)) {
-      cacheSet(k, v);
-    }
-  });
+  if (!data || typeof data !== 'object') return;
+  Object.entries(data).forEach(([k, v]) => {
+    if (k === '_v') return;
+    if (k === 'ft_' && typeof v === 'object') {
+      Object.entries(v).forEach(([ftKey, ftVal]) => {
+        cacheSet(ftKey, ftVal);
+      });
+    } else if (!LOCAL_ONLY_KEYS.includes(k)) {
+      cacheSet(k, v);
+    }
+  });
 }
 
-// SAUVEGARDE PIÈCE PAR PIÈCE POUR ÉVITER LES BLOCAGES DE TAILLE
 async function syncWrite(data) {
-  if (!initFirebase()) return false;
-  try {
-    const rootRef = firebaseDb.ref('storeData_split');
-    
-    // Étape 1 : On met à jour la version globale
-    await rootRef.child('_v').set(data._v || Date.now());
-    
-    // Étape 2 : On envoie chaque clé de façon indépendante
-    for (const key of SHARED_KEYS) {
-      if (data[key] !== undefined) {
-        // Si c'est le gros catalogue de produits, on prend soin de l'envoyer dans son propre sous-nœud
-        await rootRef.child(key).set(data[key]);
-      }
-    }
-    return true;
-  } catch(e) {
-    console.warn('[Sync] Échec de la sauvegarde découpée:', e.message);
-    return false;
-  }
+  if (!initFirebase()) return false;
+  try {
+    await firebaseDb.ref('storeData').set(data);
+    return true;
+  } catch(e) {
+    console.warn('[Sync] Write failed:', e.message);
+    return false;
+  }
 }
 
 async function syncRead() {
-  if (!initFirebase()) return null;
-  try {
-    const snapshot = await firebaseDb.ref('storeData_split').once('value');
-    return snapshot.val();
-  } catch(e) {
-    console.warn('[Sync] Read failed:', e.message);
-    return null;
-  }
+  if (!initFirebase()) return null;
+  try {
+    const snapshot = await firebaseDb.ref('storeData').once('value');
+    return snapshot.val();
+  } catch(e) {
+    console.warn('[Sync] Read failed:', e.message);
+    return null;
+  }
 }
 
 function setSyncStatus(state) {
-  const map = {
-    ok:       { color:'var(--success)', label:'Synchronisé' },
-    syncing:  { color:'#E67E22',        label:'Sync...' },
-    offline:  { color:'var(--danger)',  label:'Hors ligne' },
-    disabled: { color:'var(--muted)',   label:'Sync désactivé' },
-  };
-  const s = map[state] || map.disabled;
-  ['sync-status-dot','sync-status-dot-top'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.style.background = s.color;
-  });
-  ['sync-status-txt','sync-status-txt-top'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.textContent = s.label;
-  });
-  const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  if (state === 'ok') {
-    ['sync-last-time','sync-last-time-top'].forEach(id => {
-      const el = document.getElementById(id); if (el) el.style.display = 'inline'; if (el) el.textContent = now;
-    });
-  }
+  const map = {
+    ok:       { color:'var(--success)', label:'Synchronisé' },
+    syncing:  { color:'#E67E22',        label:'Sync...' },
+    offline:  { color:'var(--danger)',  label:'Hors ligne' },
+    disabled: { color:'var(--muted)',   label:'Sync désactivé' },
+  };
+  const s = map[state] || map.disabled;
+  ['sync-status-dot','sync-status-dot-top'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.background = s.color;
+  });
+  ['sync-status-txt','sync-status-txt-top'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = s.label;
+  });
+  const now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if (state === 'ok') {
+    ['sync-last-time','sync-last-time-top'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = now;
+    });
+  }
 }
 
 let syncPushDebounce = null;
 async function syncPush() {
-  if (!SYNC_CONFIG.enabled) return;
-  clearTimeout(syncPushDebounce);
-  syncPushDebounce = setTimeout(async () => {
-    setSyncStatus('syncing');
-    const payload = buildRemotePayload();
-    const ok = await syncWrite(payload);
-    setSyncStatus(ok ? 'ok' : 'offline');
-  }, 500);
+  if (!SYNC_CONFIG.enabled) return;
+  clearTimeout(syncPushDebounce);
+  syncPushDebounce = setTimeout(async () => {
+    setSyncStatus('syncing');
+    const payload = buildRemotePayload();
+    const ok = await syncWrite(payload);
+    setSyncStatus(ok ? 'ok' : 'offline');
+  }, 500);
 }
 
 async function forceSyncPush() {
-  if (!SYNC_CONFIG.enabled) {
-    if (typeof showToast === 'function') showToast("Activez la sync", "⚠️");
-    return;
-  }
-  setSyncStatus('syncing');
-  if (typeof showToast === 'function') showToast("Fluidification et envoi des données...", "⬆");
-  var payload = buildRemotePayload();
-  var ok = await syncWrite(payload);
-  setSyncStatus(ok ? 'ok' : 'offline');
-  if (typeof showToast === 'function') showToast(ok ? "Boutique synchronisée avec succès ! ✅" : "Erreur d'envoi ❌", ok ? "🌐" : "❌");
+  if (!SYNC_CONFIG.enabled) {
+    showToast("Activez la sync", "⚠️");
+    return;
+  }
+  setSyncStatus('syncing');
+  showToast("Envoi des données...", "⬆");
+  var payload = buildRemotePayload();
+  var ok = await syncWrite(payload);
+  setSyncStatus(ok ? 'ok' : 'offline');
+  showToast(ok ? "Données envoyées ✅" : "Échec envoi ❌", ok ? "🌐" : "❌");
 }
 
 let lastPullTimestamp = 0;
 async function syncPull(silent, remoteData) {
-  if (!SYNC_CONFIG.enabled) { setSyncStatus('disabled'); return; }
-  if (!silent) setSyncStatus('syncing');
-  
-  const remote = remoteData || await syncRead();
-  if (!remote) { setSyncStatus('offline'); return; }
+  if (!SYNC_CONFIG.enabled) { setSyncStatus('disabled'); return; }
+  if (!silent) setSyncStatus('syncing');
+  
+  const remote = remoteData || await syncRead();
+  if (!remote) { setSyncStatus('offline'); return; }
 
-  if (remote._v && remote._v <= lastPullTimestamp) { setSyncStatus('ok'); return; }
-  lastPullTimestamp = remote._v || Date.now();
+  if (remote._v && remote._v <= lastPullTimestamp) { setSyncStatus('ok'); return; }
+  lastPullTimestamp = remote._v || Date.now();
 
-  applyRemotePayload(remote);
-  if (typeof reloadAllFromCache === 'function') reloadAllFromCache();
-  
-  // Assignations dynamiques sécurisées
-  categories    = cacheGet('categories', typeof DEFAULT_CATS !== 'undefined' ? DEFAULT_CATS : []);
-  products      = cacheGet('products', typeof DEFAULT_PRODUCTS !== 'undefined' ? DEFAULT_PRODUCTS : []);
-  settings      = cacheGet('settings', typeof DEFAULT_SETTINGS !== 'undefined' ? DEFAULT_SETTINGS : {});
-  reviews       = cacheGet('reviews', typeof DEFAULT_REVIEWS !== 'undefined' ? DEFAULT_REVIEWS : []);
-  orders        = cacheGet('orders', []);
-  deliveryFees  = cacheGet('deliveryFees', typeof DEFAULT_DELIVERY_FEES !== 'undefined' ? DEFAULT_DELIVERY_FEES : {});
-  deliveryRules = cacheGet('deliveryRules', typeof DEFAULT_DELIVERY_RULES !== 'undefined' ? DEFAULT_DELIVERY_RULES : {});
-  pillars       = cacheGet('pillars', typeof DEFAULT_PILLARS !== 'undefined' ? DEFAULT_PILLARS : []);
-  whyItems      = cacheGet('whyItems', typeof DEFAULT_WHY_ITEMS !== 'undefined' ? DEFAULT_WHY_ITEMS : []);
-  lookProducts  = cacheGet('lookProducts', typeof DEFAULT_LOOK !== 'undefined' ? DEFAULT_LOOK : []);
-  aboutTagline  = cacheGet('aboutTagline', typeof DEFAULT_ABOUT_TAGLINE !== 'undefined' ? DEFAULT_ABOUT_TAGLINE : '');
-  promos        = cacheGet('promos', []);
-  
-  if (typeof applySavedColors === 'function') applySavedColors();
-  setSyncStatus('ok');
+  applyRemotePayload(remote);
+  if (typeof reloadAllFromCache === 'function') reloadAllFromCache();
+  
+  categories    = cacheGet('categories', DEFAULT_CATS);
+  products      = cacheGet('products', DEFAULT_PRODUCTS);
+  settings      = cacheGet('settings', DEFAULT_SETTINGS);
+  reviews       = cacheGet('reviews', DEFAULT_REVIEWS);
+  orders        = cacheGet('orders', []);
+  deliveryFees  = cacheGet('deliveryFees', DEFAULT_DELIVERY_FEES);
+  deliveryRules = cacheGet('deliveryRules', DEFAULT_DELIVERY_RULES);
+  pillars       = cacheGet('pillars', DEFAULT_PILLARS);
+  whyItems      = cacheGet('whyItems', DEFAULT_WHY_ITEMS);
+  lookProducts  = cacheGet('lookProducts', DEFAULT_LOOK);
+  aboutTagline  = cacheGet('aboutTagline', DEFAULT_ABOUT_TAGLINE);
+  promos        = cacheGet('promos', []);
+  quizQuestions = cacheGet('quizQuestions', quizQuestions);
+  bundleRelations = cacheGet('bundleRelations', []);
+  loyaltyRules    = cacheGet('loyaltyRules', loyaltyRules);
+  loyaltyCustomers= cacheGet('loyaltyCustomers', {});
+  showcasePhotos  = cacheGet('showcasePhotos', []);
+  countdowns      = cacheGet('countdowns', []);
+  orderStatuses   = cacheGet('orderStatuses', {});
+  statusLabels    = cacheGet('statusLabels', DEFAULT_STATUS_LABELS);
+  faqItems        = cacheGet('faqItems', faqItems);
+  giftSettings    = cacheGet('giftSettings', giftSettings);
+  pendingReviews  = cacheGet('pendingReviews', []);
+  emilConvs       = cacheGet('emilConvs', []);
+  emilConfig      = cacheGet('emilConfig', { featuredIds:[], welcomeFR:'', welcomeEN:'' });
+  videoLibrary    = cacheGet('videoLibrary', []);
+  stockNotifConfig= cacheGet('stockNotifConfig', stockNotifConfig);
+  
+  if (typeof applySavedColors === 'function') applySavedColors();
+  setSyncStatus('ok');
 
-  if (typeof renderAll === 'function') {
-    if (!silent || (typeof currentPage !== 'undefined' && currentPage === 'home')) renderAll();
-  }
+  if (typeof renderAll === 'function') {
+    if (!silent || currentPage === 'home') renderAll();
+  }
 
-  const timeEl = document.getElementById('sync-last-time');
-  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const timeEl = document.getElementById('sync-last-time');
+  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 function startAutoSync() {
-  initFirebase(); 
+  initFirebase(); 
 }
 
 function renderSyncAdmin() {
-  const el = document.getElementById('sync-admin-panel'); if (!el) return;
-  el.innerHTML = `
-    <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation par Morceaux Active</div>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Vos catégories, produits et paramètres sont maintenant enregistrés de manière indépendante pour offrir une flexibilité maximale.
-      </p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
-        <button class="admin-btn admin-btn-ghost" onclick="forceSyncPush()">⬆ Forcer la Synchronisation</button>
-      </div>
-      <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span id="sync-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-        <span id="sync-status-txt" style="font-size:12px;color:var(--muted)">Connecté</span>
-        <span style="font-size:11px;color:var(--muted);margin-left:auto">Dernière sync: <span id="sync-last-time">—</span></span>
-      </div>
-    </div>
-  `;
-  setSyncStatus('ok');
+  const el = document.getElementById('sync-admin-panel'); if (!el) return;
+  el.innerHTML = `
+    <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Temps Réel</div>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+        La synchronisation est maintenant <strong>directe et en temps réel</strong> via Firebase.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Forcer Envoi</button>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="sync-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
+        <span id="sync-status-txt" style="font-size:12px;color:var(--muted)">Connecté</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto">Dernier sync: <span id="sync-last-time">—</span></span>
+      </div>
+    </div>
+  `;
+  setSyncStatus('ok');
+}
+
+function saveSyncConfig() { showToast('Configuration fixe (Hardcoded)'); }
+function toggleSync(enabled) { showToast('Sync toujours active'); }
+async function testSyncConnection() { 
+  showToast('Test de connexion...', '🔌');
+  const ok = await initFirebase();
+  showToast(ok ? 'Firebase Connecté !' : 'Erreur Firebase');
 }
 
 const DB = {
-  get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
+  get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
+  set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
 };
-
+  
 // ============================================================
 // DEFAULTS
 // ============================================================
