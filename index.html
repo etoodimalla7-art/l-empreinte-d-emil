@@ -1891,6 +1891,24 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
+  
+  /* Sauvegarde du design pour L'Empreinte d'Emil */
+.product-card img, 
+.product-image, 
+img[src*="firebasestorage"],
+img[src^="data:image"] {
+    width: 100% !important;
+    height: 220px !important; /* Ajustez cette hauteur selon votre ancien design */
+    object-fit: cover !important; /* Empêche l'image d'être écrasée ou déformée */
+    max-width: 100% !important;
+}
+
+/* Si vos produits sont dans une grille */
+.products-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 20px !important;
+}
 </style>
 </head>
 <body>
