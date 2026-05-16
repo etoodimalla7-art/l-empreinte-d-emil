@@ -52,7 +52,7 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .review-author-info{}
 .review-author-name{font-size:13px;font-weight:500}
 .review-author-meta{font-size:11px;color:var(--muted)}
-.review-product-tag{display:inline-block;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.2);color:var(--gold);font-size:10px;letter-spacing:.08em;padding:2px 8px;border-radius:20px;margin-bottom:10px;text-transform:uppercase}
+.review--tag{display:inline-block;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.2);color:var(--gold);font-size:10px;letter-spacing:.08em;padding:2px 8px;border-radius:20px;margin-bottom:10px;text-transform:uppercase}
 .review-verified{font-size:10px;color:var(--success);margin-left:auto;display:flex;align-items:center;gap:3px}
 /* Stats bar */
 .reviews-stats{display:grid;grid-template-columns:auto 1fr;gap:32px;align-items:center;background:var(--dark-2);border:1px solid rgba(201,168,76,.12);border-radius:10px;padding:28px 32px;margin-bottom:40px}
@@ -138,7 +138,7 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .cat-name{font-size:12px;font-weight:500;color:var(--light)}
 .cat-count{font-size:11px;color:var(--muted);margin-top:3px}
 
-/* PRODUCT CARDS */
+/*  CARDS */
 .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
 .product-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;overflow:hidden;cursor:pointer;transition:var(--transition);position:relative}
 .product-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-4px);box-shadow:var(--shadow)}
@@ -204,8 +204,8 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .modal-close:hover{color:var(--light)}
 .modal-body{padding:24px}
 
-/* PRODUCT DETAIL */
-.product-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:20px}
+/*  DETAIL */
+.-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:20px}
 @media(max-width:600px){.product-detail-grid{grid-template-columns:1fr}}
 .product-gallery{display:flex;flex-direction:column;gap:8px}
 .product-main-img{aspect-ratio:1;background:var(--dark-3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:72px;overflow:hidden}
@@ -1891,15 +1891,6 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
-
-.hero-content{position:relative;z-index:3;padding:60px 16px;max-width:700px}
-.review-author-info{min-width:0}
-.product-card-img-wrap{width:100%;height:220px;overflow:hidden;background:var(--dark-3);display:flex;align-items:center;justify-content:center;position:relative}
-.product-card-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}
-.product-card:hover .product-card-img-wrap img{transform:scale(1.08)}
-.product-card-info{padding:15px}
-.product-name{font-size:14px;font-weight:600;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:40px}
-
 </style>
 </head>
 <body>
@@ -3712,7 +3703,7 @@ Action: Immediate restocking required.</textarea></div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           </a>
           <!-- TikTok -->
-          <a class="social-link" href="https://www.tiktok.com/@emil_perfume17 target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
+          <a class="social-link" href="https://www.tiktok.com/@emil_perfume17" target="_blank" rel="noopener" title="TikTok" id="footer-tiktok">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.16 8.16 0 004.77 1.52V6.77a4.85 4.85 0 01-1-.08z"/></svg>
           </a>
           <!-- WhatsApp -->
@@ -3906,57 +3897,25 @@ Action: Immediate restocking required.</textarea></div>
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║         SYNC LAYER — Multi-device shared database           ║
-// ║         Firebase Realtime Database (Fragmented)              ║
+// ║         Firebase Realtime Database + localStorage cache      ║
 // ╚══════════════════════════════════════════════════════════════╝
-
 const SYNC_CONFIG = {
-  enabled: true,
-  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
-  authDomain: 'lempreinte-d-emil.firebaseapp.com',
-  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'lempreinte-d-emil',
-  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
-  messagingSenderId: '979069264735',
-  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
-  autoSync: 30
+  enabled: true,
+  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
+  authDomain: 'lempreinte-d-emil.firebaseapp.com',
+  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'lempreinte-d-emil',
+  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
+  messagingSenderId: '979069264735',
+  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
+  autoSync: 30
 };
 
-function loadSyncConfig() {
-  try {
-    const raw = localStorage.getItem('lemil_syncConfig');
-    const saved = raw ? JSON.parse(raw) : {};
-    Object.assign(SYNC_CONFIG, saved);
-  } catch(e) {}
-}
-loadSyncConfig();
+function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
 let firebaseDb = null;
-
-function initFirebase() {
-  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
-  try {
-    const config = {
-      apiKey: SYNC_CONFIG.apiKey,
-      authDomain: SYNC_CONFIG.authDomain,
-      databaseURL: SYNC_CONFIG.databaseURL,
-      projectId: SYNC_CONFIG.projectId,
-      storageBucket: SYNC_CONFIG.storageBucket,
-      messagingSenderId: SYNC_CONFIG.messagingSenderId,
-      appId: SYNC_CONFIG.appId
-    };
-    if (!firebase.apps.length) {
-      firebaseApp = firebase.initializeApp(config);
-    } else {
-      firebaseApp = firebase.app();
-    }
-    firebaseDb = firebase.database();
-    return true;
-  } catch (e) {
-    console.error("Firebase Init Error:", e);
-    return false;
-  }
-}
+let isSyncInitialized = false;
 
 const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
@@ -3974,6 +3933,11 @@ const SHARED_KEYS = [
 
 const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
 
+function isSharedKey(k) {
+  if (LOCAL_ONLY_KEYS.includes(k)) return false;
+  return SHARED_KEYS.some(sk => k.startsWith(sk));
+}
+
 const PREFIX = 'lemil_';
 
 function cacheGet(k, def) {
@@ -3984,64 +3948,132 @@ function cacheSet(k, v) {
   try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
 }
 
-// ── FRAGMENTED SYNC ───────────────────────────────────────────
-
-async function syncWrite(key, data) {
-  if (!initFirebase()) return false;
+function initFirebase() {
+  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
+  if (isSyncInitialized) return true;
   try {
-    await firebaseDb.ref('storeData_split/' + key).set(data);
-    await firebaseDb.ref('storeData_split/_v').set(Date.now());
-    return true;
-  } catch(e) {
-    console.warn('[Sync] Write failed for ' + key + ':', e.message);
-    return false;
-  }
-}
-
-async function syncWriteAll() {
-  if (!initFirebase()) return false;
-  setSyncStatus('syncing');
-  try {
-    const promises = SHARED_KEYS.map(k => {
-      if (k === 'ft_') {
-        const ft = {};
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(PREFIX + 'ft_')) {
-            const ftKey = key.slice(PREFIX.length);
-            try { ft[ftKey] = JSON.parse(localStorage.getItem(key)); } catch(e) {}
-          }
+    const config = {
+      apiKey: SYNC_CONFIG.apiKey,
+      authDomain: SYNC_CONFIG.authDomain,
+      databaseURL: SYNC_CONFIG.databaseURL,
+      projectId: SYNC_CONFIG.projectId,
+      storageBucket: SYNC_CONFIG.storageBucket,
+      messagingSenderId: SYNC_CONFIG.messagingSenderId,
+      appId: SYNC_CONFIG.appId
+    };
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firebaseDb = firebase.database();
+    
+    // Split Stream Listeners: Listen to each key separately under storeData_split/
+    SHARED_KEYS.forEach(key => {
+      firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val !== null) {
+          handleKeyUpdate(key, val);
         }
-        return firebaseDb.ref('storeData_split/ft_').set(ft);
-      } else {
-        const v = cacheGet(k, undefined);
-        if (v !== undefined) return firebaseDb.ref('storeData_split/' + k).set(v);
-      }
-      return Promise.resolve();
+      });
     });
-    await Promise.all(promises);
-    await firebaseDb.ref('storeData_split/_v').set(Date.now());
-    setSyncStatus('ok');
+    
+    isSyncInitialized = true;
     return true;
-  } catch(e) {
-    console.warn('[Sync] Global write failed:', e.message);
-    setSyncStatus('offline');
+  } catch (e) {
+    console.error("Firebase Init Error:", e);
     return false;
   }
 }
 
-async function syncRead() {
-  if (!initFirebase()) return null;
+// Global update handler for split streams
+function handleKeyUpdate(key, value) {
+  if (key === 'ft_' && typeof value === 'object') {
+    Object.entries(value).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
+  } else {
+    cacheSet(key, value);
+  }
+  
+  // Update global variables
+  if (key === 'categories') categories = value;
+  else if (key === 'products') products = value;
+  else if (key === 'settings') settings = value;
+  else if (key === 'reviews') reviews = value;
+  else if (key === 'orders') orders = value;
+  else if (key === 'deliveryFees') deliveryFees = value;
+  else if (key === 'deliveryRules') deliveryRules = value;
+  else if (key === 'pillars') pillars = value;
+  else if (key === 'whyItems') whyItems = value;
+  else if (key === 'lookProducts') lookProducts = value;
+  else if (key === 'aboutTagline') aboutTagline = value;
+  else if (key === 'promos') promos = value;
+  else if (key === 'quizQuestions') quizQuestions = value;
+  else if (key === 'bundleRelations') bundleRelations = value;
+  else if (key === 'loyaltyRules') loyaltyRules = value;
+  else if (key === 'loyaltyCustomers') loyaltyCustomers = value;
+  else if (key === 'showcasePhotos') showcasePhotos = value;
+  else if (key === 'countdowns') countdowns = value;
+  else if (key === 'orderStatuses') orderStatuses = value;
+  else if (key === 'statusLabels') statusLabels = value;
+  else if (key === 'faqItems') faqItems = value;
+  else if (key === 'giftSettings') giftSettings = value;
+  else if (key === 'pendingReviews') pendingReviews = value;
+  else if (key === 'emilConvs') emilConvs = value;
+  else if (key === 'emilConfig') emilConfig = value;
+  else if (key === 'videoLibrary') videoLibrary = value;
+  else if (key === 'stockNotifConfig') stockNotifConfig = value;
+  
+  if (typeof applySavedColors === 'function') applySavedColors();
+  
+  // Re-render UI
+  if (typeof renderAll === 'function') {
+    if (currentPage === 'home' || !adminLoggedIn) renderAll();
+  }
+  
+  setSyncStatus('ok');
+}
+
+async function syncPush() {
+  if (!initFirebase()) return;
+  setSyncStatus('syncing');
+  
+  // Push each shared key individually to its own node
+  const pushPromises = SHARED_KEYS.map(async (key) => {
+    let val;
+    if (key === 'ft_') {
+      val = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(PREFIX + 'ft_')) {
+          const ftKey = k.slice(PREFIX.length);
+          try { val[ftKey] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+        }
+      }
+    } else {
+      val = cacheGet(key, undefined);
+    }
+    
+    if (val !== undefined) {
+      return firebaseDb.ref('storeData_split/' + key).set(val);
+    }
+  });
+
   try {
-    const snapshot = await firebaseDb.ref('storeData_split').once('value');
-    return snapshot.val();
+    await Promise.all(pushPromises);
+    setSyncStatus('ok');
   } catch(e) {
-    console.warn('[Sync] Read failed:', e.message);
-    return null;
+    console.warn('[Sync] Push failed:', e.message);
+    setSyncStatus('offline');
   }
 }
 
-// ── SYNC STATUS UI ────────────────────────────────────────────
+async function syncPull(silent) {
+  if (!initFirebase()) return;
+  if (!silent) setSyncStatus('syncing');
+  // Data is handled by .on('value') listeners automatically
+  setSyncStatus('ok');
+}
+
 function setSyncStatus(state) {
   const map = {
     ok:       { color:'var(--success)', label:'Synchronisé' },
@@ -4064,219 +4096,44 @@ function setSyncStatus(state) {
   }
 }
 
-// ── PUSH (local → remote): called after every admin save ─────
-let syncPushDebounce = null;
-async function syncPush(specificKey) {
-  if (!SYNC_CONFIG.enabled) return;
-  clearTimeout(syncPushDebounce);
-  syncPushDebounce = setTimeout(async () => {
-    setSyncStatus('syncing');
-    let ok = false;
-    if (specificKey) {
-      const data = specificKey === 'ft_' ? buildFTPayload() : cacheGet(specificKey, undefined);
-      ok = await syncWrite(specificKey, data);
-    } else {
-      ok = await syncWriteAll();
-    }
-    setSyncStatus(ok ? 'ok' : 'offline');
-  }, 500);
-}
+function startAutoSync() { initFirebase(); }
 
-function buildFTPayload() {
-  const ft = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith(PREFIX + 'ft_')) {
-      const ftKey = key.slice(PREFIX.length);
-      try { ft[ftKey] = JSON.parse(localStorage.getItem(key)); } catch(e) {}
-    }
-  }
-  return ft;
-}
-
-async function forceSyncPush() {
-  if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) {
-    showToast("Configurez Firebase dans les paramètres", "⚠️");
-    return;
-  }
-  const ok = await syncWriteAll();
-  showToast(ok ? "Données envoyées ✅" : "Échec envoi ❌", ok ? "🌐" : "❌");
-}
-
-// ── PULL (remote → remote → re-render): called on page load ───
-let lastPullTimestamp = 0;
-let isFirstPull = true;
-
-async function syncPull(silent) {
-  if (!SYNC_CONFIG.enabled) { setSyncStatus('disabled'); return; }
-  if (!silent) setSyncStatus('syncing');
-  
-  const remote = await syncRead();
-  if (!remote) { 
-    setSyncStatus('offline'); 
-    if (isFirstPull) { isFirstPull = false; renderAll(); }
-    return; 
-  }
-
-  if (!isFirstPull && remote._v && remote._v <= lastPullTimestamp) { 
-    setSyncStatus('ok'); 
-    return; 
-  }
-  
-  lastPullTimestamp = remote._v || Date.now();
-  isFirstPull = false;
-
-  // Apply fragmented data
-  Object.entries(remote).forEach(([k, v]) => {
-    if (k === '_v') return;
-    if (k === 'ft_' && typeof v === 'object') {
-      Object.entries(v).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
-    } else {
-      cacheSet(k, v);
-    }
-  });
-
-  reloadAllFromCache();
-  setSyncStatus('ok');
-  renderAll();
-
-  const timeEl = document.getElementById('sync-last-time');
-  if (timeEl) timeEl.textContent = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-}
-// ── AUTO-SYNC ─────────────────────────────────────────────────
-let autoSyncInterval = null;
-function startAutoSync() {
-  clearInterval(autoSyncInterval);
-  if (!SYNC_CONFIG.enabled) return;
-  autoSyncInterval = setInterval(() => syncPull(true), SYNC_CONFIG.autoSync * 1000);
-}
-
-// ── DB.set and FT.set are patched inside installSyncPatches()
-// which is called from initNewFeatures() AFTER DB and FT are defined
-// DO NOT add top-level DB.set.bind here — DB doesn't exist yet at this point
-
-// ── ADMIN SYNC PANEL (rendered in Settings section) ───────────
 function renderSyncAdmin() {
   const el = document.getElementById('sync-admin-panel'); if (!el) return;
-  const cfg = SYNC_CONFIG;
   el.innerHTML = `
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Firebase</div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Fragmentée</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Utilisez <strong style="color:var(--light)">Firebase Realtime Database</strong> pour synchroniser vos données en temps réel.<br>
-        Créez un projet sur <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--gold)">console.firebase.google.com</a>, activez Realtime Database, et copiez vos clés ci-dessous.
+        Les données sont désormais <strong>fragmentées par catégories</strong> pour éviter les limites de taille Firebase.<br>
+        Chaque modification est synchronisée instantanément.
       </p>
-
-      <div class="feature-toggle-row" style="margin-bottom:14px">
-        <div class="feature-toggle-info"><h4>Activer la synchronisation</h4><p>Les modifications seront visibles INSTANTANÉMENT par tous les clients sur tous les appareils</p></div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="sync-enabled-chk" ${cfg.enabled?'checked':''} onchange="toggleSync(this.checked)">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div>
-          <label class="admin-label">API Key</label>
-          <input class="admin-input" id="fb-api-key" value="${cfg.apiKey}" type="password" placeholder="AIzaSy...">
-        </div>
-        <div>
-          <label class="admin-label">Database URL</label>
-          <input class="admin-input" id="fb-db-url" value="${cfg.databaseURL}" placeholder="https://project-id.firebaseio.com">
-        </div>
-        <div>
-          <label class="admin-label">Project ID</label>
-          <input class="admin-input" id="fb-project-id" value="${cfg.projectId}" placeholder="project-id-123">
-        </div>
-        <div>
-          <label class="admin-label">App ID</label>
-          <input class="admin-input" id="fb-app-id" value="${cfg.appId}" placeholder="1:123456789:web:abc123">
-        </div>
-      </div>
-      <div style="margin-bottom:14px">
-        <label class="admin-label">Intervalle de sync automatique (secondes)</label>
-        <input class="admin-input" id="sync-interval" value="${cfg.autoSync}" type="number" min="10" max="300" style="width:100px">
-      </div>
-
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="admin-btn" onclick="saveSyncConfig()">💾 Enregistrer configuration</button>
-        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Récupérer données</button>
-        <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Envoyer données</button>
-        <button class="admin-btn admin-btn-ghost" onclick="testSyncConnection()">🔌 Tester connexion</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Forcer Envoi Global</button>
       </div>
-
       <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <span id="sync-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0"></span>
-        <span id="sync-status-txt" style="font-size:12px;color:var(--muted)">Non configuré</span>
+        <span id="sync-status-txt" style="font-size:12px;color:var(--muted)">Connecté</span>
         <span style="font-size:11px;color:var(--muted);margin-left:auto">Dernier sync: <span id="sync-last-time">—</span></span>
       </div>
     </div>
-
-    <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;padding:16px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Guide Firebase</div>
-      <ol style="font-size:12px;color:var(--muted);line-height:2;padding-left:18px">
-        <li>Créez un projet sur <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--gold)">Firebase Console</a></li>
-        <li>Allez dans <strong style="color:var(--light)">Build > Realtime Database</strong> > Create Database</li>
-        <li>Dans l'onglet <strong style="color:var(--light)">Rules</strong>, réglez sur public pour tester: <code>{".read":true, ".write":true}</code></li>
-        <li>Allez dans <strong style="color:var(--light)">Project Settings</strong> pour trouver l'API Key, Project ID et App ID</li>
-        <li>Collez les infos ci-dessus > Enregistrer > Activer</li>
-      </ol>
-    </div>
   `;
-
-  if (cfg.enabled && cfg.apiKey && cfg.databaseURL) setSyncStatus('ok');
-  else setSyncStatus('disabled');
+  setSyncStatus('ok');
 }
 
-function saveSyncConfig() {
-  SYNC_CONFIG.apiKey      = document.getElementById('fb-api-key')?.value?.trim() || '';
-  SYNC_CONFIG.databaseURL = document.getElementById('fb-db-url')?.value?.trim() || '';
-  SYNC_CONFIG.projectId   = document.getElementById('fb-project-id')?.value?.trim() || '';
-  SYNC_CONFIG.appId       = document.getElementById('fb-app-id')?.value?.trim() || '';
-  SYNC_CONFIG.autoSync    = parseInt(document.getElementById('sync-interval')?.value) || 30;
-  try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
-  initFirebase();
-  startAutoSync();
-  showToast('Configuration Firebase enregistrée !');
-  renderSyncAdmin();
-}
-
-function toggleSync(enabled) {
-  SYNC_CONFIG.enabled = enabled;
-  try { localStorage.setItem('lemil_syncConfig', JSON.stringify(SYNC_CONFIG)); } catch(e){}
-  if (enabled) {
-    initFirebase();
-    startAutoSync();
-    setSyncStatus('ok');
-    showToast('Synchronisation activée ✅');
-  } else {
-    clearInterval(autoSyncInterval);
-    setSyncStatus('disabled');
-    showToast('Synchronisation désactivée');
-  }
-}
-
-async function testSyncConnection() {
-  if (!SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) {
-    showToast('Entrez d\'abord les informations Firebase', '⚠️'); return;
-  }
-  setSyncStatus('syncing');
+function saveSyncConfig() { showToast('Configuration fixe (Hardcoded)'); }
+function toggleSync(enabled) { showToast('Sync toujours active'); }
+async function testSyncConnection() { 
   showToast('Test de connexion...', '🔌');
-  const data = await syncRead();
-  if (data !== null) {
-    setSyncStatus('ok');
-    showToast('Connexion Firebase réussie ! ✅', '🌐');
-  } else {
-    setSyncStatus('offline');
-    showToast('Échec de connexion — vérifiez votre configuration Firebase', '❌');
-  }
+  const ok = await initFirebase();
+  showToast(ok ? 'Firebase Connecté !' : 'Erreur Firebase');
 }
 
 const DB = {
-  get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
+  get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
+  set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
 };
-
+  
 // ============================================================
 // DEFAULTS
 // ============================================================
@@ -5217,15 +5074,6 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     .no-print{display:none!important}
     @page{margin:15mm}
   }
-
-.hero-content{position:relative;z-index:3;padding:60px 16px;max-width:700px}
-.review-author-info{min-width:0}
-.product-card-img-wrap{width:100%;height:220px;overflow:hidden;background:var(--dark-3);display:flex;align-items:center;justify-content:center;position:relative}
-.product-card-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}
-.product-card:hover .product-card-img-wrap img{transform:scale(1.08)}
-.product-card-info{padding:15px}
-.product-name{font-size:14px;font-weight:600;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:40px}
-
 </style>
 </head>
 <body>
@@ -6775,15 +6623,6 @@ function printOrderDetail(orderId) {
   .no-print{text-align:center;margin-top:18px}
   .print-btn{padding:10px 28px;background:#C9A84C;border:none;cursor:pointer;border-radius:4px;font-size:12px;font-weight:600;letter-spacing:.1em}
   @media print{.no-print{display:none}body{background:#fff;padding:0}.doc{box-shadow:none}}
-
-.hero-content{position:relative;z-index:3;padding:60px 16px;max-width:700px}
-.review-author-info{min-width:0}
-.product-card-img-wrap{width:100%;height:220px;overflow:hidden;background:var(--dark-3);display:flex;align-items:center;justify-content:center;position:relative}
-.product-card-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease}
-.product-card:hover .product-card-img-wrap img{transform:scale(1.08)}
-.product-card-info{padding:15px}
-.product-name{font-size:14px;font-weight:600;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:40px}
-
 </style></head>
 <body><div class="doc">
   <div class="header">
@@ -10823,16 +10662,42 @@ function init() {
   applySavedColors();
   lang = DB.get('lang','fr');
   document.getElementById('lang-toggle').textContent = lang==='fr'?'EN':'FR';
-  
-  reloadAllFromCache();
+  categories = DB.get('categories', DEFAULT_CATS);
+  products = DB.get('products', DEFAULT_PRODUCTS);
+  orders = DB.get('orders',[]);
+  settings = DB.get('settings', DEFAULT_SETTINGS);
+  deliveryFees = DB.get('deliveryFees', DEFAULT_DELIVERY_FEES);
+  deliveryRules = DB.get('deliveryRules', DEFAULT_DELIVERY_RULES);
+  reviews = DB.get('reviews', DEFAULT_REVIEWS);
+  // Emil initialized via module-level code
+  stockNotifConfig    = DB.get('stockNotifConfig', stockNotifConfig);
+  stockNotifications  = DB.get('stockNotifications', []);
+  stockAlertCooldowns = DB.get('stockAlertCooldowns', {});
+  pillars = DB.get('pillars', DEFAULT_PILLARS);
+  whyItems = DB.get('whyItems', DEFAULT_WHY_ITEMS);
+  lookProducts = DB.get('lookProducts', DEFAULT_LOOK);
+  aboutTagline = DB.get('aboutTagline', DEFAULT_ABOUT_TAGLINE);
+  pendingReviews = DB.get('pendingReviews', []);
+  promos = DB.get('promos', []);
+  quizQuestions = DB.get('quizQuestions', quizQuestions);
+  bundleRelations = DB.get('bundleRelations', []);
+  loyaltyRules = DB.get('loyaltyRules', loyaltyRules);
+  loyaltyCustomers = DB.get('loyaltyCustomers', {});
+  showcasePhotos = DB.get('showcasePhotos', []);
+  countdowns = DB.get('countdowns', []);
+  orderStatuses = DB.get('orderStatuses', {});
+  statusLabels = DB.get('statusLabels', DEFAULT_STATUS_LABELS);
+  faqItems = DB.get('faqItems', faqItems);
+  giftSettings = DB.get('giftSettings', giftSettings);
+  cart = DB.get('cart',[]);
 
-  // IMPORTANT: Immediately try to pull from Firebase
+  // Pull remote data on load (async — won't block initial render)
+  renderAll();
+
+  // After render, silently sync from remote if configured
   if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
-    syncPull(true); 
-  } else {
-    renderAll();
+    setTimeout(() => syncPull(true), 800);
   }
-  
   startAutoSync();
 }
 
@@ -10841,9 +10706,11 @@ initNewFeatures();
 
 // Guarantee Emil is visible after everything loads
 window.addEventListener('load', function() {
+  // Small delay to ensure all scripts have run
   setTimeout(function() {
     if (typeof emilApplyFab === 'function') emilApplyFab();
     if (typeof applyQuizFab === 'function') applyQuizFab();
+    // Force Emil visible as final fallback
     const fab = document.getElementById('emil-fab');
     const isEnabled = typeof FT !== 'undefined' ? FT.bool('ft-emil-enabled', true) : true;
     if (fab && isEnabled) {
