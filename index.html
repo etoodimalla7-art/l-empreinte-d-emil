@@ -3968,7 +3968,7 @@ function initFirebase() {
     }
     firebaseDb = firebase.database();
     
-    // Split Stream Listeners: Listen to each key separately under storeData_split/
+    // EXCLUSIVE LISTENER: Only storeData_split
     SHARED_KEYS.forEach(key => {
       firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
@@ -3986,15 +3986,15 @@ function initFirebase() {
   }
 }
 
-// Global update handler for split streams
 function handleKeyUpdate(key, value) {
+  // PERSISTANCE: Firebase overwrites LocalStorage
   if (key === 'ft_' && typeof value === 'object') {
     Object.entries(value).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
   } else {
     cacheSet(key, value);
   }
   
-  // Update global variables
+  // Sync global variables
   if (key === 'categories') categories = value;
   else if (key === 'products') products = value;
   else if (key === 'settings') settings = value;
@@ -4025,19 +4025,19 @@ function handleKeyUpdate(key, value) {
   
   if (typeof applySavedColors === 'function') applySavedColors();
   
-  // Re-render UI
-  if (typeof renderAll === 'function') {
+  // Render UI (only if not currently editing to avoid jumping)
+  if (typeof renderAll === 'function' && !editingProductId) {
     if (currentPage === 'home' || !adminLoggedIn) renderAll();
   }
   
   setSyncStatus('ok');
 }
 
+// SÉCURISATION DE L'ÉCRITURE: Return Promise
 async function syncPush() {
-  if (!initFirebase()) return;
+  if (!initFirebase()) return false;
   setSyncStatus('syncing');
   
-  // Push each shared key individually to its own node
   const pushPromises = SHARED_KEYS.map(async (key) => {
     let val;
     if (key === 'ft_') {
@@ -4061,17 +4061,43 @@ async function syncPush() {
   try {
     await Promise.all(pushPromises);
     setSyncStatus('ok');
+    return true;
   } catch(e) {
     console.warn('[Sync] Push failed:', e.message);
     setSyncStatus('offline');
+    return false;
+  }
+}
+
+// Single key push for faster admin updates
+async function syncPushKey(key) {
+  if (!initFirebase()) return false;
+  let val = cacheGet(key, undefined);
+  if (val === undefined) return false;
+  try {
+    await firebaseDb.ref('storeData_split/' + key).set(val);
+    setSyncStatus('ok');
+    return true;
+  } catch(e) {
+    setSyncStatus('offline');
+    return false;
   }
 }
 
 async function syncPull(silent) {
   if (!initFirebase()) return;
   if (!silent) setSyncStatus('syncing');
-  // Data is handled by .on('value') listeners automatically
-  setSyncStatus('ok');
+  // Initial load from Firebase to ensure we are up to date
+  try {
+    const snapshot = await firebaseDb.ref('storeData_split').once('value');
+    const data = snapshot.val();
+    if (data) {
+      Object.entries(data).forEach(([k, v]) => handleKeyUpdate(k, v));
+    }
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('offline');
+  }
 }
 
 function setSyncStatus(state) {
@@ -4102,13 +4128,12 @@ function renderSyncAdmin() {
   const el = document.getElementById('sync-admin-panel'); if (!el) return;
   el.innerHTML = `
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Fragmentée</div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Temps Réel (v2)</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Les données sont désormais <strong>fragmentées par catégories</strong> pour éviter les limites de taille Firebase.<br>
-        Chaque modification est synchronisée instantanément.
+        Structure étanche : <strong>storeData_split</strong>. L'ancien nœud global est ignoré.
       </p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Forcer Récupération</button>
         <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Forcer Envoi Global</button>
       </div>
       <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -5369,7 +5394,7 @@ function toggleBundleSection() {
   document.getElementById('bundle-section').style.display = document.getElementById('p-type').value==='bundle'?'block':'none';
 }
 
-function saveProduct() {
+async function saveProduct() {
   const nameFR = document.getElementById('p-name-fr').value.trim();
   const price = parseInt(document.getElementById('p-price').value)||0;
   if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return; }
@@ -5396,7 +5421,7 @@ function saveProduct() {
     products.unshift({ id:'p'+Date.now(), ...data, imgs: currentImgs.length?currentImgs:[] });
   }
 
-  DB.set('products', products);
+  // ASYNC SECURE WRITE\n  setSyncStatus('syncing');\n  DB.set('products', products);\n  const ok = await syncPushKey('products');\n  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   showToast('Produit enregistré !');
   resetProductForm();
   renderAdminProducts();
@@ -5432,10 +5457,10 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(p=>p.id!==id);
-  DB.set('products', products);
+  // ASYNC SECURE WRITE\n  setSyncStatus('syncing');\n  DB.set('products', products);\n  const ok = await syncPushKey('products');\n  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   renderAdminProducts(); renderAdminDashboard();
   showToast('Produit supprimé','🗑');
 }
@@ -5474,7 +5499,7 @@ function renderAdminCats() {
   }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px">Aucune catégorie</td></tr>';
 }
 
-function addCategory() {
+async function addCategory() {
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
   const cat = {
@@ -5485,7 +5510,7 @@ function addCategory() {
     sloganEN: document.getElementById('cat-slogan-en').value.trim(),
   };
   categories.push(cat);
-  DB.set('categories', categories);
+  // ASYNC SECURE WRITE\n  setSyncStatus('syncing');\n  DB.set('categories', categories);\n  const ok = await syncPushKey('categories');\n  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderAdminCats(); populateProdCatSelect();
   showToast('Catégorie ajoutée !');
@@ -5716,7 +5741,7 @@ function loadAdminSettings() {
   document.getElementById('store-email').value = settings.email||'';
 }
 
-function saveSettings() {
+async function saveSettings() {
   settings.storeFR = document.getElementById('store-name-fr').value;
   settings.storeEN = document.getElementById('store-name-en').value;
   settings.sloganFR = document.getElementById('slogan-fr').value;
@@ -6081,7 +6106,7 @@ let pendingReviews = DB.get('pendingReviews', []);
 let currentReviewTab = 'approved';
 let pubStars = 0;
 
-function savePillars()    { DB.set('pillars', pillars); }
+async function savePillars()    { // ASYNC SECURE WRITE\n  setSyncStatus('syncing');\n  DB.set('pillars', pillars);\n  const ok = await syncPushKey('pillars');\n  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️'); }
 function saveWhyItems()   { DB.set('whyItems', whyItems); }
 function saveLook()       { DB.set('lookProducts', lookProducts); }
 function savePendingRvs() { DB.set('pendingReviews', pendingReviews); }
@@ -7723,14 +7748,14 @@ function updateOrderStatus(orderId, status) {
   showToast('Statut mis à jour !','🚀');
 }
 
-function saveStatusLabels() {
+async function saveStatusLabels() {
   STATUS_ORDER.forEach(s=>{
     statusLabels[s] = {
       fr: document.getElementById(`sl-${s}-fr`)?.value||s,
       en: document.getElementById(`sl-${s}-en`)?.value||s
     };
   });
-  DB.set('statusLabels', statusLabels);
+  // ASYNC SECURE WRITE\n  setSyncStatus('syncing');\n  DB.set('statusLabels', statusLabels);\n  const ok = await syncPushKey('statusLabels');\n  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   showToast('Labels enregistrés !');
 }
 
@@ -8600,12 +8625,12 @@ function installSyncPatches() {
   const _origDBset = DB.set.bind(DB);
   DB.set = function(k, v) {
     _origDBset(k, v);
-    if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
   const _origFTset = FT.set.bind(FT);
   FT.set = function(k, v) {
     _origFTset(k, v);
-    if (SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
 }
 function initNewFeatures() {
