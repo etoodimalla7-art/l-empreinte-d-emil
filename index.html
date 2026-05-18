@@ -3944,6 +3944,8 @@ const SYNC_CONFIG = {
   enabled: true,
   apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
   authDomain: 'lempreinte-d-emil.firebaseapp.com',
+  // ⚠️ ATTENTION : L'URL ci-dessous doit être EXACTEMENT celle de votre Realtime Database.
+  // Si votre base est en Europe, elle doit finir par '.europe-west1.firebasedatabase.app'
   databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
   projectId: 'lempreinte-d-emil',
   storageBucket: 'lempreinte-d-emil.firebasestorage.app',
@@ -4023,8 +4025,13 @@ function initFirebase() {
       firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) {
+          console.log(`✅ Firebase [${key}] : Données reçues`, val);
           handleKeyUpdate(key, val);
+        } else {
+          console.warn(`⚠️ Firebase [${key}] : Le nœud est vide (null)`);
         }
+      }, (error) => {
+        console.error(`❌ Erreur de lecture Firebase [${key}] :`, error);
       });
     });
     
@@ -10855,12 +10862,17 @@ function init() {
   // CRITICAL: Start Firebase and set a safety timeout
   if (SYNC_CONFIG.enabled) {
     startAutoSync();
+    // Augmentation du timeout à 15 secondes pour laisser le temps à la connexion de s'établir
     syncTimeout = setTimeout(() => {
       if (!initialSyncDone) {
-        console.warn("Firebase sync timeout - unlocking with local data");
+        console.warn("Firebase sync timeout (15s) - unlocking with local data");
         hideSyncOverlay();
       }
-    }, 4000); // 4 seconds max to wait for Firebase
+    }, 15000); 
+    
+    // Log de tentative de connexion
+    console.log("⏳ Tentative de connexion à Firebase (Timeout: 15s)...");
+    console.log("🔗 URL Database utilisée :", SYNC_CONFIG.databaseURL);
   } else {
     hideSyncOverlay();
   }
