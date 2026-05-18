@@ -4087,8 +4087,9 @@ function initFirebase() {
     }
     firebaseDb = firebase.database();
     
-    // EXCLUSIVE LISTENER: Only storeData_split
+   async function initFirebaseSync() {
     try {
+        // EXCLUSIVE LISTENER: Only storeData_split
         SHARED_KEYS.forEach(key => {
             firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
                 const val = snapshot.val();
@@ -4104,6 +4105,7 @@ function initFirebase() {
         console.error("Firebase Init Error:", e);
         return false;
     }
+}
     
 
 function handleKeyUpdate(key, value) {
