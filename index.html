@@ -4088,22 +4088,23 @@ function initFirebase() {
     firebaseDb = firebase.database();
     
     // EXCLUSIVE LISTENER: Only storeData_split
-    SHARED_KEYS.forEach(key => {
-      firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
-        const val = snapshot.val();
-        if (val !== null) {
-          handleKeyUpdate(key, val);
-        }
-      });
-    });
+    try {
+        SHARED_KEYS.forEach(key => {
+            firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val !== null) {
+                    handleKeyUpdate(key, val);
+                }
+            });
+        });
+        
+        isSyncInitialized = true;
+        return true;
+    } catch (e) {
+        console.error("Firebase Init Error:", e);
+        return false;
+    }
     
-    isSyncInitialized = true;
-    return true;
-  } catch (e) {
-    console.error("Firebase Init Error:", e);
-    return false;
-  }
-}
 
 function handleKeyUpdate(key, value) {
   // PERSISTANCE: Firebase overwrites LocalStorage
