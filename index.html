@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -34,41 +33,6 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--noir);color:var(--light);overflow-x:hidden;font-size:14px}
-
-/* ===== INITIAL SYNC LOCK ===== */
-#initial-sync-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--noir);
-  z-index: 999999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-}
-#initial-sync-overlay.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-.sync-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(201,168,76,0.1);
-  border-top: 3px solid var(--gold);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.sync-text {
-  font-family: var(--font-display);
-  font-size: 16px;
-  color: var(--gold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 
 /* ===== REVIEWS ===== */
 .reviews-section{padding:72px 0;background:var(--noir)}
@@ -1929,12 +1893,6 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 </style>
 </head>
 <body>
-
-<div id="initial-sync-overlay">
-  <div class="sync-spinner"></div>
-  <div class="sync-text">⌛ Synchronisation...</div>
-</div>
-
 <!-- FLASH PROMO BAR -->
 <div id="flash-promo-bar">
   <span id="promo-bar-text">🎉 PROMO SPÉCIALE — -10% sur toute la boutique !</span>
@@ -3957,15 +3915,6 @@ function loadSyncConfig() { /* Hardcoded */ }
 let firebaseApp = null;
 let firebaseDb = null;
 let isSyncInitialized = false;
-let initialSyncDone = false;
-let syncTimeout = null;
-
-function hideSyncOverlay() {
-  const overlay = document.getElementById('initial-sync-overlay');
-  if (overlay) overlay.classList.add('hidden');
-  initialSyncDone = true;
-  if (syncTimeout) clearTimeout(syncTimeout);
-}
 
 const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
@@ -4038,10 +3987,6 @@ function initFirebase() {
 
 // Global update handler for split streams
 function handleKeyUpdate(key, value) {
-  // CRITICAL FIX: If Firebase returns data, it MUST override everything.
-  // We only ignore if value is null (node doesn't exist yet)
-  if (value === null || value === undefined) return;
-
   if (key === 'ft_' && typeof value === 'object') {
     Object.entries(value).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
   } else {
@@ -4082,13 +4027,6 @@ function handleKeyUpdate(key, value) {
   // Re-render UI
   if (typeof renderAll === 'function') {
     if (currentPage === 'home' || !adminLoggedIn) renderAll();
-  }
-  
-  // Once we have the core data from Firebase, unlock the UI
-  if (!initialSyncDone && (key === 'products' || key === 'categories')) {
-    if (products && products.length > 0 && categories && categories.length > 0) {
-      hideSyncOverlay();
-    }
   }
   
   setSyncStatus('ok');
@@ -10765,14 +10703,19 @@ function init() {
   lang = DB.get('lang','fr');
   document.getElementById('lang-toggle').textContent = lang==='fr'?'EN':'FR';
   
-  // Load from local cache for instant visual, but we WILL override with Firebase
+  // Load with defaults
   categories = DB.get('categories', DEFAULT_CATS);
+  if (!categories || categories.length === 0) categories = DEFAULT_CATS;
+  
   products = DB.get('products', DEFAULT_PRODUCTS);
+  if (!products || products.length === 0) products = DEFAULT_PRODUCTS;
+
   orders = DB.get('orders',[]);
   settings = DB.get('settings', DEFAULT_SETTINGS);
   deliveryFees = DB.get('deliveryFees', DEFAULT_DELIVERY_FEES);
   deliveryRules = DB.get('deliveryRules', DEFAULT_DELIVERY_RULES);
   reviews = DB.get('reviews', DEFAULT_REVIEWS);
+  // Emil initialized via module-level code
   stockNotifConfig    = DB.get('stockNotifConfig', stockNotifConfig);
   stockNotifications  = DB.get('stockNotifications', []);
   stockAlertCooldowns = DB.get('stockAlertCooldowns', {});
@@ -10794,20 +10737,14 @@ function init() {
   giftSettings = DB.get('giftSettings', giftSettings);
   cart = DB.get('cart',[]);
 
+  // Pull remote data on load (async — won't block initial render)
   renderAll();
 
-  // CRITICAL: Start Firebase and set a safety timeout
-  if (SYNC_CONFIG.enabled) {
-    startAutoSync();
-    syncTimeout = setTimeout(() => {
-      if (!initialSyncDone) {
-        console.warn("Firebase sync timeout - unlocking with local data");
-        hideSyncOverlay();
-      }
-    }, 4000); // 4 seconds max to wait for Firebase
-  } else {
-    hideSyncOverlay();
+  // After render, silently sync from remote if configured
+  if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
+    setTimeout(() => syncPull(true), 800);
   }
+  startAutoSync();
 }
 
 try { init(); } catch(e) { console.error('Init error:', e); }
