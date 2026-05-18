@@ -4088,25 +4088,25 @@ function initFirebase() {
     firebaseDb = firebase.database();
     
    async function initFirebaseSync() {
-    try {
-        // EXCLUSIVE LISTENER: Only storeData_split
+    // INITIALISATION SÉCURISÉE DES LISTENERS
+try {
+    if (typeof SHARED_KEYS !== 'undefined' && Array.isArray(SHARED_KEYS)) {
         SHARED_KEYS.forEach(key => {
-            firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
-                const val = snapshot.val();
-                if (val !== null) {
-                    handleKeyUpdate(key, val);
-                }
-            });
+            if (firebaseDb && typeof firebaseDb.ref === 'function') {
+                firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
+                    const val = snapshot.val();
+                    if (val !== null && typeof handleKeyUpdate === 'function') {
+                        handleKeyUpdate(key, val);
+                    }
+                });
+            }
         });
-        
-        isSyncInitialized = true;
-        return true;
-    } catch (e) {
-        console.error("Firebase Init Error:", e);
-        return false;
     }
-}
-    
+    isSyncInitialized = true;
+} catch (firebaseInitError) {
+    console.error("Erreur d'initialisation Firebase:", firebaseInitError);
+    isSyncInitialized = true; // On force pour débloquer l'écran prestige
+}   
 
 function handleKeyUpdate(key, value) {
   // PERSISTANCE: Firebase overwrites LocalStorage
