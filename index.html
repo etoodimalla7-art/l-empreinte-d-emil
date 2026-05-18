@@ -4033,7 +4033,10 @@ function handleKeyUpdate(key, value) {
   setSyncStatus('ok');
 }
 
+let isSyncing = false;
 async function syncPush() {
+  if (isSyncing) return;
+  isSyncing = true;
   if (!initFirebase()) return;
   setSyncStatus('syncing');
   
@@ -4064,6 +4067,9 @@ async function syncPush() {
   } catch(e) {
     console.warn('[Sync] Push failed:', e.message);
     setSyncStatus('offline');
+    throw e;
+  } finally {
+    isSyncing = false;
   }
 }
 
@@ -5397,11 +5403,24 @@ async function saveProduct() {
   }
 
   DB.set('products', products);
-  showToast('Produit enregistré !');
-  resetProductForm();
-  renderAdminProducts();
-  renderAdminDashboard();
-  if (typeof syncPush === 'function') await syncPush();
+  
+  const btn = document.querySelector('button[onclick="saveProduct()"]');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⌛ Synchronisation...'; }
+  
+  try {
+    if (typeof syncPush === 'function') await syncPush();
+    showToast('Produit enregistré !');
+    resetProductForm();
+    renderAdminProducts();
+    renderAdminDashboard();
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur de synchronisation', '❌');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    isSyncing = false;
+  }
 }
 
 function editProduct(id) {
@@ -5476,6 +5495,7 @@ function renderAdminCats() {
 }
 
 async function addCategory() {
+  if (isSyncing) return;
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
   const cat = {
@@ -5487,10 +5507,23 @@ async function addCategory() {
   };
   categories.push(cat);
   DB.set('categories', categories);
-  ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  renderAdminCats(); populateProdCatSelect();
-  showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
+  
+  const btn = document.querySelector('button[onclick="addCategory()"]');
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) { btn.disabled = true; btn.innerHTML = '⌛ Synchronisation...'; }
+  
+  try {
+    if (typeof syncPush === 'function') await syncPush();
+    showToast('Catégorie ajoutée !');
+    ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    renderAdminCats(); populateProdCatSelect();
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur de synchronisation', '❌');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+    isSyncing = false;
+  }
 }
 
 function editCat(id) {
@@ -8602,12 +8635,14 @@ function installSyncPatches() {
   const _origDBset = DB.set.bind(DB);
   DB.set = function(k, v) {
     _origDBset(k, v);
-    if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
+    // Background sync disabled as per strict requirements
+    // if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
   };
   const _origFTset = FT.set.bind(FT);
   FT.set = function(k, v) {
     _origFTset(k, v);
-    if (SYNC_CONFIG.enabled) syncPush();
+    // Background sync disabled as per strict requirements
+    // if (SYNC_CONFIG.enabled) syncPush();
   };
 }
 function initNewFeatures() {
@@ -9092,6 +9127,7 @@ function handleCatEditImgUpload(input) {
 }
 
 async function saveCatEdit() {
+  if (isSyncing) return;
   const id = document.getElementById('cat-edit-id').value;
   const cat = categories.find(c => c.id === id);
   if (!cat) return;
