@@ -35,41 +35,6 @@
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--noir);color:var(--light);overflow-x:hidden;font-size:14px}
 
-/* ===== INITIAL SYNC LOCK ===== */
-#initial-sync-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--noir);
-  z-index: 999999;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-}
-#initial-sync-overlay.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-.sync-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(201,168,76,0.1);
-  border-top: 3px solid var(--gold);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-}
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-.sync-text {
-  font-family: var(--font-display);
-  font-size: 16px;
-  color: var(--gold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 /* ===== REVIEWS ===== */
 .reviews-section{padding:72px 0;background:var(--noir)}
 .reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
@@ -1926,15 +1891,47 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style>
 </head>
 <body>
 
-<div id="initial-sync-overlay">
-  <div class="sync-spinner"></div>
-  <div class="sync-text">⌛ Synchronisation...</div>
-</div>
-
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    
 <!-- FLASH PROMO BAR -->
 <div id="flash-promo-bar">
   <span id="promo-bar-text">🎉 PROMO SPÉCIALE — -10% sur toute la boutique !</span>
@@ -3932,8 +3929,60 @@ Action: Immediate restocking required.</textarea></div>
 
 
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // DATA STORE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 
 // ╔══════════════════════════════════════════════════════════════╗
@@ -3944,8 +3993,6 @@ const SYNC_CONFIG = {
   enabled: true,
   apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
   authDomain: 'lempreinte-d-emil.firebaseapp.com',
-  // ⚠️ ATTENTION : L'URL ci-dessous doit être EXACTEMENT celle de votre Realtime Database.
-  // Si votre base est en Europe, elle doit finir par '.europe-west1.firebasedatabase.app'
   databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
   projectId: 'lempreinte-d-emil',
   storageBucket: 'lempreinte-d-emil.firebasestorage.app',
@@ -3959,15 +4006,6 @@ function loadSyncConfig() { /* Hardcoded */ }
 let firebaseApp = null;
 let firebaseDb = null;
 let isSyncInitialized = false;
-let initialSyncDone = false;
-let syncTimeout = null;
-
-function hideSyncOverlay() {
-  const overlay = document.getElementById('initial-sync-overlay');
-  if (overlay) overlay.classList.add('hidden');
-  initialSyncDone = true;
-  if (syncTimeout) clearTimeout(syncTimeout);
-}
 
 const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
@@ -4003,6 +4041,10 @@ function cacheSet(k, v) {
 function initFirebase() {
   if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
   if (isSyncInitialized) return true;
+  if (typeof firebase === 'undefined') {
+    console.warn("Firebase SDK not loaded yet.");
+    return false;
+  }
   try {
     const config = {
       apiKey: SYNC_CONFIG.apiKey,
@@ -4014,24 +4056,44 @@ function initFirebase() {
       appId: SYNC_CONFIG.appId
     };
     if (!firebase.apps.length) {
-      try { firebaseApp = firebase.initializeApp(config); } catch(e) { console.error('Firebase init error', e); }
+      firebaseApp = firebase.initializeApp(config);
     } else {
       firebaseApp = firebase.app();
     }
     firebaseDb = firebase.database();
     
-    // Split Stream Listeners: Listen to each key separately under storeData_split/
     SHARED_KEYS.forEach(key => {
       firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) {
-          console.log(`✅ Firebase [${key}] : Données reçues`, val);
           handleKeyUpdate(key, val);
-        } else {
-          console.warn(`⚠️ Firebase [${key}] : Le nœud est vide (null)`);
         }
-      }, (error) => {
-        console.error(`❌ Erreur de lecture Firebase [${key}] :`, error);
+      }, (err) => {
+        console.warn("Firebase listener error for " + key + ":", err);
+      });
+    });
+    
+    isSyncInitialized = true;
+    return true;
+  } catch (e) {
+    console.error("Firebase Init Error:", e);
+    return false;
+  }
+};
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firebaseDb = firebase.database();
+    
+    // EXCLUSIVE LISTENER: Only storeData_split
+    SHARED_KEYS.forEach(key => {
+      firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
+        const val = snapshot.val();
+        if (val !== null) {
+          handleKeyUpdate(key, val);
+        }
       });
     });
     
@@ -4043,19 +4105,15 @@ function initFirebase() {
   }
 }
 
-// Global update handler for split streams
 function handleKeyUpdate(key, value) {
-  // CRITICAL FIX: If Firebase returns data, it MUST override everything.
-  // We only ignore if value is null (node doesn't exist yet)
-  if (value === null || value === undefined) return;
-
+  // PERSISTANCE: Firebase overwrites LocalStorage
   if (key === 'ft_' && typeof value === 'object') {
     Object.entries(value).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
   } else {
     cacheSet(key, value);
   }
   
-  // Update global variables
+  // Sync global variables
   if (key === 'categories') categories = value;
   else if (key === 'products') products = value;
   else if (key === 'settings') settings = value;
@@ -4086,29 +4144,19 @@ function handleKeyUpdate(key, value) {
   
   if (typeof applySavedColors === 'function') applySavedColors();
   
-  // Re-render UI
-  if (typeof renderAll === 'function') {
+  // Render UI (only if not currently editing to avoid jumping)
+  if (typeof renderAll === 'function' && !editingProductId) {
     if (currentPage === 'home' || !adminLoggedIn) renderAll();
-  }
-  
-  // Once we have the core data from Firebase, unlock the UI
-  if (!initialSyncDone && (key === 'products' || key === 'categories')) {
-    if (products && products.length > 0 && categories && categories.length > 0) {
-      hideSyncOverlay();
-    }
   }
   
   setSyncStatus('ok');
 }
 
-let isSyncing = false;
+// SÉCURISATION DE L'ÉCRITURE: Return Promise
 async function syncPush() {
-  if (isSyncing) return;
-  isSyncing = true;
-  if (!initFirebase()) return;
+  if (!initFirebase()) return false;
   setSyncStatus('syncing');
   
-  // Push each shared key individually to its own node
   const pushPromises = SHARED_KEYS.map(async (key) => {
     let val;
     if (key === 'ft_') {
@@ -4132,20 +4180,61 @@ async function syncPush() {
   try {
     await Promise.all(pushPromises);
     setSyncStatus('ok');
+    return true;
   } catch(e) {
     console.warn('[Sync] Push failed:', e.message);
     setSyncStatus('offline');
-    throw e;
-  } finally {
-    isSyncing = false;
+    return false;
+  }
+}
+
+// Single key push for faster admin updates
+
+async function syncPushKey(key, subId = null) {
+  if (!initFirebase()) return false;
+  let val;
+  let path = 'storeData_split/' + key;
+  
+  if (subId) {
+    path += '/' + subId;
+    if (key === 'products') val = products.find(p => p.id === subId);
+    else if (key === 'categories') val = categories.find(c => c.id === subId);
+    else if (key === 'reviews') val = reviews.find(r => r.id === subId);
+  } else {
+    val = cacheGet(key, undefined);
+  }
+  
+  if (val === undefined) return false;
+  try {
+    await firebaseDb.ref(path).set(val);
+    setSyncStatus('ok');
+    return true;
+  } catch (e) {
+    console.error("[Sync] Push failed for " + path, e);
+    setSyncStatus('offline');
+    return false;
+  }
+}
+ catch(e) {
+    setSyncStatus('offline');
+    return false;
   }
 }
 
 async function syncPull(silent) {
   if (!initFirebase()) return;
   if (!silent) setSyncStatus('syncing');
-  // Data is handled by .on('value') listeners automatically
-  setSyncStatus('ok');
+  // Initial load from Firebase to ensure we are up to date
+  try {
+    const snapshot = await firebaseDb.ref('storeData_split').once('value');
+    const data = snapshot.val();
+    if (data) {
+      Object.entries(data).forEach(([k, v]) => handleKeyUpdate(k, v));
+    }
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('offline');
+  }
 }
 
 function setSyncStatus(state) {
@@ -4176,13 +4265,12 @@ function renderSyncAdmin() {
   const el = document.getElementById('sync-admin-panel'); if (!el) return;
   el.innerHTML = `
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Fragmentée</div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Temps Réel (v2)</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Les données sont désormais <strong>fragmentées par catégories</strong> pour éviter les limites de taille Firebase.<br>
-        Chaque modification est synchronisée instantanément.
+        Structure étanche : <strong>storeData_split</strong>. L'ancien nœud global est ignoré.
       </p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Forcer Récupération</button>
         <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Forcer Envoi Global</button>
       </div>
       <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -4208,31 +4296,97 @@ const DB = {
   set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
 };
   
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // DEFAULTS
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 const DEFAULT_CATS = [
   { id:'c1', icon:'🌹', nameFR:'Parfums', nameEN:'Perfumes', sloganFR:"L'art du parfum, l'essence du luxe", sloganEN:"The art of perfume, the essence of luxury" },
   { id:'c2', icon:'💧', nameFR:'Body Mist', nameEN:'Body Mist', sloganFR:"Une brume de fraîcheur pour chaque instant", sloganEN:"A mist of freshness for every moment" },
-  { id:'c3', icon:'🌿', nameFR:'Huiles Essentielles', nameEN:'Essential Oils', sloganFR:"La nature à l'état pur", sloganEN:"Nature in its purest form" },
-  { id:'c4', icon:'👠', nameFR:'Chaussures & Talons', nameEN:'Shoes & Heels', sloganFR:"Marchez avec élégance, partout", sloganEN:"Walk with elegance, everywhere" },
-  { id:'c5', icon:'🧢', nameFR:'Chapeaux & Casquettes', nameEN:'Hats & Caps', sloganFR:"Couvrez-vous avec style", sloganEN:"Cover yourself with style" },
-  { id:'c6', icon:'💄', nameFR:'Cosmétiques', nameEN:'Cosmetics', sloganFR:"Révélez votre beauté naturelle", sloganEN:"Reveal your natural beauty" },
-  { id:'c7', icon:'👑', nameFR:'Perruques', nameEN:'Wigs', sloganFR:"Changez de look, gardez votre essence", sloganEN:"Change your look, keep your essence" },
-  { id:'c8', icon:'💎', nameFR:'Accessoires', nameEN:'Accessories', sloganFR:"Les détails font la perfection", sloganEN:"Details make perfection" },
-  { id:'c9', icon:'📱', nameFR:'Électronique', nameEN:'Electronics', sloganFR:"La technologie au service du style", sloganEN:"Technology at the service of style" },
-  { id:'c10',icon:'👗', nameFR:'Vêtements', nameEN:'Clothing', sloganFR:"Portez votre signature, chaque jour", sloganEN:"Wear your signature, every day" },
+  { id:'c3', icon:'👞', nameFR:'Chaussures Homme', nameEN:'Men Shoes', sloganFR:"L'élégance à chaque pas", sloganEN:"Elegance in every step" },
+  { id:'c4', icon:'👠', nameFR:'Talons & Escarpins', nameEN:'Heels & Pumps', sloganFR:"Prenez de la hauteur avec style", sloganEN:"Rise with style" },
+  { id:'c5', icon:'💎', nameFR:'Accessoires Luxe', nameEN:'Luxury Accessories', sloganFR:"Le détail qui fait la différence", sloganEN:"The detail that makes the difference" },
+  { id:'c6', icon:'🎁', nameFR:'Coffrets Cadeaux', nameEN:'Gift Sets', sloganFR:"Offrez l'exceptionnel", sloganEN:"Give the exceptional" }
 ];
 
 const DEFAULT_PRODUCTS = [
-  { id:'p1', nameFR:'Oud Royal', nameEN:'Royal Oud', catId:'c1', type:'single', price:25000, stock:15, imgs:[], descFR:'Parfum oriental de luxe aux notes de bois de santal et de rose. Une fragrance envoûtante pour les occasions spéciales.', descEN:'Luxury oriental perfume with sandalwood and rose notes. An enchanting fragrance for special occasions.', bundleItems:[] },
-  { id:'p2', nameFR:'Mist Floral Rose', nameEN:'Floral Rose Mist', catId:'c2', type:'single', price:12000, stock:20, imgs:[], descFR:'Brume corporelle légère aux fleurs de rose et jasmin. Fraîcheur toute la journée.', descEN:'Light body mist with rose and jasmine flowers. Freshness all day long.', bundleItems:[] },
-  { id:'p3', nameFR:'Pack Prestige Parfums', nameEN:'Prestige Perfumes Pack', catId:'c1', type:'bundle', price:45000, stock:5, imgs:[], descFR:'Le pack parfum ultime — 3 fragrances de luxe soigneusement sélectionnées.', descEN:'The ultimate perfume pack — 3 luxury fragrances carefully selected.', bundleItems:['Oud Royal 50ml','Mist Floral 100ml','Huile Essentielle Rose 30ml'] },
-  { id:'p4', nameFR:'Rouge Intense', nameEN:'Intense Red', catId:'c6', type:'single', price:8000, stock:30, imgs:[], descFR:'Rouge à lèvres longue durée mat et velouté pour un look sophistiqué.', descEN:'Long-lasting matte velvet lipstick for a sophisticated look.', bundleItems:[] },
-  { id:'p5', nameFR:'Talons Élégance Noire', nameEN:'Black Elegance Heels', catId:'c4', type:'single', price:35000, stock:8, imgs:[], descFR:'Escarpins noirs élégants avec détails dorés. Talon aiguille 10cm. Cuir véritable.', descEN:'Elegant black heels with gold details. 10cm stiletto heel. Genuine leather.', bundleItems:[] },
-  { id:'p6', nameFR:'Casquette Dorée Luxe', nameEN:'Golden Luxury Cap', catId:'c5', type:'single', price:15000, stock:12, imgs:[], descFR:'Casquette de luxe avec broderies dorées. Tissu premium ajustable.', descEN:'Luxury cap with gold embroidery. Premium adjustable fabric.', bundleItems:[] },
-  { id:'p7', nameFR:'Pack Beauté Complète', nameEN:'Complete Beauty Pack', catId:'c6', type:'bundle', price:55000, stock:3, imgs:[], descFR:'Le pack beauté tout-en-un : maquillage, soins, et parfum inclus.', descEN:'The all-in-one beauty pack: makeup, skincare, and perfume included.', bundleItems:['Rouge Intense Lèvres','Fond de Teint HD','Parfum Floral','Sérum Éclat'] },
-  { id:'p8', nameFR:'Robe Soirée Dorée', nameEN:'Golden Evening Dress', catId:'c10', type:'single', price:75000, stock:6, imgs:[], descFR:'Robe de soirée longue aux reflets dorés. Tissu satiné haute qualité.', descEN:'Long evening dress with golden reflections. High quality satin fabric.', bundleItems:[] },
+  { id:'p1', nameFR:'Oud Royal', nameEN:'Royal Oud', catId:'c1', type:'single', price:45000, stock:12, imgs:[], descFR:'Parfum oriental intense.', descEN:'Intense oriental perfume.' },
+  { id:'p2', nameFR:'Baccarat Sillage', nameEN:'Baccarat Sillage', catId:'c1', type:'single', price:55000, stock:8, imgs:[], descFR:'Fragrance ambrée et boisée.', descEN:'Amber and woody fragrance.' },
+  { id:'p3', nameFR:'Sauvage Elixir', nameEN:'Sauvage Elixir', catId:'c1', type:'single', price:50000, stock:15, imgs:[], descFR:'Notes épicées et boisées.', descEN:'Spicy and woody notes.' },
+  { id:'p4', nameFR:'Bleu de Chanel', nameEN:'Bleu de Chanel', catId:'c1', type:'single', price:48000, stock:10, imgs:[], descFR:'Un aromatique boisé.', descEN:'A woody aromatic.' },
+  { id:'p5', nameFR:'J\'adore Dior', nameEN:'J\'adore Dior', catId:'c1', type:'single', price:52000, stock:7, imgs:[], descFR:'Bouquet floral iconique.', descEN:'Iconic floral bouquet.' },
+  { id:'p6', nameFR:'Black Opium', nameEN:'Black Opium', catId:'c1', type:'single', price:45000, stock:9, imgs:[], descFR:'Café noir et fleurs blanches.', descEN:'Black coffee and white flowers.' },
+  { id:'p7', nameFR:'Terre d\'Hermès', nameEN:'Terre d\'Hermès', catId:'c1', type:'single', price:47000, stock:11, imgs:[], descFR:'La force de la terre.', descEN:'The strength of the earth.' },
+  { id:'p8', nameFR:'La Vie Est Belle', nameEN:'La Vie Est Belle', catId:'c1', type:'single', price:49000, stock:13, imgs:[], descFR:'Iris et gourmandise.', descEN:'Iris and gourmandise.' },
+  { id:'p9', nameFR:'Invictus Victory', nameEN:'Invictus Victory', catId:'c1', type:'single', price:46000, stock:14, imgs:[], descFR:'Puissance et fraîcheur.', descEN:'Power and freshness.' },
+  { id:'p10', nameFR:'Good Girl', nameEN:'Good Girl', catId:'c1', type:'single', price:53000, stock:6, imgs:[], descFR:'Audace et sensualité.', descEN:'Boldness and sensuality.' },
+  { id:'p11', nameFR:'Mist Vanille Coco', nameEN:'Vanilla Coco Mist', catId:'c2', type:'single', price:15000, stock:25, imgs:[], descFR:'Douceur tropicale.', descEN:'Tropical sweetness.' },
+  { id:'p12', nameFR:'Mist Fraise Givrée', nameEN:'Iced Strawberry Mist', catId:'c2', type:'single', price:15000, stock:20, imgs:[], descFR:'Fraîcheur fruitée.', descEN:'Fruity freshness.' },
+  { id:'p13', nameFR:'Mist Ambre Nuit', nameEN:'Midnight Amber Mist', catId:'c2', type:'single', price:18000, stock:18, imgs:[], descFR:'Mystère et chaleur.', descEN:'Mystery and warmth.' },
+  { id:'p14', nameFR:'Mist Océan Bleu', nameEN:'Blue Ocean Mist', catId:'c2', type:'single', price:15000, stock:22, imgs:[], descFR:'Brise marine.', descEN:'Sea breeze.' },
+  { id:'p15', nameFR:'Mist Rose Velours', nameEN:'Velvet Rose Mist', catId:'c2', type:'single', price:16000, stock:19, imgs:[], descFR:'Élégance florale.', descEN:'Floral elegance.' },
+  { id:'p16', nameFR:'Oxford Cuir Noir', nameEN:'Black Leather Oxford', catId:'c3', type:'single', price:65000, stock:5, imgs:[], descFR:'Cuir véritable premium.', descEN:'Premium genuine leather.' },
+  { id:'p17', nameFR:'Mocassins Marron', nameEN:'Brown Loafers', catId:'c3', type:'single', price:55000, stock:8, imgs:[], descFR:'Confort et style.', descEN:'Comfort and style.' },
+  { id:'p18', nameFR:'Derby Classique', nameEN:'Classic Derby', catId:'c3', type:'single', price:60000, stock:6, imgs:[], descFR:'Indispensable du vestiaire.', descEN:'Wardrobe essential.' },
+  { id:'p19', nameFR:'Sneakers Luxe', nameEN:'Luxury Sneakers', catId:'c3', type:'single', price:75000, stock:4, imgs:[], descFR:'Style urbain chic.', descEN:'Chic urban style.' },
+  { id:'p20', nameFR:'Bottines Chelsea', nameEN:'Chelsea Boots', catId:'c3', type:'single', price:70000, stock:7, imgs:[], descFR:'Élégance intemporelle.', descEN:'Timeless elegance.' },
+  { id:'p21', nameFR:'Escarpins Rouges', nameEN:'Red Pumps', catId:'c4', type:'single', price:45000, stock:5, imgs:[], descFR:'Féminité absolue.', descEN:'Absolute femininity.' },
+  { id:'p22', nameFR:'Sandales Or', nameEN:'Gold Sandals', catId:'c4', type:'single', price:40000, stock:9, imgs:[], descFR:'Éclat estival.', descEN:'Summer glow.' },
+  { id:'p23', nameFR:'Talons Aiguilles Noirs', nameEN:'Black Stilettos', catId:'c4', type:'single', price:48000, stock:6, imgs:[], descFR:'Le classique chic.', descEN:'The chic classic.' },
+  { id:'p24', nameFR:'Plateformes Argent', nameEN:'Silver Platforms', catId:'c4', type:'single', price:50000, stock:4, imgs:[], descFR:'Style audacieux.', descEN:'Bold style.' },
+  { id:'p25', nameFR:'Mules Élégantes', nameEN:'Elegant Mules', catId:'c4', type:'single', price:35000, stock:10, imgs:[], descFR:'Confort raffiné.', descEN:'Refined comfort.' },
+  { id:'p26', nameFR:'Bottes Hautes', nameEN:'High Boots', catId:'c4', type:'single', price:85000, stock:3, imgs:[], descFR:'Cuir de luxe.', descEN:'Luxury leather.' }
 ];
 
 const DEFAULT_DELIVERY_FEES = [
@@ -4271,8 +4425,60 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_COLORS = { '--gold':'#C9A84C','--gold-light':'#E8C97A','--noir':'#0A0A0A','--dark':'#111111','--dark-2':'#1A1A1A' };
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // STATE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 let lang = DB.get('lang','fr');
 let cart = DB.get('cart',[]);
@@ -4289,8 +4495,60 @@ let editingProductId = null;
 let currentImgs = [];
 let pmQty = 1;
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // I18N
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 const TR = {
   fr:{
@@ -4441,8 +4699,60 @@ const TR = {
 
 const t = k => (TR[lang]?.[k]) ?? (TR.fr?.[k] ?? k);
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // HELPERS
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 const fmt = p => p.toLocaleString('fr-FR') + ' FCFA';
 const getCat = id => categories.find(c => c.id === id);
@@ -4471,8 +4781,60 @@ function getDeliveryFee(city) {
   return row ? row.fee : 2000;
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // NAVIGATION
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function navigate(page, filterType) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4500,8 +4862,60 @@ function navigateToCat(catId) {
   navigate('shop');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // LANGUAGE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function toggleLang() {
   lang = lang==='fr'?'en':'fr';
@@ -4521,8 +4935,60 @@ function applyTR() {
   document.getElementById('footer-slogan').textContent = lang==='fr' ? (settings.sloganFR||t('slogan')) : (settings.sloganEN||t('slogan'));
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // PRODUCT CARD
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function renderProductCard(p) {
   const cat = getCat(p.catId);
@@ -4547,8 +5013,60 @@ function renderProductCard(p) {
     </div>`;
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // HOME PAGE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function renderHomePage() {
   document.getElementById('home-cats').innerHTML = categories.map(c=>`
@@ -4582,8 +5100,60 @@ function renderFooter() {
   document.getElementById('footer-wa-btn').href = `https://wa.me/${wa}`;
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // SHOP PAGE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function renderShopPage() {
   // Category hero banner
@@ -4644,18 +5214,119 @@ function filterProducts() {
   document.getElementById('results-count').textContent = ps.length + ' ' + t('results');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // PRODUCT MODAL
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
+
 function openProduct(id) {
   const p = getProd(id); if (!p) return;
-  const cat = getCat(p.catId);
-  pmQty = 1;
-  document.getElementById('pm-title').textContent = prodName(p);
+  const isFR = lang === 'fr';
+  
+  // Gallery Logic
+  const imgs = p.imgs && p.imgs.length ? p.imgs : [];
+  const mainImg = imgs[0] || '';
+  
+  let galleryHTML = '';
+  if (imgs.length > 1) {
+    galleryHTML = `<div class="thumb-grid">` + 
+      imgs.map((src, i) => `<div class="thumb-item ${i===0?'active':''}" onclick="changeMainImg('${src}', this)"><img src="${src}"></div>`).join('') + 
+      `</div>`;
+  }
 
-  const imgs = p.imgs?.length ? p.imgs : [];
-  const mainImgHTML = imgs.length
-    ? `<img src="${imgs[0]}" id="pm-main-img" alt="${prodName(p)}">`
+  const detailHTML = `
+    <div class="product-detail-grid">
+      <div class="product-gallery">
+        <div class="main-img-wrap" onclick="zoomImg('${mainImg}')">
+          <img id="main-product-img" src="${mainImg}" alt="${prodName(p)}">
+        </div>
+        ${galleryHTML}
+      </div>
+      <div class="product-detail-info">
+        <div class="product-detail-cat">${getCat(p.catId)?.nameFR || ''}</div>
+        <h2 class="product-detail-name">${prodName(p)}</h2>
+        <div class="product-detail-price">${fmt(p.price)}</div>
+        <div class="product-detail-desc-long" style="margin: 15px 0; font-size: 14px; color: var(--muted); line-height: 1.6;">
+            ${isFR ? (p.descFR || '') : (p.descEN || p.descFR || '')}
+        </div>
+        <div class="product-detail-actions">
+          <button class="btn-primary" onclick="addToCart('${p.id}')">${isFR?'Ajouter au panier':'Add to Cart'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('product-modal-body').innerHTML = detailHTML;
+  document.getElementById('product-modal').classList.add('open');
+}
+
+function changeMainImg(src, el) {
+    document.getElementById('main-product-img').src = src;
+    document.querySelector('.main-img-wrap').onclick = () => zoomImg(src);
+    document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+
+function zoomImg(src) {
+    const modal = document.getElementById('zoom-modal');
+    const img = document.getElementById('zoom-img');
+    if (modal && img) {
+        img.src = src;
+        modal.classList.add('open');
+    }
+}
+" id="pm-main-img" alt="${prodName(p)}">`
     : `<span id="pm-main-img" style="font-size:80px">${cat?.icon||'📦'}</span>`;
 
   const thumbsHTML = imgs.length > 1 ? `
@@ -4713,8 +5384,60 @@ function addFromModal(id) {
   closeModal('product-modal');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // CART
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function addToCart(id, qty=1) {
   const p = getProd(id); if (!p) return;
@@ -4789,10 +5512,62 @@ function closeCart() {
   document.body.style.overflow = '';
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // DOUALA QUARTIERS — distances from P4-12 (km) → fee in FCFA
 // Base rate: 500 FCFA for closest zones, scales with distance
 // Admin can edit these via the delivery admin panel (stored in localStorage)
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 const DEFAULT_QUARTIERS = [
   // Zone A — très proche de P4-12 (0–3 km) → 500 FCFA
@@ -4849,8 +5624,60 @@ const ZONE_INFO = {
   en: { A:'Zone A · Very close to P4-12 · ~0–3 km', B:'Zone B · Nearby · ~3–7 km', C:'Zone C · City center · ~7–14 km', D:'Zone D · Far · ~14–22 km', E:'Zone E · Very far · 22+ km' },
 };
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // CHECKOUT STATE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 let coDelivery = 500;
 let lastOrderData = null; // stores the last completed order for receipt
@@ -4992,32 +5819,52 @@ function sendWhatsApp() {
   const engravings = (typeof window._engravings !== 'undefined') ? {...window._engravings} : {};
 
   // ── Build WhatsApp message ──
-  let msg = `${t('wa_hello')}\n\n`;
+  let msg = `${t('wa_hello')}
+
+`;
   cart.forEach((item,i)=>{
     const p = getProd(item.id); if (!p) return;
-    msg += `${i+1}. *${prodName(p)}*\n`;
-    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}\n`;
+    msg += `${i+1}. *${prodName(p)}*
+`;
+    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}
+`;
     if (p.type==='bundle' && p.bundleItems?.length) {
-      msg += `   📦 ${t('wa_includes')}:\n`;
-      p.bundleItems.forEach(bi=>msg+=`   • ${bi}\n`);
+      msg += `   📦 ${t('wa_includes')}:
+`;
+      p.bundleItems.forEach(bi=>msg+=`   • ${bi}
+`);
     }
     // Engraving for this product
     if (engravings[item.id]?.text) {
-      msg += `   💍 ${lang==='fr'?'Gravure':'Engraving'}: "${engravings[item.id].text}"\n`;
+      msg += `   💍 ${lang==='fr'?'Gravure':'Engraving'}: "${engravings[item.id].text}"
+`;
     }
-    msg += '\n';
+    msg += '
+';
   });
 
-  msg += `\n${t('wa_subtotal')}: ${fmt(subtotal)}\n`;
-  msg += `${t('wa_delivery')} (${locationLabel}): ${fmt(fee)}\n`;
-  if (giftPrice > 0) msg += `🎁 ${lang==='fr'?'Emballage cadeau':'Gift wrapping'}: ${fmt(giftPrice)}\n`;
-  msg += `*${t('wa_total')}: ${fmt(total)}*\n\n`;
-  msg += `👤 ${t('wa_name')}: ${name}\n`;
-  msg += `📞 ${t('wa_phone')}: ${phone}\n`;
-  msg += `📍 ${t('wa_address')}: ${address}, ${locationLabel}\n`;
-  if (notes)   msg += `💬 Note: ${notes}\n`;
-  if (giftMsg) msg += `🎁 ${lang==='fr'?'Message cadeau':'Gift message'}: "${giftMsg}"\n`;
-  msg += `\n${t('wa_screenshot')}`;
+  msg += `
+${t('wa_subtotal')}: ${fmt(subtotal)}
+`;
+  msg += `${t('wa_delivery')} (${locationLabel}): ${fmt(fee)}
+`;
+  if (giftPrice > 0) msg += `🎁 ${lang==='fr'?'Emballage cadeau':'Gift wrapping'}: ${fmt(giftPrice)}
+`;
+  msg += `*${t('wa_total')}: ${fmt(total)}*
+
+`;
+  msg += `👤 ${t('wa_name')}: ${name}
+`;
+  msg += `📞 ${t('wa_phone')}: ${phone}
+`;
+  msg += `📍 ${t('wa_address')}: ${address}, ${locationLabel}
+`;
+  if (notes)   msg += `💬 Note: ${notes}
+`;
+  if (giftMsg) msg += `🎁 ${lang==='fr'?'Message cadeau':'Gift message'}: "${giftMsg}"
+`;
+  msg += `
+${t('wa_screenshot')}`;
 
   // ── Save order ──
   const orderId = 'ORD' + Date.now();
@@ -5060,8 +5907,60 @@ function sendWhatsApp() {
   openReceiptModal(order);
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // RECEIPT MODAL — shown after WhatsApp send
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function openReceiptModal(order) {
   document.getElementById('receipt-modal-title').textContent = lang==='fr' ? 'Commande envoyée !' : 'Order sent!';
@@ -5148,9 +6047,47 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     .no-print{display:none!important}
     @page{margin:15mm}
   }
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style>
 </head>
 <body>
+
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    
 <div class="doc">
   <div class="doc-header">
     <div class="brand">
@@ -5214,6 +6151,11 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     <div class="thanks">© L'Empreinte D'Emil · ${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'}</div>
   </div>
 </div>
+
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -5224,8 +6166,60 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
   w.onload = () => setTimeout(()=>w.print(), 400);
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // DELIVERY PAGE
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function renderDeliveryPage() {
   // Douala zones display
@@ -5267,8 +6261,60 @@ function renderDeliveryPage() {
     </div>`).join('');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // ABOUT / CONTACT
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // renderAboutPage handled in new JS block above
 
@@ -5284,8 +6330,60 @@ function openWhatsAppDirect() {
   window.open(`https://wa.me/${settings.waNumber||'237694092202'}`, '_blank');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // MODALS
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -5293,8 +6391,60 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{
   ov.addEventListener('click', function(e){ if (e.target===this) this.classList.remove('open'); });
 });
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // SEARCH
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 document.getElementById('search-input').addEventListener('input', function() {
   const q = this.value.toLowerCase().trim();
@@ -5317,8 +6467,60 @@ document.addEventListener('click', e=>{ if (!e.target.closest('.nav-search')) do
 
 function doSearch() { const q=document.getElementById('search-input').value.trim(); if(q) navigate('shop'); }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // ADMIN
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // openAdmin: secured version defined below (always requires password)
 // loginAdmin replaced with session-secured version above
@@ -5422,68 +6624,27 @@ function switchProductTab(el, tab) {
   document.getElementById('prod-add-tab').style.display = tab==='add'?'block':'none';
 }
 
-/**
- * Compresse une image Base64 via Canvas
- * @param {string} base64Str - L'image en base64
- * @param {number} maxWidth - Largeur max (default 800)
- * @param {number} quality - Qualité JPEG (0.0 à 1.0)
- * @returns {Promise<string>} - L'image compressée en base64
- */
-function compressImage(base64Str, maxWidth = 800, quality = 0.7) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64Str;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      const compressed = canvas.toDataURL('image/jpeg', quality);
-      const oldSize = Math.round(base64Str.length / 1024);
-      const newSize = Math.round(compressed.length / 1024);
-      console.log(`[Compression] ${oldSize}KB -> ${newSize}KB (Gain: ${Math.round((1 - newSize/oldSize)*100)}%)`);
-      resolve(compressed);
-    };
-  });
-}
-
-async function handleImgUpload(input) {
+function handleImgUpload(input) {
   const files = Array.from(input.files);
   if (!files.length) return;
   const row = document.getElementById('img-previews-row');
-  
-  for (const file of files) {
+  files.forEach(file=>{
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      const originalBase64 = e.target.result;
-      const compressedBase64 = await compressImage(originalBase64);
-      
-      currentImgs.push(compressedBase64);
+    reader.onload = e=>{
+      currentImgs.push(e.target.result);
       const img = document.createElement('img');
       img.className = 'img-preview-item';
-      img.src = compressedBase64;
+      img.src = e.target.result;
       row.appendChild(img);
-      
-      const kb = Math.round(compressedBase64.length / 1024);
-      console.log(`Image compressée envoyée à Firebase : ${kb} KB`);
     };
     reader.readAsDataURL(file);
-  }
+  });
 }
 
 function toggleBundleSection() {
   document.getElementById('bundle-section').style.display = document.getElementById('p-type').value==='bundle'?'block':'none';
 }
+
 
 async function saveProduct() {
   const nameFR = document.getElementById('p-name-fr').value.trim();
@@ -5497,7 +6658,48 @@ async function saveProduct() {
     price, stock: parseInt(document.getElementById('p-stock').value)||0,
     descFR: document.getElementById('p-desc-fr').value.trim(),
     descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    bundleItems: document.getElementById('p-bundle-items').value.split('
+').map(s=>s.trim()).filter(Boolean),
+  };
+
+  let productId;
+  if (editingProductId) {
+    productId = editingProductId;
+    const idx = products.findIndex(p=>p.id===editingProductId);
+    if (idx>-1) {
+      products[idx] = {...products[idx], ...data};
+      if (currentImgs.length) products[idx].imgs = currentImgs;
+    }
+    editingProductId = null;
+    document.getElementById('edit-banner').style.display = 'none';
+  } else {
+    productId = 'p'+Date.now();
+    products.unshift({ id:productId, ...data, imgs: currentImgs.length?currentImgs:[] });
+  }
+
+  DB.set('products', products);
+  renderAdminProducts();
+  renderAdminDashboard();
+  renderAll(); // Instant UI update
+  
+  setSyncStatus('syncing');
+  const ok = await syncPushKey('products', productId);
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
+  
+  showToast('Produit enregistré !');
+  resetProductForm();
+}
+
+
+  const data = {
+    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
+    catId: document.getElementById('p-cat').value,
+    type: document.getElementById('p-type').value,
+    price, stock: parseInt(document.getElementById('p-stock').value)||0,
+    descFR: document.getElementById('p-desc-fr').value.trim(),
+    descEN: document.getElementById('p-desc-en').value.trim(),
+    bundleItems: document.getElementById('p-bundle-items').value.split('
+').map(s=>s.trim()).filter(Boolean),
   };
 
   if (editingProductId) {
@@ -5509,38 +6711,45 @@ async function saveProduct() {
     editingProductId = null;
     document.getElementById('edit-banner').style.display = 'none';
   } else {
-    // Génération d'un ID unique robuste
-    const uniqueId = 'p' + Date.now() + Math.floor(Math.random() * 1000);
-    products.unshift({ id: uniqueId, ...data, imgs: currentImgs.length?currentImgs:[] });
+    products.unshift({ id:'p'+Date.now(), ...data, imgs: currentImgs.length?currentImgs:[] });
   }
 
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('products', products);
-  
-  const btn = document.querySelector('button[onclick="saveProduct()"]');
-  const originalText = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = '⌛ Synchronisation...'; }
-  
-  try {
-    if (typeof syncPush === 'function') {
-      // On s'assure que isSyncing est bien géré localement aussi
-      isSyncing = true; 
-      await syncPush();
-    }
-    showToast('Produit enregistré !');
-    resetProductForm();
-    renderAdminProducts();
-    renderAdminDashboard();
-  } catch (e) {
-    console.error(e);
-    showToast('Erreur de synchronisation', '❌');
-  } finally {
-    // RÉINITIALISATION CRITIQUE DU DRAPEAU ET DU BOUTON
-    isSyncing = false;
-    if (btn) { 
-      btn.disabled = false; 
-      btn.innerHTML = originalText; 
-    }
+  const ok = await syncPushKey('products');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
+  showToast('Produit enregistré !');
+  resetProductForm();
+  renderAdminProducts();
+  renderAdminDashboard();
+}
+
+
+async function handleAdminImg(e) {
+  const files = Array.from(e.target.files).slice(0, 4 - currentImgs.length);
+  for (const file of files) {
+    const compressed = await compressImage(file);
+    currentImgs.push(compressed);
   }
+  renderImgPreviews();
+}
+
+function renderImgPreviews() {
+  const row = document.getElementById('img-previews-row');
+  if (row) {
+    row.innerHTML = currentImgs.map((src, i) => `
+      <div class="img-preview-item-wrap" style="position:relative; display:inline-block;">
+        <img class="img-preview-item" src="${src}" style="width:80px; height:80px; object-fit:cover; border-radius:4px; margin-right:8px;">
+        <button onclick="removeAdminImg(${i})" style="position:absolute; top:-5px; right:3px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:12px;">×</button>
+      </div>
+    `).join('');
+  }
+}
+
+function removeAdminImg(i) {
+  currentImgs.splice(i, 1);
+  renderImgPreviews();
 }
 
 function editProduct(id) {
@@ -5556,7 +6765,8 @@ function editProduct(id) {
   document.getElementById('p-stock').value = p.stock;
   document.getElementById('p-desc-fr').value = p.descFR||'';
   document.getElementById('p-desc-en').value = p.descEN||'';
-  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('\n');
+  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('
+');
   toggleBundleSection();
 
   document.getElementById('edit-banner').style.display = 'block';
@@ -5572,10 +6782,14 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(p=>p.id!==id);
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('products', products);
+  const ok = await syncPushKey('products');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   renderAdminProducts(); renderAdminDashboard();
   showToast('Produit supprimé','🗑');
 }
@@ -5615,7 +6829,6 @@ function renderAdminCats() {
 }
 
 async function addCategory() {
-  if (isSyncing) return;
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
   const cat = {
@@ -5626,24 +6839,14 @@ async function addCategory() {
     sloganEN: document.getElementById('cat-slogan-en').value.trim(),
   };
   categories.push(cat);
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('categories', categories);
-  
-  const btn = document.querySelector('button[onclick="addCategory()"]');
-  const originalText = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.innerHTML = '⌛ Synchronisation...'; }
-  
-  try {
-    if (typeof syncPush === 'function') await syncPush();
-    showToast('Catégorie ajoutée !');
-    ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    renderAdminCats(); populateProdCatSelect();
-  } catch (e) {
-    console.error(e);
-    showToast('Erreur de synchronisation', '❌');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-    isSyncing = false;
-  }
+  const ok = await syncPushKey('categories');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
+  ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  renderAdminCats(); populateProdCatSelect();
+  showToast('Catégorie ajoutée !');
 }
 
 function editCat(id) {
@@ -5871,7 +7074,7 @@ function loadAdminSettings() {
   document.getElementById('store-email').value = settings.email||'';
 }
 
-function saveSettings() {
+async function saveSettings() {
   settings.storeFR = document.getElementById('store-name-fr').value;
   settings.storeEN = document.getElementById('store-name-en').value;
   settings.sloganFR = document.getElementById('slogan-fr').value;
@@ -5897,8 +7100,60 @@ function clearAllData() {
 }
 
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // REVIEWS SYSTEM
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 
 const DEFAULT_REVIEWS = [
@@ -6192,8 +7447,60 @@ function renderAdminReviews() {
 }
 
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // ABOUT PAGE DATA — admin-editable pillars & why-items
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 const DEFAULT_PILLARS = [
   { id:'pl1', icon:'✨', titleFR:'Nos Parfums : Votre Signature Invisible',
@@ -6236,7 +7543,11 @@ let pendingReviews = DB.get('pendingReviews', []);
 let currentReviewTab = 'approved';
 let pubStars = 0;
 
-function savePillars()    { DB.set('pillars', pillars); }
+async function savePillars()    { // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
+  DB.set('pillars', pillars);
+  const ok = await syncPushKey('pillars');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️'); }
 function saveWhyItems()   { DB.set('whyItems', whyItems); }
 function saveLook()       { DB.set('lookProducts', lookProducts); }
 function savePendingRvs() { DB.set('pendingReviews', pendingReviews); }
@@ -6319,13 +7630,24 @@ function sendContactWhatsApp() {
     autre:    lang==='fr'?'Autre':'Other',
   };
 
-  let msg = lang==='fr' ? '📩 *Nouveau message via le formulaire L\u2019Empreinte D\u2019Emil*\n\n' : '📩 *New message via L\u2019Empreinte D\u2019Emil form*\n\n';
-  msg += `👤 ${lang==='fr'?'Nom':'Name'}: ${name}\n`;
-  msg += `📞 ${lang==='fr'?'Téléphone':'Phone'}: ${phone}\n`;
-  if (email) msg += `📧 Email: ${email}\n`;
-  if (city)  msg += `📍 ${lang==='fr'?'Ville':'City'}: ${city}\n`;
-  if (subject) msg += `📋 ${lang==='fr'?'Sujet':'Subject'}: ${subjectLabels[subject]||subject}\n`;
-  msg += `\n💬 ${lang==='fr'?'Message':'Message'}:\n${message}`;
+  let msg = lang==='fr' ? '📩 *Nouveau message via le formulaire L\u2019Empreinte D\u2019Emil*
+
+' : '📩 *New message via L\u2019Empreinte D\u2019Emil form*
+
+';
+  msg += `👤 ${lang==='fr'?'Nom':'Name'}: ${name}
+`;
+  msg += `📞 ${lang==='fr'?'Téléphone':'Phone'}: ${phone}
+`;
+  if (email) msg += `📧 Email: ${email}
+`;
+  if (city)  msg += `📍 ${lang==='fr'?'Ville':'City'}: ${city}
+`;
+  if (subject) msg += `📋 ${lang==='fr'?'Sujet':'Subject'}: ${subjectLabels[subject]||subject}
+`;
+  msg += `
+💬 ${lang==='fr'?'Message':'Message'}:
+${message}`;
 
   const wa = settings.waNumber||'237694092202';
   window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(msg), '_blank');
@@ -6569,8 +7891,60 @@ function rejectReview(id) {
 // (keys added to TR object separately below)
 
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // ADMIN SIDEBAR — collapsible on mobile
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function toggleSidebar() {
   const sidebar = document.getElementById('admin-panel').querySelector('.admin-sidebar');
@@ -6592,8 +7966,60 @@ function closeSidebar() {
   if (overlay) overlay.classList.remove('open');
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // ORDER DETAIL MODAL
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function openOrderDetail(orderId) {
   const o = orders.find(ord => ord.id === orderId);
@@ -6631,12 +8057,21 @@ function openOrderDetail(orderId) {
   }).join('');
 
   // WhatsApp replay message
-  const waMsg = (lang==='fr'?'Bonjour':'Hello') + ' ' + o.name + ',\n\n' +
-    (lang==='fr'?'Votre commande':'Your order') + ' #' + o.id + '\n' +
-    (lang==='fr'?'a bien été reçue.':'has been received.') + '\n\n' +
-    (lang==='fr'?'Total':'Total') + ': ' + fmt(o.total) + '\n' +
-    (lang==='fr'?'Livraison':'Delivery') + ': ' + fmt(o.delivery||0) + '\n' +
-    (lang==='fr'?'Adresse':'Address') + ': ' + o.address + ', ' + o.city + '\n\n' +
+  const waMsg = (lang==='fr'?'Bonjour':'Hello') + ' ' + o.name + ',
+
+' +
+    (lang==='fr'?'Votre commande':'Your order') + ' #' + o.id + '
+' +
+    (lang==='fr'?'a bien été reçue.':'has been received.') + '
+
+' +
+    (lang==='fr'?'Total':'Total') + ': ' + fmt(o.total) + '
+' +
+    (lang==='fr'?'Livraison':'Delivery') + ': ' + fmt(o.delivery||0) + '
+' +
+    (lang==='fr'?'Adresse':'Address') + ': ' + o.address + ', ' + o.city + '
+
+' +
     (lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!');
 
   const waUrl = 'https://wa.me/' + (o.phone||'').replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(waMsg);
@@ -6778,8 +8213,46 @@ function printOrderDetail(orderId) {
   .no-print{text-align:center;margin-top:18px}
   .print-btn{padding:10px 28px;background:#C9A84C;border:none;cursor:pointer;border-radius:4px;font-size:12px;font-weight:600;letter-spacing:.1em}
   @media print{.no-print{display:none}body{background:#fff;padding:0}.doc{box-shadow:none}}
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style></head>
-<body><div class="doc">
+<body>
+
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    <div class="doc">
   <div class="header">
     <div><div class="brand">L'EMPREINTE D'EMIL</div><div class="brand-sub">Douala, Cameroun</div></div>
     <div class="meta"><strong>${lang==='fr'?'BON DE COMMANDE':'ORDER FORM'} #${o.id.slice(0,16)}</strong><div>${dateStr}</div></div>
@@ -6803,7 +8276,12 @@ function printOrderDetail(orderId) {
   </div>
   <div class="footer"><div style="font-style:italic;color:#9A7530;font-size:14px">"${slogan}"</div><div style="margin-top:6px">${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'} — L'Empreinte D'Emil</div></div>
   <div class="no-print"><button class="print-btn" onclick="window.print()">${lang==='fr'?'🖨️ Imprimer / Sauvegarder PDF':'🖨️ Print / Save PDF'}</button></div>
-</div></body></html>`;
+</div>
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
+</body></html>`;
 
   const w = window.open('','_blank');
   if (!w) { showToast(lang==='fr'?'Autorisez les popups':'Allow popups','⚠️'); return; }
@@ -7597,7 +9075,8 @@ function saveLoyaltyRules() {
   loyaltyRules.redeemMin   = parseInt(document.getElementById('loy-redeem-min')?.value)||50;
   loyaltyRules.ptValue     = parseInt(document.getElementById('loy-pt-value')?.value)||100;
   const tiersRaw = document.getElementById('loy-tiers')?.value||'';
-  loyaltyRules.tiers = tiersRaw.split('\n').filter(Boolean).map(line=>{
+  loyaltyRules.tiers = tiersRaw.split('
+').filter(Boolean).map(line=>{
     const p=line.split('|'); return { name:p[0]||'Tier', min:parseInt(p[1])||0, icon:p[2]||'🏅' };
   });
   DB.set('loyaltyRules', loyaltyRules);
@@ -7613,7 +9092,8 @@ function renderLoyaltyAdmin() {
     el.value=[r.ptsPerOrder,r.ptsPerK,r.redeemMin,r.ptValue][i];
   });
   const tiersEl = document.getElementById('loy-tiers');
-  if (tiersEl && r.tiers) tiersEl.value = r.tiers.map(t=>`${t.name}|${t.min}|${t.icon}`).join('\n');
+  if (tiersEl && r.tiers) tiersEl.value = r.tiers.map(t=>`${t.name}|${t.min}|${t.icon}`).join('
+');
   renderLoyaltyCustomers();
 }
 
@@ -7653,14 +9133,12 @@ function applyShowcaseSection() {
   if (enabled) renderShowcaseGrids();
 }
 
-async function handleShowcaseUpload(input) {
+function handleShowcaseUpload(input) {
   const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = async (e) => {
-    showcasePendingImg = await compressImage(e.target.result);
-    const kb = Math.round(showcasePendingImg.length / 1024);
-    console.log(`Image Showcase compressée : ${kb} KB`);
-    document.getElementById('showcase-preview-note').textContent = `✅ Image prête (${kb} KB) — ajoutez la légende et publiez`;
+  reader.onload = e => {
+    showcasePendingImg = e.target.result;
+    document.getElementById('showcase-preview-note').textContent = '✅ Image prête — ajoutez la légende et publiez';
   };
   reader.readAsDataURL(file);
 }
@@ -7880,14 +9358,18 @@ function updateOrderStatus(orderId, status) {
   showToast('Statut mis à jour !','🚀');
 }
 
-function saveStatusLabels() {
+async function saveStatusLabels() {
   STATUS_ORDER.forEach(s=>{
     statusLabels[s] = {
       fr: document.getElementById(`sl-${s}-fr`)?.value||s,
       en: document.getElementById(`sl-${s}-en`)?.value||s
     };
   });
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('statusLabels', statusLabels);
+  const ok = await syncPushKey('statusLabels');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   showToast('Labels enregistrés !');
 }
 
@@ -8372,10 +9854,20 @@ let stockNotifConfig = DB.get('stockNotifConfig', {
   threshold:  5,
   cooldown:   60,
   waNumber:   '',
-  msgLowFR:   '⚠️ Alerte Stock Bas\nProduit: {name}\nQuantité restante: {qty}\nAction: Réapprovisionner bientôt.',
-  msgLowEN:   '⚠️ Low Stock Alert\nProduct: {name}\nRemaining: {qty}\nAction: Restock soon.',
-  msgOutFR:   '🚨 Rupture de Stock\nProduit: {name}\nAction: Réapprovisionnement immédiat requis.',
-  msgOutEN:   '🚨 Out of Stock Alert\nProduct: {name}\nAction: Immediate restocking required.'
+  msgLowFR:   '⚠️ Alerte Stock Bas
+Produit: {name}
+Quantité restante: {qty}
+Action: Réapprovisionner bientôt.',
+  msgLowEN:   '⚠️ Low Stock Alert
+Product: {name}
+Remaining: {qty}
+Action: Restock soon.',
+  msgOutFR:   '🚨 Rupture de Stock
+Produit: {name}
+Action: Réapprovisionnement immédiat requis.',
+  msgOutEN:   '🚨 Out of Stock Alert
+Product: {name}
+Action: Immediate restocking required.'
 });
 
 let stockNotifications = DB.get('stockNotifications', []); // persisted notifications
@@ -8757,14 +10249,12 @@ function installSyncPatches() {
   const _origDBset = DB.set.bind(DB);
   DB.set = function(k, v) {
     _origDBset(k, v);
-    // Background sync disabled as per strict requirements
-    // if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
   const _origFTset = FT.set.bind(FT);
   FT.set = function(k, v) {
     _origFTset(k, v);
-    // Background sync disabled as per strict requirements
-    // if (SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
 }
 function initNewFeatures() {
@@ -8796,19 +10286,17 @@ function initNewFeatures() {
 
 let catImgPending = ''; // base64 of the image being added
 
-async function handleCatImgUpload(input) {
+function handleCatImgUpload(input) {
   const file = input.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = async (e) => {
-    catImgPending = await compressImage(e.target.result);
-    const kb = Math.round(catImgPending.length / 1024);
-    console.log(`Image Catégorie compressée : ${kb} KB`);
+  reader.onload = e => {
+    catImgPending = e.target.result;
     const thumb = document.getElementById('cat-img-preview-thumb');
     const icon  = document.getElementById('cat-img-upload-icon');
     const txt   = document.getElementById('cat-img-upload-text');
     if (thumb) { thumb.src = catImgPending; thumb.style.display = 'block'; }
     if (icon) icon.style.display = 'none';
-    if (txt) txt.textContent = `✅ ${file.name} (${kb} KB)`;
+    if (txt) txt.textContent = '✅ ' + file.name;
   };
   reader.readAsDataURL(file);
 }
@@ -8827,7 +10315,7 @@ function resetCatImgUpload() {
 
 // Patch addCategory to save image
 const _origAddCategory = addCategory;
-addCategory = async function() {
+addCategory = function() {
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
   const cat = {
@@ -8848,7 +10336,6 @@ addCategory = async function() {
   renderAdminCats();
   populateProdCatSelect();
   showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
 };
 
 // Patch editCat to handle image upload
@@ -9250,8 +10737,7 @@ function handleCatEditImgUpload(input) {
   reader.readAsDataURL(file);
 }
 
-async function saveCatEdit() {
-  if (isSyncing) return;
+function saveCatEdit() {
   const id = document.getElementById('cat-edit-id').value;
   const cat = categories.find(c => c.id === id);
   if (!cat) return;
@@ -9272,7 +10758,6 @@ async function saveCatEdit() {
   renderAll();
   closeCatEditModal();
   showToast(`Catégorie "${nameFR}" mise à jour !`, '✅');
-  if (typeof syncPush === 'function') await syncPush();
 }
 
 function deleteCatFromModal() {
@@ -9553,38 +11038,68 @@ function saveEmilConfig() {
 // ── TEXT STRINGS ─────────────────────────────────────────────
 const EM = {
   fr: {
-    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.\n\nQuelle langue souhaitez-vous utiliser pour notre échange ?\n*Which language would you like to use?*",
-    askName:     "Bienvenue chez **L'Empreinte D'Emil** ! 🌟\n\nJe suis **Emil**, votre conseiller personnel. Pour mieux vous accompagner, puis-je avoir votre prénom ?",
+    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.
+
+Quelle langue souhaitez-vous utiliser pour notre échange ?
+*Which language would you like to use?*",
+    askName:     "Bienvenue chez **L'Empreinte D'Emil** ! 🌟
+
+Je suis **Emil**, votre conseiller personnel. Pour mieux vous accompagner, puis-je avoir votre prénom ?",
     askPhone:    "Merci {name} ! Pour vous contacter si besoin, puis-je avoir votre numéro de téléphone ? *(Facultatif — tapez « passer » pour ignorer)*",
     askEmail:    "Parfait ! Souhaitez-vous également laisser votre adresse e-mail ? *(Facultatif — tapez « passer » pour ignorer)*",
-    welcomeChat: "Bonjour **{name}** ! Je suis ravi de vous accueillir.\n\nJe suis votre conseiller personnel et je connais toute notre boutique par cœur — nos **{catCount} catégories**, nos **{prodCount} produits**, nos tarifs et nos services.\n\nComment puis-je vous aider aujourd'hui ?",
+    welcomeChat: "Bonjour **{name}** ! Je suis ravi de vous accueillir.
+
+Je suis votre conseiller personnel et je connais toute notre boutique par cœur — nos **{catCount} catégories**, nos **{prodCount} produits**, nos tarifs et nos services.
+
+Comment puis-je vous aider aujourd'hui ?",
     skip:        ['passer','skip','non','no','pas de','aucun','—','-'],
     chips:       null, // dynamic
-    noAnswer:    "Je suis désolé(e), je ne dispose pas de la réponse précise à cette question.\n\nJe vous recommande de contacter directement notre boutique — notre équipe sera ravie de vous aider personnellement.",
+    noAnswer:    "Je suis désolé(e), je ne dispose pas de la réponse précise à cette question.
+
+Je vous recommande de contacter directement notre boutique — notre équipe sera ravie de vous aider personnellement.",
     contactCTA:  "Contacter la boutique",
     addCart:     "Ajouter au panier",
     statusOnline:"En ligne · Répond immédiatement",
     statusTyping:"Emil écrit...",
     outOfStock:  "Ce produit est **actuellement en rupture de stock**. Mais ne vous inquiétez pas — voici des alternatives que je vous recommande :",
-    noCategory:  "Nous n'avons pas encore cette catégorie dans notre boutique. Voici ce que nous proposons actuellement :\n\n**{cats}**\n\nPuis-je vous aider à trouver quelque chose parmi ces options ?",
+    noCategory:  "Nous n'avons pas encore cette catégorie dans notre boutique. Voici ce que nous proposons actuellement :
+
+**{cats}**
+
+Puis-je vous aider à trouver quelque chose parmi ces options ?",
     endMsg:      "Merci {name} de votre visite chez L'Empreinte D'Emil. N'hésitez pas à revenir — nous sommes là pour vous ! Bonne journée. ✦",
     statusOnline:"En ligne · Répond immédiatement",
   },
   en: {
-    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.\n\nQuelle langue souhaitez-vous utiliser pour notre échange ?\n*Which language would you like to use?*",
-    askName:     "Welcome to **L'Empreinte D'Emil** ! 🌟\n\nI'm **Emil**, your personal advisor. To serve you better, may I have your first name?",
+    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.
+
+Quelle langue souhaitez-vous utiliser pour notre échange ?
+*Which language would you like to use?*",
+    askName:     "Welcome to **L'Empreinte D'Emil** ! 🌟
+
+I'm **Emil**, your personal advisor. To serve you better, may I have your first name?",
     askPhone:    "Thank you {name}! May I have your phone number to reach you if needed? *(Optional — type 'skip' to continue)*",
     askEmail:    "Great! Would you also like to leave your email address? *(Optional — type 'skip' to continue)*",
-    welcomeChat: "Hello **{name}**! I'm delighted to welcome you.\n\nI'm your personal advisor and I know our entire store — our **{catCount} categories**, **{prodCount} products**, pricing and services.\n\nHow can I help you today?",
+    welcomeChat: "Hello **{name}**! I'm delighted to welcome you.
+
+I'm your personal advisor and I know our entire store — our **{catCount} categories**, **{prodCount} products**, pricing and services.
+
+How can I help you today?",
     skip:        ['skip','passer','no','non','none','—','-'],
     chips:       null, // dynamic
-    noAnswer:    "I'm sorry, I don't have a precise answer to that question.\n\nI recommend contacting our store directly — our team will be happy to personally assist you.",
+    noAnswer:    "I'm sorry, I don't have a precise answer to that question.
+
+I recommend contacting our store directly — our team will be happy to personally assist you.",
     contactCTA:  "Contact the store",
     addCart:     "Add to cart",
     statusOnline:"Online · Responds immediately",
     statusTyping:"Emil is typing...",
     outOfStock:  "This product is **currently out of stock**. But don't worry — here are alternatives I recommend:",
-    noCategory:  "We don't have that category yet. Here's what we currently offer:\n\n**{cats}**\n\nCan I help you find something from these options?",
+    noCategory:  "We don't have that category yet. Here's what we currently offer:
+
+**{cats}**
+
+Can I help you find something from these options?",
     endMsg:      "Thank you {name} for visiting L'Empreinte D'Emil. Don't hesitate to come back — we're here for you! Have a great day. ✦",
     statusOnline:"Online · Responds immediately",
   }
@@ -9694,7 +11209,8 @@ function emilAddMsg(role, html) {
   const bubble = document.createElement('div');
   bubble.className = 'emil-bubble';
   bubble.innerHTML = html
-    .replace(/\n/g, '<br>')
+    .replace(/
+/g, '<br>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>');
   wrap.appendChild(bubble);
@@ -9937,16 +11453,24 @@ function emilRespond(lower, originalText) {
     const dateStr = now.toLocaleDateString(isFR ? 'fr-FR' : 'en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     const timeStr = now.toLocaleTimeString(isFR ? 'fr-FR' : 'en-US', { hour:'2-digit', minute:'2-digit' });
     emilAddMsg('emil', isFR
-      ? `Nous sommes le **${dateStr}** et il est **${timeStr}**.\n\nPuis-je vous aider avec autre chose${n} ?`
-      : `Today is **${dateStr}** and it's **${timeStr}**.\n\nCan I help you with anything else${n}?`);
+      ? `Nous sommes le **${dateStr}** et il est **${timeStr}**.
+
+Puis-je vous aider avec autre chose${n} ?`
+      : `Today is **${dateStr}** and it's **${timeStr}**.
+
+Can I help you with anything else${n}?`);
     return;
   }
 
   // ── Who are you / about Emil ────────────────────────────────
   if (/qui es-tu|who are you|c'est quoi|what are you|tu es|vous êtes|are you/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Je suis **Emil**, l'assistant IA de **L'Empreinte D'Emil**. Je connais tous nos produits, nos catégories, nos tarifs et nos services. Je suis ici pour vous aider à trouver ce qui vous convient le mieux.\n\nComment puis-je vous aider${n} ?`
-      : `I'm **Emil**, the AI assistant for **L'Empreinte D'Emil**. I know all our products, categories, pricing and services. I'm here to help you find exactly what you need.\n\nHow can I help you${n}?`);
+      ? `Je suis **Emil**, l'assistant IA de **L'Empreinte D'Emil**. Je connais tous nos produits, nos catégories, nos tarifs et nos services. Je suis ici pour vous aider à trouver ce qui vous convient le mieux.
+
+Comment puis-je vous aider${n} ?`
+      : `I'm **Emil**, the AI assistant for **L'Empreinte D'Emil**. I know all our products, categories, pricing and services. I'm here to help you find exactly what you need.
+
+How can I help you${n}?`);
     return;
   }
 
@@ -9977,14 +11501,22 @@ function emilRespond(lower, originalText) {
   // ── Hours / address ─────────────────────────────────────────
   if (/heure|hour|ouvert|open|horaire|schedule|fermé|closed/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Notre boutique est ouverte **${kb.hours}**.\n\nVous nous trouverez à **${kb.address}**. Venez nous rendre visite !`
-      : `Our store is open **${kb.hours}**.\n\nFind us at **${kb.address}**. Come visit us!`);
+      ? `Notre boutique est ouverte **${kb.hours}**.
+
+Vous nous trouverez à **${kb.address}**. Venez nous rendre visite !`
+      : `Our store is open **${kb.hours}**.
+
+Find us at **${kb.address}**. Come visit us!`);
     return;
   }
   if (/adresse|address|localisa|où|pk12|douala|trouver|find|where/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Notre boutique se trouve au **${kb.address}**.\n\nOuverte ${kb.hours}.`
-      : `Our store is at **${kb.address}**.\n\nOpen ${kb.hours}.`);
+      ? `Notre boutique se trouve au **${kb.address}**.
+
+Ouverte ${kb.hours}.`
+      : `Our store is at **${kb.address}**.
+
+Open ${kb.hours}.`);
     return;
   }
 
@@ -9998,10 +11530,19 @@ function emilRespond(lower, originalText) {
     const catLines = categories.map(c => {
       const cnt = products.filter(p => p.catId === c.id && p.stock > 0).length;
       return `• **${isFR ? c.nameFR : (c.nameEN||c.nameFR)}** — ${cnt} ${isFR?'produit(s)':'product(s)'}`;
-    }).join('\n');
+    }).join('
+');
     emilAddMsg('emil', isFR
-      ? `Nous proposons actuellement **${kb.catCount} catégories** et **${kb.prodCount} produits** :\n\n${catLines}\n\nQuelle catégorie vous intéresse ?`
-      : `We currently offer **${kb.catCount} categories** and **${kb.prodCount} products**:\n\n${catLines}\n\nWhich category interests you?`);
+      ? `Nous proposons actuellement **${kb.catCount} catégories** et **${kb.prodCount} produits** :
+
+${catLines}
+
+Quelle catégorie vous intéresse ?`
+      : `We currently offer **${kb.catCount} categories** and **${kb.prodCount} products**:
+
+${catLines}
+
+Which category interests you?`);
     emilShowChips(emilGetChips('categories'));
     return;
   }
@@ -10144,8 +11685,12 @@ function emilRespond(lower, originalText) {
     if (!catProds.length) {
       // Category exists but all out of stock
       emilAddMsg('emil', isFR
-        ? `Notre catégorie **${catDisplay}** est actuellement en rupture de stock (${catProdTotal} produit(s) temporairement indisponibles).\n\nVoici ce que je vous recommande en attendant :`
-        : `Our **${catDisplay}** category is currently out of stock (${catProdTotal} product(s) temporarily unavailable).\n\nHere's what I recommend in the meantime:`);
+        ? `Notre catégorie **${catDisplay}** est actuellement en rupture de stock (${catProdTotal} produit(s) temporairement indisponibles).
+
+Voici ce que je vous recommande en attendant :`
+        : `Our **${catDisplay}** category is currently out of stock (${catProdTotal} product(s) temporarily unavailable).
+
+Here's what I recommend in the meantime:`);
       emilShowProducts(emilGetFeatured(null, 3));
     } else {
       const best = emilGetFeatured(matchedCat.id, 3);
@@ -10793,19 +12338,122 @@ renderAll = function() {
   if (typeof applyQuizFab === 'function') applyQuizFab();
 };
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // APPLY SAVED COLORS
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function applySavedColors() {
   const s = DB.get('colors',{});
   Object.entries(s).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // RENDER ALL
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function renderAll() {
-  const safeRender = (id, func) => { if (document.getElementById(id) && typeof func === 'function') func(); };
   applyTR();
   updateNotifBell();
   renderNavCats();
@@ -10820,22 +12468,85 @@ function renderAll() {
   updateCartCount();
 }
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // INIT
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 function init() {
   applySavedColors();
   lang = DB.get('lang','fr');
-  document.getElementById('lang-toggle').textContent = lang==='fr'?'EN':'FR';
+  const langToggle = document.getElementById('lang-toggle');
+  if (langToggle) langToggle.textContent = lang==='fr'?'EN':'FR';
   
-  // Load from local cache for instant visual, but we WILL override with Firebase
-  categories = DB.get('categories', DEFAULT_CATS);
-  products = DB.get('products', DEFAULT_PRODUCTS);
+  categories = DB.get('categories', []);
+  if (!categories || categories.length === 0) {
+    categories = [...DEFAULT_CATS];
+    DB.set('categories', categories);
+  }
+  
+  products = DB.get('products', []);
+  if (!products || products.length === 0) {
+    products = [...DEFAULT_PRODUCTS];
+    DB.set('products', products);
+  }
+
   orders = DB.get('orders',[]);
   settings = DB.get('settings', DEFAULT_SETTINGS);
   deliveryFees = DB.get('deliveryFees', DEFAULT_DELIVERY_FEES);
   deliveryRules = DB.get('deliveryRules', DEFAULT_DELIVERY_RULES);
   reviews = DB.get('reviews', DEFAULT_REVIEWS);
+  
   stockNotifConfig    = DB.get('stockNotifConfig', stockNotifConfig);
   stockNotifications  = DB.get('stockNotifications', []);
   stockAlertCooldowns = DB.get('stockAlertCooldowns', {});
@@ -10859,29 +12570,37 @@ function init() {
 
   renderAll();
 
-  // CRITICAL: Start Firebase and set a safety timeout
-  if (SYNC_CONFIG.enabled) {
-    startAutoSync();
-    // Augmentation du timeout à 15 secondes pour laisser le temps à la connexion de s'établir
-    syncTimeout = setTimeout(() => {
-      if (!initialSyncDone) {
-        console.warn("Firebase sync timeout (15s) - unlocking with local data");
-        hideSyncOverlay();
-      }
-    }, 15000); 
-    
-    // Log de tentative de connexion
-    console.log("⏳ Tentative de connexion à Firebase (Timeout: 15s)...");
-    console.log("🔗 URL Database utilisée :", SYNC_CONFIG.databaseURL);
-  } else {
-    hideSyncOverlay();
+  if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
+    setTimeout(() => syncPull(true), 800);
   }
+  startAutoSync();
 }
 
-try { init(); } catch(e) { console.error('Init error:', e); }
-try { initNewFeatures(); } catch(e) { console.error('InitNewFeatures error:', e); }
+init();
+
+    function hideLoading() {
+        const screen = document.getElementById('loading-screen');
+        if (screen) screen.classList.add('fade-out');
+    }
+    window.addEventListener('load', () => {
+        const txt = document.getElementById('loading-text');
+        if (txt) txt.textContent = lang === 'fr' ? "L'excitation va bientôt commencer..." : "The excitement is about to begin...";
+        setTimeout(hideLoading, 1500);
+    });
+    
+initNewFeatures();
 
 // Guarantee Emil is visible after everything loads
+
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            // Handle dynamic node insertion if needed
+        }
+    });
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
 window.addEventListener('load', function() {
   // Small delay to ensure all scripts have run
   setTimeout(function() {
@@ -10899,5 +12618,10 @@ window.addEventListener('load', function() {
 });
 
 </script>
+
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
 </body>
 </html>
