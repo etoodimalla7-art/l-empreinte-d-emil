@@ -1891,9 +1891,47 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style>
 </head>
 <body>
+
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    
 <!-- FLASH PROMO BAR -->
 <div id="flash-promo-bar">
   <span id="promo-bar-text">🎉 PROMO SPÉCIALE — -10% sur toute la boutique !</span>
@@ -3886,63 +3924,39 @@ Action: Immediate restocking required.</textarea></div>
 
 <div id="toast"><span class="toast-icon">✅</span><span id="toast-msg"></span></div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
 
 
 
+
+function compressImage(file, maxWidth = 800, quality = 0.6) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+        };
+    });
+}
+
 // ============================================================
 // DATA STORE
-// ============================================================
-
-// ╔══════════════════════════════════════════════════════════════╗
-// ║         SYNC LAYER — Multi-device shared database           ║
-// ║         Firebase Realtime Database + localStorage cache      ║
-// ╚══════════════════════════════════════════════════════════════╝
-const SYNC_CONFIG = {
-  enabled: true,
-  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
-  authDomain: 'lempreinte-d-emil.firebaseapp.com',
-  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'lempreinte-d-emil',
-  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
-  messagingSenderId: '979069264735',
-  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
-  autoSync: 30
-};
-
-function loadSyncConfig() { /* Hardcoded */ }
-
-let firebaseApp = null;
-let firebaseDb = null;
-let isSyncInitialized = false;
-
-const SHARED_KEYS = [
-  'categories','products','settings','colors','reviews',
-  'deliveryFees','deliveryRules','quartiers',
-  'pillars','whyItems','lookProducts','aboutTagline',
-  'promos','quizQuestions','bundleRelations',
-  'loyaltyRules','loyaltyCustomers',
-  'showcasePhotos','countdowns','orderStatuses','statusLabels',
-  'faqItems','giftSettings',
-  'stockNotifConfig','stockNotifications',
-  'pendingReviews','emilConvs','emilConfig',
-  'videoLibrary','orders',
-  'ft_'
-];
-
-const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
-
-function isSharedKey(k) {
-  if (LOCAL_ONLY_KEYS.includes(k)) return false;
-  return SHARED_KEYS.some(sk => k.startsWith(sk));
-}
-
-const PREFIX = 'lemil_';
-
-function cacheGet(k, def) {
-  try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
-}
 
 function cacheSet(k, v) {
   try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
@@ -3951,6 +3965,10 @@ function cacheSet(k, v) {
 function initFirebase() {
   if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
   if (isSyncInitialized) return true;
+  if (typeof firebase === 'undefined') {
+    console.warn("Firebase SDK not loaded yet.");
+    return false;
+  }
   try {
     const config = {
       apiKey: SYNC_CONFIG.apiKey,
@@ -3962,19 +3980,20 @@ function initFirebase() {
       appId: SYNC_CONFIG.appId
     };
     if (!firebase.apps.length) {
-      try { firebaseApp = firebase.initializeApp(config); } catch(e) { console.error('Firebase init error', e); }
+      firebaseApp = firebase.initializeApp(config);
     } else {
       firebaseApp = firebase.app();
     }
     firebaseDb = firebase.database();
     
-    // Split Stream Listeners: Listen to each key separately under storeData_split/
     SHARED_KEYS.forEach(key => {
       firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) {
           handleKeyUpdate(key, val);
         }
+      }, (err) => {
+        console.warn("Firebase listener error for " + key + ":", err);
       });
     });
     
@@ -3986,15 +4005,15 @@ function initFirebase() {
   }
 }
 
-// Global update handler for split streams
 function handleKeyUpdate(key, value) {
+  // PERSISTANCE: Firebase overwrites LocalStorage
   if (key === 'ft_' && typeof value === 'object') {
     Object.entries(value).forEach(([ftKey, ftVal]) => cacheSet(ftKey, ftVal));
   } else {
     cacheSet(key, value);
   }
   
-  // Update global variables
+  // Sync global variables
   if (key === 'categories') categories = value;
   else if (key === 'products') products = value;
   else if (key === 'settings') settings = value;
@@ -4025,19 +4044,19 @@ function handleKeyUpdate(key, value) {
   
   if (typeof applySavedColors === 'function') applySavedColors();
   
-  // Re-render UI
-  if (typeof renderAll === 'function') {
+  // Render UI (only if not currently editing to avoid jumping)
+  if (typeof renderAll === 'function' && !editingProductId) {
     if (currentPage === 'home' || !adminLoggedIn) renderAll();
   }
   
   setSyncStatus('ok');
 }
 
+// SÉCURISATION DE L'ÉCRITURE: Return Promise
 async function syncPush() {
-  if (!initFirebase()) return;
+  if (!initFirebase()) return false;
   setSyncStatus('syncing');
   
-  // Push each shared key individually to its own node
   const pushPromises = SHARED_KEYS.map(async (key) => {
     let val;
     if (key === 'ft_') {
@@ -4061,17 +4080,56 @@ async function syncPush() {
   try {
     await Promise.all(pushPromises);
     setSyncStatus('ok');
+    return true;
   } catch(e) {
     console.warn('[Sync] Push failed:', e.message);
     setSyncStatus('offline');
+    return false;
+  }
+}
+
+// Single key push for faster admin updates
+
+async function syncPushKey(key, subId = null) {
+  if (!initFirebase()) return false;
+  let val;
+  let path = 'storeData_split/' + key;
+  
+  if (subId) {
+    path += '/' + subId;
+    if (key === 'products') val = products.find(p => p.id === subId);
+    else if (key === 'categories') val = categories.find(c => c.id === subId);
+    else if (key === 'reviews') val = reviews.find(r => r.id === subId);
+  } else {
+    val = cacheGet(key, undefined);
+  }
+  
+  if (val === undefined) return false;
+  try {
+    await firebaseDb.ref(path).set(val);
+    setSyncStatus('ok');
+    return true;
+  } catch (e) {
+    console.error("[Sync] Push failed for " + path, e);
+    setSyncStatus('offline');
+    return false;
   }
 }
 
 async function syncPull(silent) {
   if (!initFirebase()) return;
   if (!silent) setSyncStatus('syncing');
-  // Data is handled by .on('value') listeners automatically
-  setSyncStatus('ok');
+  // Initial load from Firebase to ensure we are up to date
+  try {
+    const snapshot = await firebaseDb.ref('storeData_split').once('value');
+    const data = snapshot.val();
+    if (data) {
+      Object.entries(data).forEach(([k, v]) => handleKeyUpdate(k, v));
+    }
+    setSyncStatus('ok');
+  } catch(e) {
+    setSyncStatus('offline');
+  }
 }
 
 function setSyncStatus(state) {
@@ -4102,13 +4160,12 @@ function renderSyncAdmin() {
   const el = document.getElementById('sync-admin-panel'); if (!el) return;
   el.innerHTML = `
     <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:10px;padding:20px;margin-bottom:20px">
-      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Fragmentée</div>
+      <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:6px">🌐 Synchronisation Temps Réel (v2)</div>
       <p style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-        Les données sont désormais <strong>fragmentées par catégories</strong> pour éviter les limites de taille Firebase.<br>
-        Chaque modification est synchronisée instantanément.
+        Structure étanche : <strong>storeData_split</strong>. L'ancien nœud global est ignoré.
       </p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Rafraîchir</button>
+        <button class="admin-btn admin-btn-ghost" onclick="syncPull(false)">⬇ Forcer Récupération</button>
         <button class="admin-btn admin-btn-ghost" onclick="syncPush()">⬆ Forcer Envoi Global</button>
       </div>
       <div style="margin-top:14px;padding:12px;background:var(--dark-3);border-radius:6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -4134,31 +4191,46 @@ const DB = {
   set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
 };
   
+
 // ============================================================
 // DEFAULTS
 // ============================================================
 const DEFAULT_CATS = [
   { id:'c1', icon:'🌹', nameFR:'Parfums', nameEN:'Perfumes', sloganFR:"L'art du parfum, l'essence du luxe", sloganEN:"The art of perfume, the essence of luxury" },
   { id:'c2', icon:'💧', nameFR:'Body Mist', nameEN:'Body Mist', sloganFR:"Une brume de fraîcheur pour chaque instant", sloganEN:"A mist of freshness for every moment" },
-  { id:'c3', icon:'🌿', nameFR:'Huiles Essentielles', nameEN:'Essential Oils', sloganFR:"La nature à l'état pur", sloganEN:"Nature in its purest form" },
-  { id:'c4', icon:'👠', nameFR:'Chaussures & Talons', nameEN:'Shoes & Heels', sloganFR:"Marchez avec élégance, partout", sloganEN:"Walk with elegance, everywhere" },
-  { id:'c5', icon:'🧢', nameFR:'Chapeaux & Casquettes', nameEN:'Hats & Caps', sloganFR:"Couvrez-vous avec style", sloganEN:"Cover yourself with style" },
-  { id:'c6', icon:'💄', nameFR:'Cosmétiques', nameEN:'Cosmetics', sloganFR:"Révélez votre beauté naturelle", sloganEN:"Reveal your natural beauty" },
-  { id:'c7', icon:'👑', nameFR:'Perruques', nameEN:'Wigs', sloganFR:"Changez de look, gardez votre essence", sloganEN:"Change your look, keep your essence" },
-  { id:'c8', icon:'💎', nameFR:'Accessoires', nameEN:'Accessories', sloganFR:"Les détails font la perfection", sloganEN:"Details make perfection" },
-  { id:'c9', icon:'📱', nameFR:'Électronique', nameEN:'Electronics', sloganFR:"La technologie au service du style", sloganEN:"Technology at the service of style" },
-  { id:'c10',icon:'👗', nameFR:'Vêtements', nameEN:'Clothing', sloganFR:"Portez votre signature, chaque jour", sloganEN:"Wear your signature, every day" },
+  { id:'c3', icon:'👞', nameFR:'Chaussures Homme', nameEN:'Men Shoes', sloganFR:"L'élégance à chaque pas", sloganEN:"Elegance in every step" },
+  { id:'c4', icon:'👠', nameFR:'Talons & Escarpins', nameEN:'Heels & Pumps', sloganFR:"Prenez de la hauteur avec style", sloganEN:"Rise with style" },
+  { id:'c5', icon:'💎', nameFR:'Accessoires Luxe', nameEN:'Luxury Accessories', sloganFR:"Le détail qui fait la différence", sloganEN:"The detail that makes the difference" },
+  { id:'c6', icon:'🎁', nameFR:'Coffrets Cadeaux', nameEN:'Gift Sets', sloganFR:"Offrez l'exceptionnel", sloganEN:"Give the exceptional" }
 ];
 
 const DEFAULT_PRODUCTS = [
-  { id:'p1', nameFR:'Oud Royal', nameEN:'Royal Oud', catId:'c1', type:'single', price:25000, stock:15, imgs:[], descFR:'Parfum oriental de luxe aux notes de bois de santal et de rose. Une fragrance envoûtante pour les occasions spéciales.', descEN:'Luxury oriental perfume with sandalwood and rose notes. An enchanting fragrance for special occasions.', bundleItems:[] },
-  { id:'p2', nameFR:'Mist Floral Rose', nameEN:'Floral Rose Mist', catId:'c2', type:'single', price:12000, stock:20, imgs:[], descFR:'Brume corporelle légère aux fleurs de rose et jasmin. Fraîcheur toute la journée.', descEN:'Light body mist with rose and jasmine flowers. Freshness all day long.', bundleItems:[] },
-  { id:'p3', nameFR:'Pack Prestige Parfums', nameEN:'Prestige Perfumes Pack', catId:'c1', type:'bundle', price:45000, stock:5, imgs:[], descFR:'Le pack parfum ultime — 3 fragrances de luxe soigneusement sélectionnées.', descEN:'The ultimate perfume pack — 3 luxury fragrances carefully selected.', bundleItems:['Oud Royal 50ml','Mist Floral 100ml','Huile Essentielle Rose 30ml'] },
-  { id:'p4', nameFR:'Rouge Intense', nameEN:'Intense Red', catId:'c6', type:'single', price:8000, stock:30, imgs:[], descFR:'Rouge à lèvres longue durée mat et velouté pour un look sophistiqué.', descEN:'Long-lasting matte velvet lipstick for a sophisticated look.', bundleItems:[] },
-  { id:'p5', nameFR:'Talons Élégance Noire', nameEN:'Black Elegance Heels', catId:'c4', type:'single', price:35000, stock:8, imgs:[], descFR:'Escarpins noirs élégants avec détails dorés. Talon aiguille 10cm. Cuir véritable.', descEN:'Elegant black heels with gold details. 10cm stiletto heel. Genuine leather.', bundleItems:[] },
-  { id:'p6', nameFR:'Casquette Dorée Luxe', nameEN:'Golden Luxury Cap', catId:'c5', type:'single', price:15000, stock:12, imgs:[], descFR:'Casquette de luxe avec broderies dorées. Tissu premium ajustable.', descEN:'Luxury cap with gold embroidery. Premium adjustable fabric.', bundleItems:[] },
-  { id:'p7', nameFR:'Pack Beauté Complète', nameEN:'Complete Beauty Pack', catId:'c6', type:'bundle', price:55000, stock:3, imgs:[], descFR:'Le pack beauté tout-en-un : maquillage, soins, et parfum inclus.', descEN:'The all-in-one beauty pack: makeup, skincare, and perfume included.', bundleItems:['Rouge Intense Lèvres','Fond de Teint HD','Parfum Floral','Sérum Éclat'] },
-  { id:'p8', nameFR:'Robe Soirée Dorée', nameEN:'Golden Evening Dress', catId:'c10', type:'single', price:75000, stock:6, imgs:[], descFR:'Robe de soirée longue aux reflets dorés. Tissu satiné haute qualité.', descEN:'Long evening dress with golden reflections. High quality satin fabric.', bundleItems:[] },
+  { id:'p1', nameFR:'Oud Royal', nameEN:'Royal Oud', catId:'c1', type:'single', price:45000, stock:12, imgs:[], descFR:'Parfum oriental intense.', descEN:'Intense oriental perfume.' },
+  { id:'p2', nameFR:'Baccarat Sillage', nameEN:'Baccarat Sillage', catId:'c1', type:'single', price:55000, stock:8, imgs:[], descFR:'Fragrance ambrée et boisée.', descEN:'Amber and woody fragrance.' },
+  { id:'p3', nameFR:'Sauvage Elixir', nameEN:'Sauvage Elixir', catId:'c1', type:'single', price:50000, stock:15, imgs:[], descFR:'Notes épicées et boisées.', descEN:'Spicy and woody notes.' },
+  { id:'p4', nameFR:'Bleu de Chanel', nameEN:'Bleu de Chanel', catId:'c1', type:'single', price:48000, stock:10, imgs:[], descFR:'Un aromatique boisé.', descEN:'A woody aromatic.' },
+  { id:'p5', nameFR:'J\'adore Dior', nameEN:'J\'adore Dior', catId:'c1', type:'single', price:52000, stock:7, imgs:[], descFR:'Bouquet floral iconique.', descEN:'Iconic floral bouquet.' },
+  { id:'p6', nameFR:'Black Opium', nameEN:'Black Opium', catId:'c1', type:'single', price:45000, stock:9, imgs:[], descFR:'Café noir et fleurs blanches.', descEN:'Black coffee and white flowers.' },
+  { id:'p7', nameFR:'Terre d\'Hermès', nameEN:'Terre d\'Hermès', catId:'c1', type:'single', price:47000, stock:11, imgs:[], descFR:'La force de la terre.', descEN:'The strength of the earth.' },
+  { id:'p8', nameFR:'La Vie Est Belle', nameEN:'La Vie Est Belle', catId:'c1', type:'single', price:49000, stock:13, imgs:[], descFR:'Iris et gourmandise.', descEN:'Iris and gourmandise.' },
+  { id:'p9', nameFR:'Invictus Victory', nameEN:'Invictus Victory', catId:'c1', type:'single', price:46000, stock:14, imgs:[], descFR:'Puissance et fraîcheur.', descEN:'Power and freshness.' },
+  { id:'p10', nameFR:'Good Girl', nameEN:'Good Girl', catId:'c1', type:'single', price:53000, stock:6, imgs:[], descFR:'Audace et sensualité.', descEN:'Boldness and sensuality.' },
+  { id:'p11', nameFR:'Mist Vanille Coco', nameEN:'Vanilla Coco Mist', catId:'c2', type:'single', price:15000, stock:25, imgs:[], descFR:'Douceur tropicale.', descEN:'Tropical sweetness.' },
+  { id:'p12', nameFR:'Mist Fraise Givrée', nameEN:'Iced Strawberry Mist', catId:'c2', type:'single', price:15000, stock:20, imgs:[], descFR:'Fraîcheur fruitée.', descEN:'Fruity freshness.' },
+  { id:'p13', nameFR:'Mist Ambre Nuit', nameEN:'Midnight Amber Mist', catId:'c2', type:'single', price:18000, stock:18, imgs:[], descFR:'Mystère et chaleur.', descEN:'Mystery and warmth.' },
+  { id:'p14', nameFR:'Mist Océan Bleu', nameEN:'Blue Ocean Mist', catId:'c2', type:'single', price:15000, stock:22, imgs:[], descFR:'Brise marine.', descEN:'Sea breeze.' },
+  { id:'p15', nameFR:'Mist Rose Velours', nameEN:'Velvet Rose Mist', catId:'c2', type:'single', price:16000, stock:19, imgs:[], descFR:'Élégance florale.', descEN:'Floral elegance.' },
+  { id:'p16', nameFR:'Oxford Cuir Noir', nameEN:'Black Leather Oxford', catId:'c3', type:'single', price:65000, stock:5, imgs:[], descFR:'Cuir véritable premium.', descEN:'Premium genuine leather.' },
+  { id:'p17', nameFR:'Mocassins Marron', nameEN:'Brown Loafers', catId:'c3', type:'single', price:55000, stock:8, imgs:[], descFR:'Confort et style.', descEN:'Comfort and style.' },
+  { id:'p18', nameFR:'Derby Classique', nameEN:'Classic Derby', catId:'c3', type:'single', price:60000, stock:6, imgs:[], descFR:'Indispensable du vestiaire.', descEN:'Wardrobe essential.' },
+  { id:'p19', nameFR:'Sneakers Luxe', nameEN:'Luxury Sneakers', catId:'c3', type:'single', price:75000, stock:4, imgs:[], descFR:'Style urbain chic.', descEN:'Chic urban style.' },
+  { id:'p20', nameFR:'Bottines Chelsea', nameEN:'Chelsea Boots', catId:'c3', type:'single', price:70000, stock:7, imgs:[], descFR:'Élégance intemporelle.', descEN:'Timeless elegance.' },
+  { id:'p21', nameFR:'Escarpins Rouges', nameEN:'Red Pumps', catId:'c4', type:'single', price:45000, stock:5, imgs:[], descFR:'Féminité absolue.', descEN:'Absolute femininity.' },
+  { id:'p22', nameFR:'Sandales Or', nameEN:'Gold Sandals', catId:'c4', type:'single', price:40000, stock:9, imgs:[], descFR:'Éclat estival.', descEN:'Summer glow.' },
+  { id:'p23', nameFR:'Talons Aiguilles Noirs', nameEN:'Black Stilettos', catId:'c4', type:'single', price:48000, stock:6, imgs:[], descFR:'Le classique chic.', descEN:'The chic classic.' },
+  { id:'p24', nameFR:'Plateformes Argent', nameEN:'Silver Platforms', catId:'c4', type:'single', price:50000, stock:4, imgs:[], descFR:'Style audacieux.', descEN:'Bold style.' },
+  { id:'p25', nameFR:'Mules Élégantes', nameEN:'Elegant Mules', catId:'c4', type:'single', price:35000, stock:10, imgs:[], descFR:'Confort raffiné.', descEN:'Refined comfort.' },
+  { id:'p26', nameFR:'Bottes Hautes', nameEN:'High Boots', catId:'c4', type:'single', price:85000, stock:3, imgs:[], descFR:'Cuir de luxe.', descEN:'Luxury leather.' }
 ];
 
 const DEFAULT_DELIVERY_FEES = [
@@ -4197,8 +4269,16 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_COLORS = { '--gold':'#C9A84C','--gold-light':'#E8C97A','--noir':'#0A0A0A','--dark':'#111111','--dark-2':'#1A1A1A' };
 
+
+);
+}
+
 // ============================================================
 // STATE
+
+);
+}
+
 // ============================================================
 let lang = DB.get('lang','fr');
 let cart = DB.get('cart',[]);
@@ -4215,160 +4295,26 @@ let editingProductId = null;
 let currentImgs = [];
 let pmQty = 1;
 
+
+);
+}
+
 // ============================================================
 // I18N
-// ============================================================
-const TR = {
-  fr:{
-    cart_title:'Mon Panier', subtotal:'Sous-total', delivery_fee:'Livraison', total:'Total',
-    checkout:'Commander →', checkout_title:'Finaliser la commande',
-    label_name:'Nom complet *', label_phone:'Téléphone *', label_city:'Ville de livraison *',
-    label_address:'Adresse *', label_msg:'Notes (optionnel)',
-    send_order:'Envoyer la commande sur WhatsApp', download_receipt:'Télécharger le reçu',
-    hero_eyebrow:'Douala, Cameroun', slogan:'Signez votre passage, imposez votre style',
-    discover:'Découvrir la boutique', delivery_info:'Infos livraison',
-    cats_label:'Collections', featured_label:'Sélection', new_label:'Nouveautés',
-    promo_title:'Packs & Bundles', promo_sub:'Offres combinées à prix privilégiés', view_bundles:'Voir les packs',
-    shop_label:'Boutique', shop_title:'Notre Boutique',
-    categories:'Catégories', type:'Type', all:'Tous', simple:'Simples', packs:'Packs',
-    price_range:'Prix max', sort_default:'Par défaut', add_cart:'Ajouter', view_product:'👁',
-    bundle_badge:'PACK', new_badge:'NOUVEAU', bundle_includes:'Ce pack contient',
-    delivery_label:'Livraison', delivery_title:'Conditions de Livraison',
-    delivery_fees_title:'Tarifs de livraison', city:'Ville', delay:'Délai',
-    about_label:'À Propos', about_title:'Notre Histoire',
-    about_h2:'Une marque de luxe née à Douala',
-    about_p1:"L'Empreinte D'Emil est une boutique de luxe basée à Douala, Cameroun.",
-    about_p2:"Notre mission est de rendre le luxe accessible tout en maintenant les plus hauts standards de qualité.",
-    about_p3:"Commandez facilement via WhatsApp et recevez vos articles à votre adresse.",
-    map_title:'Localisation', open_maps:'Ouvrir dans Google Maps →',
-    contact_label:'Contact', contact_title:'Nous Contacter', contact_h3:'Informations',
-    address:'Adresse', hours:'Horaires', hours_val:'Lun-Sam: 8h - 20h',
-    contact_quick:'Commander rapidement', contact_sub:'Envoyez-nous un message sur WhatsApp.',
-    open_wa:'Ouvrir WhatsApp', shop_now:'Voir la boutique',
-    footer_desc:'Boutique de luxe à Douala, Cameroun. Parfums, cosmétiques, mode — livrés via WhatsApp.',
-    nav_info:'Infos', nav_about:'À propos', nav_contact:'Contact', nav_delivery:'Livraison',
-    order_wa:'Commander', contact_us:'Nous contacter',
-    toast_added:'Produit ajouté au panier !', toast_removed:'Produit retiré.',
-    cart_empty:'Votre panier est vide', cart_empty_sub:'Ajoutez des produits pour commencer',
-    results:'produits',
-    wa_hello:"Bonjour 👋, je souhaite commander chez L'Empreinte D'Emil :",
-    wa_qty:'Qté', wa_price:'Prix', wa_total:'TOTAL FINAL', wa_subtotal:'Sous-total',
-    wa_delivery:'Livraison', wa_name:'Nom', wa_phone:'Téléphone', wa_address:'Adresse',
-    wa_includes:'Contenu du pack', wa_screenshot:'⚠️ Envoyez une capture d\'écran pour confirmer votre commande.',
-    checkout_error:'Veuillez remplir tous les champs obligatoires.',
-    qty_label:'Quantité',
-    reviews_label:'Témoignages', reviews_title:'Ce que disent nos Clients',
-    reviews_page_title:'Avis de nos Clients', reviews_page_sub:'Découvrez les expériences authentiques de notre communauté',
-    view_all_reviews:'Voir tous les avis →', all_reviews:'Tous les avis', all_stars:'Toutes notes',
-    nav_reviews:'Avis', reviews_empty:'Aucun avis pour le moment.',
-    verified_purchase:'Achat vérifié', general_review:'Boutique en général',
-    reviews_avg_label:'Note moyenne', based_on:'basé sur', reviews_word:'avis',
-    douala_zones_title:'Tarifs Douala par Quartier',
-    about_subtitle:"L'Art de l'Élégance de la Tête aux Pieds",
-    about_intro:"Bienvenue dans l'univers de L'Empreinte d'EMIL, votre destination privilégiée pour un style affirmé et une présence inoubliable.",
-    about_tagline:"L'Empreinte d'EMIL : Marquez les esprits, laissez votre empreinte.",
-    about_pillars_label:'Notre Collection', about_pillars_title:'Ce que nous Offrons',
-    about_why_label:'Pourquoi nous', about_why_title:"Pourquoi choisir L'Empreinte",
-    look_label:'Style du Moment', look_title:'Le Look du Moment',
-    look_sub:'Composez votre look complet avec nos sélections du moment',
-    look_cta_title:'Complétez votre Signature',
-    look_cta_sub:"Associez parfum, sac et chaussures pour une allure inoubliable.",
-    look_add_all:'Ajouter tout au panier',
-    contact_form_title:'Envoyez-nous un message',
-    contact_form_sub:'Remplissez ce formulaire et nous vous répondrons rapidement via WhatsApp.',
-    cf_name:'Prénom & Nom *', cf_phone:'Téléphone *', cf_email:'Email',
-    cf_city:'Ville', cf_subject:'Sujet *', cf_message:'Message *',
-    cf_subject_placeholder:'-- Choisir un sujet --',
-    cf_s_order:'Question sur une commande', cf_s_product:'Information produit',
-    cf_s_delivery:'Livraison & expédition', cf_s_return:'Retour & échange', cf_s_other:'Autre',
-    cf_send_wa:'Envoyer via WhatsApp',
-    cash_delivery:'Cash à la livraison (Douala)', express_delivery:'Livraison express',
-    delivery_24h:'Douala < 24h · Cameroun 48–72h',
-    pub_review_title:'Partagez votre expérience',
-    pub_review_sub:'Vous avez commandé chez nous ? Laissez votre avis !',
-    pub_rv_name:'Votre nom *', pub_rv_product:'Produit acheté',
-    pub_rv_rating:'Votre note *', pub_rv_text:'Votre avis *',
-    pub_rv_submit:'Soumettre mon avis', pub_rv_general:'Boutique en général',
-    rv_approved:'✅ Publiés', rv_pending:'⏳ En attente',
-  },
-  en:{
-    cart_title:'My Cart', subtotal:'Subtotal', delivery_fee:'Delivery', total:'Total',
-    checkout:'Order →', checkout_title:'Complete your order',
-    label_name:'Full name *', label_phone:'Phone *', label_city:'Delivery city *',
-    label_address:'Delivery address *', label_msg:'Notes (optional)',
-    send_order:'Send order on WhatsApp', download_receipt:'Download receipt',
-    hero_eyebrow:'Douala, Cameroon', slogan:'Make your mark, define your style',
-    discover:'Discover the store', delivery_info:'Delivery info',
-    cats_label:'Collections', featured_label:'Selection', new_label:'New arrivals',
-    promo_title:'Packs & Bundles', promo_sub:'Combined offers at special prices', view_bundles:'View packs',
-    shop_label:'Shop', shop_title:'Our Shop',
-    categories:'Categories', type:'Type', all:'All', simple:'Single', packs:'Packs',
-    price_range:'Max price', sort_default:'Default', add_cart:'Add', view_product:'👁',
-    bundle_badge:'PACK', new_badge:'NEW', bundle_includes:'This pack contains',
-    delivery_label:'Delivery', delivery_title:'Delivery Conditions',
-    delivery_fees_title:'Delivery rates', city:'City', delay:'Delay',
-    about_label:'About', about_title:'Our Story',
-    about_h2:'A luxury brand born in Douala',
-    about_p1:"L'Empreinte D'Emil is a luxury boutique based in Douala, Cameroon.",
-    about_p2:"Our mission is to make luxury accessible while maintaining the highest quality standards.",
-    about_p3:"Order easily via WhatsApp and receive your items at your address.",
-    map_title:'Location', open_maps:'Open in Google Maps →',
-    contact_label:'Contact', contact_title:'Contact Us', contact_h3:'Information',
-    address:'Address', hours:'Hours', hours_val:'Mon-Sat: 8am - 8pm',
-    contact_quick:'Order quickly', contact_sub:'Send us a message on WhatsApp.',
-    open_wa:'Open WhatsApp', shop_now:'View shop',
-    footer_desc:'Luxury boutique in Douala, Cameroon. Perfumes, cosmetics, fashion — delivered via WhatsApp.',
-    nav_info:'Info', nav_about:'About', nav_contact:'Contact', nav_delivery:'Delivery',
-    order_wa:'Order', contact_us:'Contact us',
-    toast_added:'Product added to cart!', toast_removed:'Product removed.',
-    cart_empty:'Your cart is empty', cart_empty_sub:'Add products to get started',
-    results:'products',
-    wa_hello:"Hello 👋, I'd like to order from L'Empreinte D'Emil:",
-    wa_qty:'Qty', wa_price:'Price', wa_total:'FINAL TOTAL', wa_subtotal:'Subtotal',
-    wa_delivery:'Delivery', wa_name:'Name', wa_phone:'Phone', wa_address:'Address',
-    wa_includes:'Pack contents', wa_screenshot:"⚠️ Please send a screenshot to confirm your order.",
-    checkout_error:'Please fill in all required fields.',
-    qty_label:'Quantity',
-    reviews_label:'Reviews', reviews_title:'What our Clients Say',
-    reviews_page_title:'Client Reviews', reviews_page_sub:'Discover authentic experiences from our community',
-    view_all_reviews:'View all reviews →', all_reviews:'All reviews', all_stars:'All ratings',
-    nav_reviews:'Reviews', reviews_empty:'No reviews yet.',
-    verified_purchase:'Verified purchase', general_review:'Store in general',
-    reviews_avg_label:'Average rating', based_on:'based on', reviews_word:'reviews',
-    douala_zones_title:'Douala Rates by Neighbourhood',
-    about_subtitle:"The Art of Elegance from Head to Toe",
-    about_intro:"Welcome to the world of L'Empreinte d'EMIL, your privileged destination for an assertive style and an unforgettable presence.",
-    about_tagline:"L'Empreinte d'EMIL: Make your mark, leave your impression.",
-    about_pillars_label:'Our Collection', about_pillars_title:'What We Offer',
-    about_why_label:'Why us', about_why_title:"Why Choose L'Empreinte",
-    look_label:'Style of the Moment', look_title:'The Look of the Moment',
-    look_sub:'Compose your complete look with our curated selections',
-    look_cta_title:'Complete your Signature',
-    look_cta_sub:'Combine perfume, bag and shoes for an unforgettable presence.',
-    look_add_all:'Add all to cart',
-    contact_form_title:'Send us a message',
-    contact_form_sub:'Fill in this form and we will respond quickly via WhatsApp.',
-    cf_name:'First & Last Name *', cf_phone:'Phone *', cf_email:'Email',
-    cf_city:'City', cf_subject:'Subject *', cf_message:'Message *',
-    cf_subject_placeholder:'-- Choose a subject --',
-    cf_s_order:'Order inquiry', cf_s_product:'Product information',
-    cf_s_delivery:'Delivery & shipping', cf_s_return:'Return & exchange', cf_s_other:'Other',
-    cf_send_wa:'Send via WhatsApp',
-    cash_delivery:'Cash on delivery (Douala)', express_delivery:'Express delivery',
-    delivery_24h:'Douala < 24h · Cameroon 48–72h',
-    pub_review_title:'Share your experience',
-    pub_review_sub:'Did you order from us? Leave your review!',
-    pub_rv_name:'Your name *', pub_rv_product:'Product purchased',
-    pub_rv_rating:'Your rating *', pub_rv_text:'Your review *',
-    pub_rv_submit:'Submit my review', pub_rv_general:'Store in general',
-    rv_approved:'✅ Published', rv_pending:'⏳ Pending',
-  }
-};
+
 
 const t = k => (TR[lang]?.[k]) ?? (TR.fr?.[k] ?? k);
 
+
+);
+}
+
 // ============================================================
 // HELPERS
+
+);
+}
+
 // ============================================================
 const fmt = p => p.toLocaleString('fr-FR') + ' FCFA';
 const getCat = id => categories.find(c => c.id === id);
@@ -4397,8 +4343,16 @@ function getDeliveryFee(city) {
   return row ? row.fee : 2000;
 }
 
+
+);
+}
+
 // ============================================================
 // NAVIGATION
+
+);
+}
+
 // ============================================================
 function navigate(page, filterType) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4426,8 +4380,16 @@ function navigateToCat(catId) {
   navigate('shop');
 }
 
+
+);
+}
+
 // ============================================================
 // LANGUAGE
+
+);
+}
+
 // ============================================================
 function toggleLang() {
   lang = lang==='fr'?'en':'fr';
@@ -4447,8 +4409,16 @@ function applyTR() {
   document.getElementById('footer-slogan').textContent = lang==='fr' ? (settings.sloganFR||t('slogan')) : (settings.sloganEN||t('slogan'));
 }
 
+
+);
+}
+
 // ============================================================
 // PRODUCT CARD
+
+);
+}
+
 // ============================================================
 function renderProductCard(p) {
   const cat = getCat(p.catId);
@@ -4473,8 +4443,16 @@ function renderProductCard(p) {
     </div>`;
 }
 
+
+);
+}
+
 // ============================================================
 // HOME PAGE
+
+);
+}
+
 // ============================================================
 function renderHomePage() {
   document.getElementById('home-cats').innerHTML = categories.map(c=>`
@@ -4508,8 +4486,16 @@ function renderFooter() {
   document.getElementById('footer-wa-btn').href = `https://wa.me/${wa}`;
 }
 
+
+);
+}
+
 // ============================================================
 // SHOP PAGE
+
+);
+}
+
 // ============================================================
 function renderShopPage() {
   // Category hero banner
@@ -4570,18 +4556,14 @@ function filterProducts() {
   document.getElementById('results-count').textContent = ps.length + ' ' + t('results');
 }
 
+
+);
+}
+
 // ============================================================
 // PRODUCT MODAL
-// ============================================================
-function openProduct(id) {
-  const p = getProd(id); if (!p) return;
-  const cat = getCat(p.catId);
-  pmQty = 1;
-  document.getElementById('pm-title').textContent = prodName(p);
 
-  const imgs = p.imgs?.length ? p.imgs : [];
-  const mainImgHTML = imgs.length
-    ? `<img src="${imgs[0]}" id="pm-main-img" alt="${prodName(p)}">`
+ id="pm-main-img" alt="${prodName(p)}">`
     : `<span id="pm-main-img" style="font-size:80px">${cat?.icon||'📦'}</span>`;
 
   const thumbsHTML = imgs.length > 1 ? `
@@ -4639,8 +4621,16 @@ function addFromModal(id) {
   closeModal('product-modal');
 }
 
+
+);
+}
+
 // ============================================================
 // CART
+
+);
+}
+
 // ============================================================
 function addToCart(id, qty=1) {
   const p = getProd(id); if (!p) return;
@@ -4715,10 +4705,18 @@ function closeCart() {
   document.body.style.overflow = '';
 }
 
+
+);
+}
+
 // ============================================================
 // DOUALA QUARTIERS — distances from P4-12 (km) → fee in FCFA
 // Base rate: 500 FCFA for closest zones, scales with distance
 // Admin can edit these via the delivery admin panel (stored in localStorage)
+
+);
+}
+
 // ============================================================
 const DEFAULT_QUARTIERS = [
   // Zone A — très proche de P4-12 (0–3 km) → 500 FCFA
@@ -4775,8 +4773,16 @@ const ZONE_INFO = {
   en: { A:'Zone A · Very close to P4-12 · ~0–3 km', B:'Zone B · Nearby · ~3–7 km', C:'Zone C · City center · ~7–14 km', D:'Zone D · Far · ~14–22 km', E:'Zone E · Very far · 22+ km' },
 };
 
+
+);
+}
+
 // ============================================================
 // CHECKOUT STATE
+
+);
+}
+
 // ============================================================
 let coDelivery = 500;
 let lastOrderData = null; // stores the last completed order for receipt
@@ -4918,32 +4924,52 @@ function sendWhatsApp() {
   const engravings = (typeof window._engravings !== 'undefined') ? {...window._engravings} : {};
 
   // ── Build WhatsApp message ──
-  let msg = `${t('wa_hello')}\n\n`;
+  let msg = `${t('wa_hello')}
+
+`;
   cart.forEach((item,i)=>{
     const p = getProd(item.id); if (!p) return;
-    msg += `${i+1}. *${prodName(p)}*\n`;
-    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}\n`;
+    msg += `${i+1}. *${prodName(p)}*
+`;
+    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}
+`;
     if (p.type==='bundle' && p.bundleItems?.length) {
-      msg += `   📦 ${t('wa_includes')}:\n`;
-      p.bundleItems.forEach(bi=>msg+=`   • ${bi}\n`);
+      msg += `   📦 ${t('wa_includes')}:
+`;
+      p.bundleItems.forEach(bi=>msg+=`   • ${bi}
+`);
     }
     // Engraving for this product
     if (engravings[item.id]?.text) {
-      msg += `   💍 ${lang==='fr'?'Gravure':'Engraving'}: "${engravings[item.id].text}"\n`;
+      msg += `   💍 ${lang==='fr'?'Gravure':'Engraving'}: "${engravings[item.id].text}"
+`;
     }
-    msg += '\n';
+    msg += '
+';
   });
 
-  msg += `\n${t('wa_subtotal')}: ${fmt(subtotal)}\n`;
-  msg += `${t('wa_delivery')} (${locationLabel}): ${fmt(fee)}\n`;
-  if (giftPrice > 0) msg += `🎁 ${lang==='fr'?'Emballage cadeau':'Gift wrapping'}: ${fmt(giftPrice)}\n`;
-  msg += `*${t('wa_total')}: ${fmt(total)}*\n\n`;
-  msg += `👤 ${t('wa_name')}: ${name}\n`;
-  msg += `📞 ${t('wa_phone')}: ${phone}\n`;
-  msg += `📍 ${t('wa_address')}: ${address}, ${locationLabel}\n`;
-  if (notes)   msg += `💬 Note: ${notes}\n`;
-  if (giftMsg) msg += `🎁 ${lang==='fr'?'Message cadeau':'Gift message'}: "${giftMsg}"\n`;
-  msg += `\n${t('wa_screenshot')}`;
+  msg += `
+${t('wa_subtotal')}: ${fmt(subtotal)}
+`;
+  msg += `${t('wa_delivery')} (${locationLabel}): ${fmt(fee)}
+`;
+  if (giftPrice > 0) msg += `🎁 ${lang==='fr'?'Emballage cadeau':'Gift wrapping'}: ${fmt(giftPrice)}
+`;
+  msg += `*${t('wa_total')}: ${fmt(total)}*
+
+`;
+  msg += `👤 ${t('wa_name')}: ${name}
+`;
+  msg += `📞 ${t('wa_phone')}: ${phone}
+`;
+  msg += `📍 ${t('wa_address')}: ${address}, ${locationLabel}
+`;
+  if (notes)   msg += `💬 Note: ${notes}
+`;
+  if (giftMsg) msg += `🎁 ${lang==='fr'?'Message cadeau':'Gift message'}: "${giftMsg}"
+`;
+  msg += `
+${t('wa_screenshot')}`;
 
   // ── Save order ──
   const orderId = 'ORD' + Date.now();
@@ -4986,8 +5012,16 @@ function sendWhatsApp() {
   openReceiptModal(order);
 }
 
+
+);
+}
+
 // ============================================================
 // RECEIPT MODAL — shown after WhatsApp send
+
+);
+}
+
 // ============================================================
 function openReceiptModal(order) {
   document.getElementById('receipt-modal-title').textContent = lang==='fr' ? 'Commande envoyée !' : 'Order sent!';
@@ -5074,9 +5108,47 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     .no-print{display:none!important}
     @page{margin:15mm}
   }
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style>
 </head>
 <body>
+
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    
 <div class="doc">
   <div class="doc-header">
     <div class="brand">
@@ -5140,6 +5212,11 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     <div class="thanks">© L'Empreinte D'Emil · ${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'}</div>
   </div>
 </div>
+
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -5150,8 +5227,16 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
   w.onload = () => setTimeout(()=>w.print(), 400);
 }
 
+
+);
+}
+
 // ============================================================
 // DELIVERY PAGE
+
+);
+}
+
 // ============================================================
 function renderDeliveryPage() {
   // Douala zones display
@@ -5193,8 +5278,16 @@ function renderDeliveryPage() {
     </div>`).join('');
 }
 
+
+);
+}
+
 // ============================================================
 // ABOUT / CONTACT
+
+);
+}
+
 // ============================================================
 // renderAboutPage handled in new JS block above
 
@@ -5210,8 +5303,16 @@ function openWhatsAppDirect() {
   window.open(`https://wa.me/${settings.waNumber||'237694092202'}`, '_blank');
 }
 
+
+);
+}
+
 // ============================================================
 // MODALS
+
+);
+}
+
 // ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
@@ -5219,8 +5320,16 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{
   ov.addEventListener('click', function(e){ if (e.target===this) this.classList.remove('open'); });
 });
 
+
+);
+}
+
 // ============================================================
 // SEARCH
+
+);
+}
+
 // ============================================================
 document.getElementById('search-input').addEventListener('input', function() {
   const q = this.value.toLowerCase().trim();
@@ -5243,165 +5352,16 @@ document.addEventListener('click', e=>{ if (!e.target.closest('.nav-search')) do
 
 function doSearch() { const q=document.getElementById('search-input').value.trim(); if(q) navigate('shop'); }
 
+
+);
+}
+
 // ============================================================
 // ADMIN
-// ============================================================
-// openAdmin: secured version defined below (always requires password)
-// loginAdmin replaced with session-secured version above
 
-document.getElementById('admin-pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') loginAdmin(); });
-
-function showAdminPanel() {
-  document.getElementById('admin-panel').classList.add('open');
-  renderAdminDashboard();
-  renderAdminProducts();
-  renderAdminCats();
-  renderAdminOrders();
-  renderAdminDelivery();
-  renderAdminReviews();
-  populateReviewProductSelect();
-  renderAdminAboutContent();
-  loadAdminSettings();
-  loadAdminColors();
-  populateProdCatSelect();
-}
-
-function closeAdmin() {
-  document.getElementById('admin-panel').classList.remove('open');
-  document.body.style.overflow = '';
-  // Return to home page
-  currentPage = 'home';
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const home = document.getElementById('page-home');
-  if (home) home.classList.add('active');
-  window.scrollTo(0, 0);
-  renderAll();
-}
-
-function adminNav(el) {
-  document.querySelectorAll('.admin-nav-item').forEach(i=>i.classList.remove('active'));
-  el.classList.add('active');
-  const section = el.getAttribute('data-section');
-  document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
-  document.getElementById('admin-'+section).classList.add('active');
-  // Close sidebar on mobile after nav
-  if (window.innerWidth <= 900) closeSidebar();
-}
-
-// DASHBOARD
-function renderAdminDashboard() {
-  const totalRev = orders.reduce((s,o)=>s+o.total,0);
-  const inStock = products.filter(p=>p.stock>0).length;
-  document.getElementById('stats-grid').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Commandes</div><div class="stat-value">${orders.length}</div><div class="stat-sub">Total reçues</div></div>
-    <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value">${(totalRev/1000).toFixed(0)}k</div><div class="stat-sub">FCFA</div></div>
-    <div class="stat-card"><div class="stat-label">Produits</div><div class="stat-value">${products.length}</div><div class="stat-sub">${inStock} en stock</div></div>
-    <div class="stat-card"><div class="stat-label">Catégories</div><div class="stat-value">${categories.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Épuisés</div><div class="stat-value" style="color:var(--danger)">${products.filter(p=>p.stock<=0).length}</div><div class="stat-sub">produits hors stock</div></div>`;
-
-  document.getElementById('orders-dash-table').innerHTML = orders.slice(0,6).map(o=>`
-    <tr class="order-row-clickable" onclick="openOrderDetail('${o.id}')">
-      <td style="color:var(--muted);font-size:10px">${o.id.slice(0,16)}...</td>
-      <td><strong>${o.name}</strong></td>
-      <td style="color:var(--muted)">${o.city}</td>
-      <td>${o.items.length}</td>
-      <td style="color:var(--gold)">${fmt(o.total)}</td>
-      <td style="color:var(--muted);font-size:10px">${new Date(o.date).toLocaleDateString('fr-FR')}</td>
-    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px">Aucune commande</td></tr>';
-
-  // Stock per category
-  document.getElementById('stock-grid').innerHTML = categories.map(c=>{
-    const ps = products.filter(p=>p.catId===c.id);
-    const inS = ps.filter(p=>p.stock>0).length;
-    return `<div class="stat-card"><div class="stat-label">${c.icon} ${getCatName(c)}</div><div class="stat-value">${inS}/${ps.length}</div><div class="stat-sub">en stock</div></div>`;
-  }).join('');
-}
-
-function getCatName(c) { return lang==='fr'?c.nameFR:c.nameEN; }
-
-// PRODUCTS
-function renderAdminProducts() {
-  const q = document.getElementById('prod-search')?.value?.toLowerCase()||'';
-  const cf = document.getElementById('prod-cat-filter')?.value||'';
-  let ps = products.filter(p=>(!q||prodName(p).toLowerCase().includes(q))&&(!cf||p.catId===cf));
-  document.getElementById('admin-prod-table').innerHTML = ps.map(p=>{
-    const cat=getCat(p.catId);
-    const fi=p.imgs?.[0];
-    return `<tr>
-      <td><div class="product-thumb-admin">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div></td>
-      <td>${prodName(p)}</td>
-      <td>${cat?`${cat.icon} ${getCatName(cat)}`:'—'}</td>
-      <td style="color:var(--gold)">${fmt(p.price)}</td>
-      <td><span class="badge ${p.type==='bundle'?'badge-gold':'badge-muted'}">${p.type==='bundle'?'Pack':'Simple'}</span></td>
-      <td><span class="badge ${p.stock>0?'badge-success':'badge-danger'}">${p.stock>0?p.stock+' stock':'Épuisé'}</span></td>
-      <td style="display:flex;gap:5px">
-        <button class="admin-btn admin-btn-sm" onclick="editProduct('${p.id}')">✏️</button>
-        <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteProduct('${p.id}')">🗑</button>
-      </td></tr>`;
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:18px">Aucun produit</td></tr>';
-}
-
-function switchProductTab(el, tab) {
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('prod-list-tab').style.display = tab==='list'?'block':'none';
-  document.getElementById('prod-add-tab').style.display = tab==='add'?'block':'none';
-}
-
-function handleImgUpload(input) {
-  const files = Array.from(input.files);
-  if (!files.length) return;
-  const row = document.getElementById('img-previews-row');
-  files.forEach(file=>{
-    const reader = new FileReader();
-    reader.onload = e=>{
-      currentImgs.push(e.target.result);
-      const img = document.createElement('img');
-      img.className = 'img-preview-item';
-      img.src = e.target.result;
-      row.appendChild(img);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function toggleBundleSection() {
-  document.getElementById('bundle-section').style.display = document.getElementById('p-type').value==='bundle'?'block':'none';
-}
-
-async function saveProduct() {
-  const nameFR = document.getElementById('p-name-fr').value.trim();
-  const price = parseInt(document.getElementById('p-price').value)||0;
-  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return; }
-
-  const data = {
-    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
-    catId: document.getElementById('p-cat').value,
-    type: document.getElementById('p-type').value,
-    price, stock: parseInt(document.getElementById('p-stock').value)||0,
-    descFR: document.getElementById('p-desc-fr').value.trim(),
-    descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
-  };
-
-  if (editingProductId) {
-    const idx = products.findIndex(p=>p.id===editingProductId);
-    if (idx>-1) {
-      products[idx] = {...products[idx], ...data};
-      if (currentImgs.length) products[idx].imgs = currentImgs;
-    }
-    editingProductId = null;
-    document.getElementById('edit-banner').style.display = 'none';
-  } else {
-    products.unshift({ id:'p'+Date.now(), ...data, imgs: currentImgs.length?currentImgs:[] });
-  }
-
-  DB.set('products', products);
-  showToast('Produit enregistré !');
-  resetProductForm();
-  renderAdminProducts();
-  renderAdminDashboard();
-  if (typeof syncPush === 'function') await syncPush();
+function removeAdminImg(i) {
+  currentImgs.splice(i, 1);
+  renderImgPreviews();
 }
 
 function editProduct(id) {
@@ -5417,7 +5377,8 @@ function editProduct(id) {
   document.getElementById('p-stock').value = p.stock;
   document.getElementById('p-desc-fr').value = p.descFR||'';
   document.getElementById('p-desc-en').value = p.descEN||'';
-  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('\n');
+  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('
+');
   toggleBundleSection();
 
   document.getElementById('edit-banner').style.display = 'block';
@@ -5433,10 +5394,14 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if (!confirm('Supprimer ce produit ?')) return;
   products = products.filter(p=>p.id!==id);
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('products', products);
+  const ok = await syncPushKey('products');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   renderAdminProducts(); renderAdminDashboard();
   showToast('Produit supprimé','🗑');
 }
@@ -5486,11 +5451,14 @@ async function addCategory() {
     sloganEN: document.getElementById('cat-slogan-en').value.trim(),
   };
   categories.push(cat);
-  DB.set('categories', categories);
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
+  firebaseDb.ref('storeData_split/categories').set(categories);
+  const ok = await syncPushKey('categories');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderAdminCats(); populateProdCatSelect();
   showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
 }
 
 function editCat(id) {
@@ -5506,7 +5474,7 @@ function editCat(id) {
     c.icon = newIcon||c.icon;
     c.sloganFR = newSloganFR;
     c.sloganEN = newSloganEN;
-    DB.set('categories', categories);
+    firebaseDb.ref('storeData_split/categories').set(categories);
     renderAdminCats(); populateProdCatSelect();
     showToast('Catégorie mise à jour !');
   }
@@ -5515,7 +5483,7 @@ function editCat(id) {
 function deleteCat(id) {
   if (!confirm('Supprimer cette catégorie ?')) return;
   categories = categories.filter(c=>c.id!==id);
-  DB.set('categories', categories);
+  firebaseDb.ref('storeData_split/categories').set(categories);
   renderAdminCats(); populateProdCatSelect();
   showToast('Catégorie supprimée','🗑');
 }
@@ -5718,7 +5686,7 @@ function loadAdminSettings() {
   document.getElementById('store-email').value = settings.email||'';
 }
 
-function saveSettings() {
+async function saveSettings() {
   settings.storeFR = document.getElementById('store-name-fr').value;
   settings.storeEN = document.getElementById('store-name-en').value;
   settings.sloganFR = document.getElementById('slogan-fr').value;
@@ -5744,8 +5712,16 @@ function clearAllData() {
 }
 
 
+
+);
+}
+
 // ============================================================
 // REVIEWS SYSTEM
+
+);
+}
+
 // ============================================================
 
 const DEFAULT_REVIEWS = [
@@ -6039,342 +6015,12 @@ function renderAdminReviews() {
 }
 
 
+
+);
+}
+
 // ============================================================
 // ABOUT PAGE DATA — admin-editable pillars & why-items
-// ============================================================
-const DEFAULT_PILLARS = [
-  { id:'pl1', icon:'✨', titleFR:'Nos Parfums : Votre Signature Invisible',
-    titleEN:'Our Perfumes: Your Invisible Signature',
-    textFR:'Le parfum est l\u2019accessoire ultime. Notre collection de fragrances de prestige, du 9pm Rebel aux gammes Kaly, est rigoureusement sélectionnée pour sa tenue exceptionnelle et son sillage unique.',
-    textEN:'Perfume is the ultimate accessory. Our prestigious fragrance collection, from 9pm Rebel to Kaly ranges, is rigorously selected for exceptional longevity and unique sillage.' },
-  { id:'pl2', icon:'\ud83d\udc5c', titleFR:'Maroquinerie & Chaussures : Le Pas du Succès',
-    titleEN:'Leather Goods & Shoes: The Step of Success',
-    textFR:'Nous vous proposons une sélection exclusive de sacs à main et chaussures alliant design moderne et qualité supérieure, pour sublimer votre allure en toutes occasions.',
-    textEN:'We offer an exclusive selection of handbags and shoes combining modern design and superior quality, to enhance your style on every occasion.' },
-  { id:'pl3', icon:'\ud83e\udde2', titleFR:'Accessoires de Mode : La Touche Finale',
-    titleEN:'Fashion Accessories: The Final Touch',
-    textFR:'Affirmez votre style avec nos casquettes tendance et accessoires de cheveux raffinés. Ces pièces transforment une tenue ordinaire en un look iconique.',
-    textEN:'Assert your style with our trendy caps and refined hair accessories. These pieces transform an ordinary outfit into an iconic look.' },
-];
-
-const DEFAULT_WHY_ITEMS = [
-  { id:'w1', icon:'\ud83c\udfc6', titleFR:'Qualité Certifiée', titleEN:'Certified Quality',
-    textFR:'Des produits sélectionnés pour leur durabilité et leur esthétique haut de gamme.', textEN:'Products selected for their durability and premium aesthetics.' },
-  { id:'w2', icon:'\ud83c\udf39', titleFR:'Expertise Olfactive', titleEN:'Olfactory Expertise',
-    textFR:'Une connaissance approfondie des meilleures maisons de parfumerie pour vous conseiller.', textEN:'Deep knowledge of the finest perfumery houses to guide you.' },
-  { id:'w3', icon:'\u23f3', titleFR:'Style Intemporel', titleEN:'Timeless Style',
-    textFR:'Des accessoires qui traversent les modes pour une allure toujours actuelle.', textEN:'Accessories that transcend trends for an always-current look.' },
-  { id:'w4', icon:'\ud83d\ude9a', titleFR:'Service de Proximité', titleEN:'Local Service',
-    textFR:'Livraison rapide et suivi personnalisé à Douala et partout au Cameroun.', textEN:'Fast delivery and personalized follow-up in Douala and all of Cameroon.' },
-];
-
-const DEFAULT_LOOK = ['p1','p5','p6']; // Default look: perfume + shoes + cap
-
-const DEFAULT_ABOUT_TAGLINE = {
-  fr: 'L\u2019Empreinte d\u2019EMIL\u202f: Marquez les esprits, laissez votre empreinte.',
-  en: 'L\u2019Empreinte d\u2019EMIL\u202f: Make your mark, leave your impression.'
-};
-
-let pillars      = DB.get('pillars', DEFAULT_PILLARS);
-let whyItems     = DB.get('whyItems', DEFAULT_WHY_ITEMS);
-let lookProducts = DB.get('lookProducts', DEFAULT_LOOK);
-let aboutTagline = DB.get('aboutTagline', DEFAULT_ABOUT_TAGLINE);
-let pendingReviews = DB.get('pendingReviews', []);
-let currentReviewTab = 'approved';
-let pubStars = 0;
-
-function savePillars()    { DB.set('pillars', pillars); }
-function saveWhyItems()   { DB.set('whyItems', whyItems); }
-function saveLook()       { DB.set('lookProducts', lookProducts); }
-function savePendingRvs() { DB.set('pendingReviews', pendingReviews); }
-
-// ── About page render ─────────────────────────────────────────
-function renderAboutPage() {
-  const addr = settings.address || 'Douala, Cameroun';
-  const mapsUrl = 'https://maps.google.com/?q=' + encodeURIComponent(addr);
-  const addrEl = document.getElementById('about-address');
-  const mapsEl = document.getElementById('maps-link');
-  if (addrEl) addrEl.textContent = addr;
-  if (mapsEl) mapsEl.href = mapsUrl;
-
-  // Tagline
-  const tl = document.getElementById('about-tagline-text');
-  if (tl) tl.textContent = lang==='fr' ? (aboutTagline.fr||DEFAULT_ABOUT_TAGLINE.fr) : (aboutTagline.en||DEFAULT_ABOUT_TAGLINE.en);
-
-  // Pillars
-  const pg = document.getElementById('about-pillars-grid');
-  if (pg) pg.innerHTML = pillars.map(p => `
-    <div class="about-pillar">
-      <div class="about-pillar-icon">${p.icon}</div>
-      <div class="about-pillar-title">${lang==='fr'?p.titleFR:p.titleEN}</div>
-      <div class="about-pillar-text">${lang==='fr'?p.textFR:p.textEN}</div>
-    </div>`).join('');
-
-  // Why items
-  const wg = document.getElementById('about-why-grid');
-  if (wg) wg.innerHTML = whyItems.map(w => `
-    <div class="about-why-item">
-      <div class="about-why-icon">${w.icon}</div>
-      <div>
-        <div class="about-why-title">${lang==='fr'?w.titleFR:w.titleEN}</div>
-        <div class="about-why-text">${lang==='fr'?w.textFR:w.textEN}</div>
-      </div>
-    </div>`).join('');
-}
-
-// ── Look du Moment ────────────────────────────────────────────
-function renderLookDuMoment() {
-  const el = document.getElementById('look-items-list'); if (!el) return;
-  const prods = lookProducts.map(id => getProd(id)).filter(Boolean);
-  el.innerHTML = prods.length ? prods.map(p => {
-    const cat = getCat(p.catId);
-    const fi = p.imgs?.[0];
-    return `<div class="look-item" onclick="openProduct('${p.id}')">
-      <div class="look-item-img">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div>
-      <div style="flex:1">
-        <div class="look-item-name">${prodName(p)}</div>
-        <div class="look-item-price">${fmt(p.price)}</div>
-      </div>
-      <button class="btn-add-cart" style="padding:6px 12px;font-size:10px" onclick="event.stopPropagation();addToCart('${p.id}')" data-i18n="add_cart">${t('add_cart')}</button>
-    </div>`;
-  }).join('') : `<div style="color:var(--muted);font-size:13px;text-align:center;padding:24px">${lang==='fr'?'Aucun produit sélectionné':'No products selected'}</div>`;
-}
-
-function addLookToCart() {
-  lookProducts.forEach(id => addToCart(id, 1));
-  showToast(lang==='fr'?'Look ajouté au panier !':'Look added to cart!', '🛍️');
-}
-
-// ── Contact form ──────────────────────────────────────────────
-function sendContactWhatsApp() {
-  const name    = document.getElementById('cf-name').value.trim();
-  const phone   = document.getElementById('cf-phone').value.trim();
-  const email   = document.getElementById('cf-email').value.trim();
-  const city    = document.getElementById('cf-city').value.trim();
-  const subject = document.getElementById('cf-subject').value;
-  const message = document.getElementById('cf-message').value.trim();
-
-  if (!name||!phone||!message) {
-    showToast(t('checkout_error'), '⚠️'); return;
-  }
-
-  const subjectLabels = {
-    commande: lang==='fr'?'Question sur une commande':'Order inquiry',
-    produit:  lang==='fr'?'Information produit':'Product information',
-    livraison:lang==='fr'?'Livraison & expédition':'Delivery & shipping',
-    retour:   lang==='fr'?'Retour & échange':'Return & exchange',
-    autre:    lang==='fr'?'Autre':'Other',
-  };
-
-  let msg = lang==='fr' ? '📩 *Nouveau message via le formulaire L\u2019Empreinte D\u2019Emil*\n\n' : '📩 *New message via L\u2019Empreinte D\u2019Emil form*\n\n';
-  msg += `👤 ${lang==='fr'?'Nom':'Name'}: ${name}\n`;
-  msg += `📞 ${lang==='fr'?'Téléphone':'Phone'}: ${phone}\n`;
-  if (email) msg += `📧 Email: ${email}\n`;
-  if (city)  msg += `📍 ${lang==='fr'?'Ville':'City'}: ${city}\n`;
-  if (subject) msg += `📋 ${lang==='fr'?'Sujet':'Subject'}: ${subjectLabels[subject]||subject}\n`;
-  msg += `\n💬 ${lang==='fr'?'Message':'Message'}:\n${message}`;
-
-  const wa = settings.waNumber||'237694092202';
-  window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(msg), '_blank');
-
-  const sentEl = document.getElementById('cf-sent-msg');
-  const sentTxt = document.getElementById('cf-sent-text');
-  if (sentEl) {
-    if (sentTxt) sentTxt.textContent = lang==='fr' ? 'Message envoyé ! Nous vous répondrons bientôt.' : 'Message sent! We will reply soon.';
-    sentEl.classList.add('show');
-    setTimeout(() => sentEl.classList.remove('show'), 5000);
-  }
-  ['cf-name','cf-phone','cf-email','cf-city','cf-message'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value='';
-  });
-  document.getElementById('cf-subject').value = '';
-}
-
-// ── Public review submit ──────────────────────────────────────
-function initPubStarPicker() {
-  const picker = document.getElementById('pub-star-picker'); if (!picker) return;
-  picker.querySelectorAll('.pub-star').forEach(star => {
-    star.addEventListener('mouseover', () => {
-      const v = parseInt(star.getAttribute('data-v'));
-      picker.querySelectorAll('.pub-star').forEach(s => {
-        s.classList.toggle('active', parseInt(s.getAttribute('data-v')) <= v);
-      });
-    });
-    star.addEventListener('mouseout', () => {
-      picker.querySelectorAll('.pub-star').forEach(s => {
-        s.classList.toggle('active', parseInt(s.getAttribute('data-v')) <= pubStars);
-      });
-    });
-    star.addEventListener('click', () => {
-      pubStars = parseInt(star.getAttribute('data-v'));
-      document.getElementById('pub-rv-stars').value = pubStars;
-      picker.querySelectorAll('.pub-star').forEach(s => {
-        s.classList.toggle('active', parseInt(s.getAttribute('data-v')) <= pubStars);
-      });
-    });
-  });
-}
-
-function populatePubReviewProductSelect() {
-  const sel = document.getElementById('pub-rv-product'); if (!sel) return;
-  sel.innerHTML = `<option value="">${lang==='fr'?'Boutique en général':'Store in general'}</option>`
-    + products.map(p => `<option value="${p.id}">${prodName(p)}</option>`).join('');
-}
-
-function submitPublicReview() {
-  const name = document.getElementById('pub-rv-name').value.trim();
-  const text = document.getElementById('pub-rv-text').value.trim();
-  const stars = parseInt(document.getElementById('pub-rv-stars').value)||0;
-  const productId = document.getElementById('pub-rv-product').value;
-
-  if (!name) { showToast(lang==='fr'?'Entrez votre nom':'Enter your name','⚠️'); return; }
-  if (!text)  { showToast(lang==='fr'?'Rédigez votre avis':'Write your review','⚠️'); return; }
-  if (!stars) { showToast(lang==='fr'?'Sélectionnez une note':'Select a rating','⚠️'); return; }
-
-  const rv = {
-    id: 'pub'+Date.now(), name, productId, stars,
-    textFR: lang==='fr' ? text : '',
-    textEN: lang==='en' ? text : '',
-    date: new Date().toISOString().slice(0,10),
-    verified: false, pending: true
-  };
-
-  pendingReviews.unshift(rv);
-  savePendingRvs();
-
-  // Show success
-  const sentEl = document.getElementById('pub-rv-sent');
-  const sentTxt = document.getElementById('pub-rv-sent-text');
-  if (sentEl) {
-    if (sentTxt) sentTxt.textContent = lang==='fr'
-      ? 'Merci ! Votre avis a été soumis et sera visible après validation par notre équipe.'
-      : 'Thank you! Your review has been submitted and will be visible after approval by our team.';
-    sentEl.classList.add('show');
-    setTimeout(() => sentEl.classList.remove('show'), 6000);
-  }
-  document.getElementById('pub-rv-name').value = '';
-  document.getElementById('pub-rv-text').value = '';
-  document.getElementById('pub-rv-stars').value = '0';
-  pubStars = 0;
-  document.querySelectorAll('.pub-star').forEach(s => s.classList.remove('active'));
-
-  // Notify admin
-  document.getElementById('admin-notif').style.display = 'block';
-  showToast(lang==='fr'?'Avis soumis, merci !':'Review submitted, thank you!','⭐');
-}
-
-// ── Admin: About content management ──────────────────────────
-function renderAdminAboutContent() {
-  // Pillars
-  const pl = document.getElementById('admin-pillars-list'); if (!pl) return;
-  pl.innerHTML = pillars.map((p,i) => `
-    <div class="review-admin-card" style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="font-size:13px"><span style="font-size:20px;margin-right:8px">${p.icon}</span><strong>${p.titleFR}</strong></div>
-        <div style="display:flex;gap:5px">
-          <button class="admin-btn admin-btn-sm" onclick="editPillar(${i})">✏️</button>
-          <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePillar(${i})">🗑</button>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic">${p.textFR.slice(0,80)}...</div>
-    </div>`).join('') || '<div style="color:var(--muted);font-size:13px;padding:12px">Aucune section</div>';
-
-  // Why items
-  const wl = document.getElementById('admin-why-list'); if (!wl) return;
-  wl.innerHTML = whyItems.map((w,i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--dark-3);border-radius:6px;margin-bottom:8px">
-      <span style="font-size:20px">${w.icon}</span>
-      <div style="flex:1;font-size:13px"><strong>${w.titleFR}</strong> — <span style="color:var(--muted)">${w.textFR}</span></div>
-      <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteWhyItem(${i})">🗑</button>
-    </div>`).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">Aucun élément</div>';
-
-  // Tagline
-  const tlfr = document.getElementById('about-tagline-fr');
-  const tlen = document.getElementById('about-tagline-en');
-  if (tlfr) tlfr.value = aboutTagline.fr||'';
-  if (tlen) tlen.value = aboutTagline.en||'';
-
-  // Look products
-  const ll = document.getElementById('admin-look-list'); if (!ll) return;
-  ll.innerHTML = lookProducts.map((id,i) => {
-    const p = getProd(id); if (!p) return '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--dark-3);border-radius:6px;margin-bottom:8px">
-      <span style="font-size:20px">${getCat(p.catId)?.icon||'📦'}</span>
-      <div style="flex:1;font-size:13px">${prodName(p)} — <span style="color:var(--gold)">${fmt(p.price)}</span></div>
-      <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="removeFromLook(${i})">🗑</button>
-    </div>`;
-  }).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">Aucun produit sélectionné</div>';
-
-  // Look product select
-  const lps = document.getElementById('look-product-select');
-  if (lps) lps.innerHTML = products.map(p => `<option value="${p.id}">${prodName(p)}</option>`).join('');
-}
-
-function savePillar() {
-  const icon = document.getElementById('pil-icon').value.trim()||'✨';
-  const titleFR = document.getElementById('pil-title-fr').value.trim();
-  const titleEN = document.getElementById('pil-title-en').value.trim();
-  const textFR = document.getElementById('pil-text-fr').value.trim();
-  const textEN = document.getElementById('pil-text-en').value.trim();
-  if (!titleFR||!textFR) { showToast('Titre et description FR requis','⚠️'); return; }
-  pillars.push({ id:'pl'+Date.now(), icon, titleFR, titleEN, textFR, textEN });
-  savePillars();
-  ['pil-icon','pil-title-fr','pil-title-en','pil-text-fr','pil-text-en'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  renderAdminAboutContent();
-  showToast('Section ajoutée !');
-}
-
-function editPillar(i) {
-  const p = pillars[i]; if (!p) return;
-  document.getElementById('pil-icon').value = p.icon;
-  document.getElementById('pil-title-fr').value = p.titleFR;
-  document.getElementById('pil-title-en').value = p.titleEN||'';
-  document.getElementById('pil-text-fr').value = p.textFR;
-  document.getElementById('pil-text-en').value = p.textEN||'';
-  pillars.splice(i,1); savePillars(); renderAdminAboutContent();
-  showToast('Modifiez puis enregistrez','✏️');
-}
-
-function deletePillar(i) {
-  if (!confirm('Supprimer cette section ?')) return;
-  pillars.splice(i,1); savePillars(); renderAdminAboutContent();
-  showToast('Section supprimée','🗑');
-}
-
-function saveWhyItem() {
-  const icon = document.getElementById('why-icon').value.trim()||'⭐';
-  const titleFR = document.getElementById('why-title-fr').value.trim();
-  const titleEN = document.getElementById('why-title-en').value.trim();
-  const textFR = document.getElementById('why-text-fr').value.trim();
-  const textEN = document.getElementById('why-text-en').value.trim();
-  if (!titleFR) { showToast('Titre FR requis','⚠️'); return; }
-  whyItems.push({ id:'w'+Date.now(), icon, titleFR, titleEN, textFR, textEN });
-  saveWhyItems();
-  ['why-icon','why-title-fr','why-title-en','why-text-fr','why-text-en'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  renderAdminAboutContent();
-  showToast('Point fort ajouté !');
-}
-
-function deleteWhyItem(i) {
-  whyItems.splice(i,1); saveWhyItems(); renderAdminAboutContent();
-  showToast('Supprimé','🗑');
-}
-
-function saveTagline() {
-  aboutTagline.fr = document.getElementById('about-tagline-fr').value;
-  aboutTagline.en = document.getElementById('about-tagline-en').value;
-  DB.set('aboutTagline', aboutTagline);
-  showToast('Tagline enregistrée !');
-}
-
-function addToLook() {
-  const sel = document.getElementById('look-product-select');
-  const id = sel?.value; if (!id) return;
-  if (!lookProducts.includes(id)) {
-    lookProducts.push(id); saveLook(); renderAdminAboutContent();
-    showToast('Ajouté au Look !');
-  } else { showToast('Déjà dans le Look','⚠️'); }
-}
 
 function removeFromLook(i) {
   lookProducts.splice(i,1); saveLook(); renderAdminAboutContent();
@@ -6416,21 +6062,12 @@ function rejectReview(id) {
 // (keys added to TR object separately below)
 
 
+
+);
+}
+
 // ============================================================
 // ADMIN SIDEBAR — collapsible on mobile
-// ============================================================
-function toggleSidebar() {
-  const sidebar = document.getElementById('admin-panel').querySelector('.admin-sidebar');
-  const overlay = document.getElementById('admin-sidebar-overlay');
-  const isOpen = sidebar.classList.contains('open');
-  if (isOpen) {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('open');
-  } else {
-    sidebar.classList.add('open');
-    overlay.classList.add('open');
-  }
-}
 
 function closeSidebar() {
   const sidebar = document.getElementById('admin-panel')?.querySelector('.admin-sidebar');
@@ -6439,142 +6076,14 @@ function closeSidebar() {
   if (overlay) overlay.classList.remove('open');
 }
 
+
+);
+}
+
 // ============================================================
 // ORDER DETAIL MODAL
-// ============================================================
-function openOrderDetail(orderId) {
-  const o = orders.find(ord => ord.id === orderId);
-  if (!o) return;
 
-  document.getElementById('odm-id').textContent = o.id;
 
-  const dateStr = new Date(o.date).toLocaleDateString(lang==='fr'?'fr-FR':'en-US', {
-    weekday:'long', year:'numeric', month:'long', day:'numeric'
-  });
-  const timeStr = new Date(o.date).toLocaleTimeString(lang==='fr'?'fr-FR':'en-US', {
-    hour:'2-digit', minute:'2-digit'
-  });
-
-  // Build items HTML
-  const itemsHTML = o.items.map(item => {
-    const p = getProd(item.id);
-    if (!p) return '';
-    const cat = getCat(p.catId);
-    const fi = p.imgs?.[0];
-    const subtotal = p.price * item.qty;
-    let bundleRows = '';
-    if (p.type === 'bundle' && p.bundleItems?.length) {
-      bundleRows = `<div style="margin-top:4px;font-size:11px;color:var(--gold)">📦 ${p.bundleItems.join(' · ')}</div>`;
-    }
-    return `<div class="order-item-row">
-      <div class="order-item-thumb">${fi ? `<img src="${fi}" alt="">` : (cat ? cat.icon : '📦')}</div>
-      <div class="order-item-info">
-        <div class="order-item-name">${prodName(p)}</div>
-        <div class="order-item-meta">${cat ? catName(cat) : ''} · ${p.type === 'bundle' ? (lang==='fr'?'Pack':'Pack') : (lang==='fr'?'Produit simple':'Single product')} · ${lang==='fr'?'Qté':'Qty'}: ${item.qty}</div>
-        ${bundleRows}
-      </div>
-      <div class="order-item-price">${fmt(subtotal)}</div>
-    </div>`;
-  }).join('');
-
-  // WhatsApp replay message
-  const waMsg = (lang==='fr'?'Bonjour':'Hello') + ' ' + o.name + ',\n\n' +
-    (lang==='fr'?'Votre commande':'Your order') + ' #' + o.id + '\n' +
-    (lang==='fr'?'a bien été reçue.':'has been received.') + '\n\n' +
-    (lang==='fr'?'Total':'Total') + ': ' + fmt(o.total) + '\n' +
-    (lang==='fr'?'Livraison':'Delivery') + ': ' + fmt(o.delivery||0) + '\n' +
-    (lang==='fr'?'Adresse':'Address') + ': ' + o.address + ', ' + o.city + '\n\n' +
-    (lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!');
-
-  const waUrl = 'https://wa.me/' + (o.phone||'').replace(/[^0-9]/g,'') + '?text=' + encodeURIComponent(waMsg);
-
-  document.getElementById('odm-body').innerHTML = `
-    <div class="order-detail-section">
-      <div class="order-detail-section-title">${lang==='fr'?'Informations Client':'Customer Information'}</div>
-      <div class="order-client-grid">
-        <div class="order-client-field">
-          <div class="order-client-label">👤 ${lang==='fr'?'Nom complet':'Full name'}</div>
-          <div class="order-client-value">${o.name}</div>
-        </div>
-        <div class="order-client-field">
-          <div class="order-client-label">📞 Téléphone</div>
-          <div class="order-client-value">${o.phone||'—'}</div>
-        </div>
-        <div class="order-client-field">
-          <div class="order-client-label">📍 ${lang==='fr'?'Adresse de livraison':'Delivery address'}</div>
-          <div class="order-client-value">${o.address||'—'}</div>
-        </div>
-        <div class="order-client-field">
-          <div class="order-client-label">🌍 ${lang==='fr'?'Ville / Quartier':'City / Neighbourhood'}</div>
-          <div class="order-client-value">${o.city||'—'}</div>
-        </div>
-        ${o.notes ? `<div class="order-client-field" style="grid-column:1/-1">
-          <div class="order-client-label">💬 ${lang==='fr'?'Notes':'Notes'}</div>
-          <div class="order-client-value" style="color:var(--muted)">${o.notes}</div>
-        </div>` : ''}
-      </div>
-    </div>
-
-    <div class="order-detail-section">
-      <div class="order-detail-section-title">${lang==='fr'?'Produits commandés':'Ordered products'} <span style="color:var(--muted);font-weight:400">(${o.items.length} ${lang==='fr'?'article(s)':'item(s)'})</span></div>
-      ${itemsHTML || `<div style="color:var(--muted);font-size:13px;padding:16px 0">${lang==='fr'?'Aucun article trouvé':'No items found'}</div>`}
-    </div>
-
-    <div class="order-detail-section">
-      <div class="order-detail-section-title">${lang==='fr'?'Récapitulatif financier':'Financial summary'}</div>
-      <div class="order-totals">
-        <div class="order-total-row">
-          <span>${lang==='fr'?'Sous-total produits':'Products subtotal'}</span>
-          <span>${fmt(o.subtotal||0)}</span>
-        </div>
-        <div class="order-total-row">
-          <span>${lang==='fr'?'Frais de livraison':'Delivery fee'} (${o.city})</span>
-          <span>${fmt(o.delivery||0)}</span>
-        </div>
-        <div class="order-total-row final">
-          <span>TOTAL</span>
-          <span>${fmt(o.total)}</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="order-detail-section">
-      <div class="order-detail-section-title">${lang==='fr'?'Informations commande':'Order information'}</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <div class="order-status-badge confirmed">✅ ${lang==='fr'?'Commande reçue':'Order received'}</div>
-        <div style="font-size:12px;color:var(--muted)">${dateStr} ${lang==='fr'?'à':'at'} ${timeStr}</div>
-      </div>
-    </div>
-
-    <div class="order-detail-section" style="margin-bottom:0">
-      <div class="order-detail-section-title">${lang==='fr'?'Actions':'Actions'}</div>
-      ${o.phone ? `<button class="order-wa-btn" onclick="window.open('${waUrl}','_blank')">
-        <span>💬</span> ${lang==='fr'?'Contacter le client sur WhatsApp':'Contact client on WhatsApp'}
-      </button>` : ''}
-      <button class="order-print-btn" onclick="printOrderDetail('${o.id}')">
-        <span>📄</span> ${lang==='fr'?'Imprimer / Exporter PDF':'Print / Export PDF'}
-      </button>
-    </div>
-  `;
-
-  document.getElementById('order-detail-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeOrderModal() {
-  document.getElementById('order-detail-modal').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-// Close order modal on backdrop click
-document.addEventListener('DOMContentLoaded', function() {
-  const modal = document.getElementById('order-detail-modal');
-  if (modal) {
-    modal.addEventListener('click', function(e) {
-      if (e.target === this) closeOrderModal();
-    });
-  }
-});
 
 function printOrderDetail(orderId) {
   const o = orders.find(ord => ord.id === orderId);
@@ -6625,8 +6134,46 @@ function printOrderDetail(orderId) {
   .no-print{text-align:center;margin-top:18px}
   .print-btn{padding:10px 28px;background:#C9A84C;border:none;cursor:pointer;border-radius:4px;font-size:12px;font-weight:600;letter-spacing:.1em}
   @media print{.no-print{display:none}body{background:#fff;padding:0}.doc{box-shadow:none}}
+
+    #loading-screen {
+        position: fixed; inset: 0; background: var(--noir); z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+    .loading-logo {
+        font-family: var(--font-display); font-size: 32px; color: var(--gold);
+        margin-bottom: 20px; letter-spacing: 0.1em; text-transform: uppercase;
+        animation: pulse 2s infinite ease-in-out;
+    }
+    .loading-text {
+        font-family: var(--font-body); font-size: 14px; color: var(--muted);
+        letter-spacing: 0.05em; font-style: italic;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    
+
+    .product-gallery { display: flex; flex-direction: column; gap: 12px; }
+    .main-img-wrap { width: 100%; aspect-ratio: 1; background: var(--dark-3); border-radius: 8px; overflow: hidden; cursor: zoom-in; position: relative; }
+    .main-img-wrap img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .main-img-wrap:hover img { transform: scale(1.05); }
+    .thumb-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .thumb-item { aspect-ratio: 1; background: var(--dark-3); border-radius: 4px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: var(--transition); }
+    .thumb-item.active { border-color: var(--gold); }
+    .thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+    
+    #zoom-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 3000; display: none; align-items: center; justify-content: center; padding: 20px; cursor: zoom-out; }
+    #zoom-modal.open { display: flex; }
+    #zoom-img { max-width: 95%; max-height: 95%; object-fit: contain; box-shadow: var(--shadow); }
+    
 </style></head>
-<body><div class="doc">
+<body>
+
+    <div id="loading-screen">
+        <div class="loading-logo">L'Empreinte D'Emil</div>
+        <div class="loading-text" id="loading-text">L'excitation va bientôt commencer...</div>
+    </div>
+    <div class="doc">
   <div class="header">
     <div><div class="brand">L'EMPREINTE D'EMIL</div><div class="brand-sub">Douala, Cameroun</div></div>
     <div class="meta"><strong>${lang==='fr'?'BON DE COMMANDE':'ORDER FORM'} #${o.id.slice(0,16)}</strong><div>${dateStr}</div></div>
@@ -6650,7 +6197,12 @@ function printOrderDetail(orderId) {
   </div>
   <div class="footer"><div style="font-style:italic;color:#9A7530;font-size:14px">"${slogan}"</div><div style="margin-top:6px">${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'} — L'Empreinte D'Emil</div></div>
   <div class="no-print"><button class="print-btn" onclick="window.print()">${lang==='fr'?'🖨️ Imprimer / Sauvegarder PDF':'🖨️ Print / Save PDF'}</button></div>
-</div></body></html>`;
+</div>
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
+</body></html>`;
 
   const w = window.open('','_blank');
   if (!w) { showToast(lang==='fr'?'Autorisez les popups':'Allow popups','⚠️'); return; }
@@ -7444,7 +6996,8 @@ function saveLoyaltyRules() {
   loyaltyRules.redeemMin   = parseInt(document.getElementById('loy-redeem-min')?.value)||50;
   loyaltyRules.ptValue     = parseInt(document.getElementById('loy-pt-value')?.value)||100;
   const tiersRaw = document.getElementById('loy-tiers')?.value||'';
-  loyaltyRules.tiers = tiersRaw.split('\n').filter(Boolean).map(line=>{
+  loyaltyRules.tiers = tiersRaw.split('
+').filter(Boolean).map(line=>{
     const p=line.split('|'); return { name:p[0]||'Tier', min:parseInt(p[1])||0, icon:p[2]||'🏅' };
   });
   DB.set('loyaltyRules', loyaltyRules);
@@ -7460,7 +7013,8 @@ function renderLoyaltyAdmin() {
     el.value=[r.ptsPerOrder,r.ptsPerK,r.redeemMin,r.ptValue][i];
   });
   const tiersEl = document.getElementById('loy-tiers');
-  if (tiersEl && r.tiers) tiersEl.value = r.tiers.map(t=>`${t.name}|${t.min}|${t.icon}`).join('\n');
+  if (tiersEl && r.tiers) tiersEl.value = r.tiers.map(t=>`${t.name}|${t.min}|${t.icon}`).join('
+');
   renderLoyaltyCustomers();
 }
 
@@ -7725,14 +7279,18 @@ function updateOrderStatus(orderId, status) {
   showToast('Statut mis à jour !','🚀');
 }
 
-function saveStatusLabels() {
+async function saveStatusLabels() {
   STATUS_ORDER.forEach(s=>{
     statusLabels[s] = {
       fr: document.getElementById(`sl-${s}-fr`)?.value||s,
       en: document.getElementById(`sl-${s}-en`)?.value||s
     };
   });
+  // ASYNC SECURE WRITE
+  setSyncStatus('syncing');
   DB.set('statusLabels', statusLabels);
+  const ok = await syncPushKey('statusLabels');
+  if(ok) showToast('Données sécurisées sur Firebase ✅'); else showToast('Erreur de sync Firebase ❌', '⚠️');
   showToast('Labels enregistrés !');
 }
 
@@ -8217,10 +7775,20 @@ let stockNotifConfig = DB.get('stockNotifConfig', {
   threshold:  5,
   cooldown:   60,
   waNumber:   '',
-  msgLowFR:   '⚠️ Alerte Stock Bas\nProduit: {name}\nQuantité restante: {qty}\nAction: Réapprovisionner bientôt.',
-  msgLowEN:   '⚠️ Low Stock Alert\nProduct: {name}\nRemaining: {qty}\nAction: Restock soon.',
-  msgOutFR:   '🚨 Rupture de Stock\nProduit: {name}\nAction: Réapprovisionnement immédiat requis.',
-  msgOutEN:   '🚨 Out of Stock Alert\nProduct: {name}\nAction: Immediate restocking required.'
+  msgLowFR:   '⚠️ Alerte Stock Bas
+Produit: {name}
+Quantité restante: {qty}
+Action: Réapprovisionner bientôt.',
+  msgLowEN:   '⚠️ Low Stock Alert
+Product: {name}
+Remaining: {qty}
+Action: Restock soon.',
+  msgOutFR:   '🚨 Rupture de Stock
+Produit: {name}
+Action: Réapprovisionnement immédiat requis.',
+  msgOutEN:   '🚨 Out of Stock Alert
+Product: {name}
+Action: Immediate restocking required.'
 });
 
 let stockNotifications = DB.get('stockNotifications', []); // persisted notifications
@@ -8602,12 +8170,12 @@ function installSyncPatches() {
   const _origDBset = DB.set.bind(DB);
   DB.set = function(k, v) {
     _origDBset(k, v);
-    if (isSharedKey(k) && SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
   const _origFTset = FT.set.bind(FT);
   FT.set = function(k, v) {
     _origFTset(k, v);
-    if (SYNC_CONFIG.enabled) syncPush();
+    // syncPush moved to admin actions for async security
   };
 }
 function initNewFeatures() {
@@ -8668,7 +8236,7 @@ function resetCatImgUpload() {
 
 // Patch addCategory to save image
 const _origAddCategory = addCategory;
-addCategory = async function() {
+addCategory = function() {
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
   const cat = {
@@ -8681,7 +8249,7 @@ addCategory = async function() {
     sloganEN: document.getElementById('cat-slogan-en').value.trim(),
   };
   categories.push(cat);
-  DB.set('categories', categories);
+  firebaseDb.ref('storeData_split/categories').set(categories);
   ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
@@ -8689,7 +8257,6 @@ addCategory = async function() {
   renderAdminCats();
   populateProdCatSelect();
   showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
 };
 
 // Patch editCat to handle image upload
@@ -8720,7 +8287,7 @@ editCat = function(id) {
         const reader = new FileReader();
         reader.onload = ev => {
           c.img = ev.target.result;
-          DB.set('categories', categories);
+          firebaseDb.ref('storeData_split/categories').set(categories);
           renderAdminCats();
           populateProdCatSelect();
           showToast('Image mise à jour !','🖼️');
@@ -8730,7 +8297,7 @@ editCat = function(id) {
       };
       input.click();
     } else {
-      DB.set('categories', categories);
+      firebaseDb.ref('storeData_split/categories').set(categories);
       renderAdminCats();
       populateProdCatSelect();
       showToast('Catégorie mise à jour !');
@@ -9091,7 +8658,7 @@ function handleCatEditImgUpload(input) {
   reader.readAsDataURL(file);
 }
 
-async function saveCatEdit() {
+function saveCatEdit() {
   const id = document.getElementById('cat-edit-id').value;
   const cat = categories.find(c => c.id === id);
   if (!cat) return;
@@ -9106,13 +8673,12 @@ async function saveCatEdit() {
   cat.sloganEN = document.getElementById('cat-edit-slogan-en').value.trim();
   if (catEditImgPending) cat.img = catEditImgPending;
 
-  DB.set('categories', categories);
+  firebaseDb.ref('storeData_split/categories').set(categories);
   renderAdminCats();
   populateProdCatSelect();
   renderAll();
   closeCatEditModal();
   showToast(`Catégorie "${nameFR}" mise à jour !`, '✅');
-  if (typeof syncPush === 'function') await syncPush();
 }
 
 function deleteCatFromModal() {
@@ -9125,7 +8691,7 @@ function deleteCatFromModal() {
     : `Supprimer "${cat.nameFR}" ?`;
   if (!confirm(msg)) return;
   categories = categories.filter(c => c.id !== id);
-  DB.set('categories', categories);
+  firebaseDb.ref('storeData_split/categories').set(categories);
   renderAdminCats();
   populateProdCatSelect();
   renderAll();
@@ -9393,38 +8959,68 @@ function saveEmilConfig() {
 // ── TEXT STRINGS ─────────────────────────────────────────────
 const EM = {
   fr: {
-    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.\n\nQuelle langue souhaitez-vous utiliser pour notre échange ?\n*Which language would you like to use?*",
-    askName:     "Bienvenue chez **L'Empreinte D'Emil** ! 🌟\n\nJe suis **Emil**, votre conseiller personnel. Pour mieux vous accompagner, puis-je avoir votre prénom ?",
+    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.
+
+Quelle langue souhaitez-vous utiliser pour notre échange ?
+*Which language would you like to use?*",
+    askName:     "Bienvenue chez **L'Empreinte D'Emil** ! 🌟
+
+Je suis **Emil**, votre conseiller personnel. Pour mieux vous accompagner, puis-je avoir votre prénom ?",
     askPhone:    "Merci {name} ! Pour vous contacter si besoin, puis-je avoir votre numéro de téléphone ? *(Facultatif — tapez « passer » pour ignorer)*",
     askEmail:    "Parfait ! Souhaitez-vous également laisser votre adresse e-mail ? *(Facultatif — tapez « passer » pour ignorer)*",
-    welcomeChat: "Bonjour **{name}** ! Je suis ravi de vous accueillir.\n\nJe suis votre conseiller personnel et je connais toute notre boutique par cœur — nos **{catCount} catégories**, nos **{prodCount} produits**, nos tarifs et nos services.\n\nComment puis-je vous aider aujourd'hui ?",
+    welcomeChat: "Bonjour **{name}** ! Je suis ravi de vous accueillir.
+
+Je suis votre conseiller personnel et je connais toute notre boutique par cœur — nos **{catCount} catégories**, nos **{prodCount} produits**, nos tarifs et nos services.
+
+Comment puis-je vous aider aujourd'hui ?",
     skip:        ['passer','skip','non','no','pas de','aucun','—','-'],
     chips:       null, // dynamic
-    noAnswer:    "Je suis désolé(e), je ne dispose pas de la réponse précise à cette question.\n\nJe vous recommande de contacter directement notre boutique — notre équipe sera ravie de vous aider personnellement.",
+    noAnswer:    "Je suis désolé(e), je ne dispose pas de la réponse précise à cette question.
+
+Je vous recommande de contacter directement notre boutique — notre équipe sera ravie de vous aider personnellement.",
     contactCTA:  "Contacter la boutique",
     addCart:     "Ajouter au panier",
     statusOnline:"En ligne · Répond immédiatement",
     statusTyping:"Emil écrit...",
     outOfStock:  "Ce produit est **actuellement en rupture de stock**. Mais ne vous inquiétez pas — voici des alternatives que je vous recommande :",
-    noCategory:  "Nous n'avons pas encore cette catégorie dans notre boutique. Voici ce que nous proposons actuellement :\n\n**{cats}**\n\nPuis-je vous aider à trouver quelque chose parmi ces options ?",
+    noCategory:  "Nous n'avons pas encore cette catégorie dans notre boutique. Voici ce que nous proposons actuellement :
+
+**{cats}**
+
+Puis-je vous aider à trouver quelque chose parmi ces options ?",
     endMsg:      "Merci {name} de votre visite chez L'Empreinte D'Emil. N'hésitez pas à revenir — nous sommes là pour vous ! Bonne journée. ✦",
     statusOnline:"En ligne · Répond immédiatement",
   },
   en: {
-    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.\n\nQuelle langue souhaitez-vous utiliser pour notre échange ?\n*Which language would you like to use?*",
-    askName:     "Welcome to **L'Empreinte D'Emil** ! 🌟\n\nI'm **Emil**, your personal advisor. To serve you better, may I have your first name?",
+    langGreet:   "Bonjour / Hello — Je suis **Emil**, votre conseiller personnel chez L'Empreinte D'Emil.
+
+Quelle langue souhaitez-vous utiliser pour notre échange ?
+*Which language would you like to use?*",
+    askName:     "Welcome to **L'Empreinte D'Emil** ! 🌟
+
+I'm **Emil**, your personal advisor. To serve you better, may I have your first name?",
     askPhone:    "Thank you {name}! May I have your phone number to reach you if needed? *(Optional — type 'skip' to continue)*",
     askEmail:    "Great! Would you also like to leave your email address? *(Optional — type 'skip' to continue)*",
-    welcomeChat: "Hello **{name}**! I'm delighted to welcome you.\n\nI'm your personal advisor and I know our entire store — our **{catCount} categories**, **{prodCount} products**, pricing and services.\n\nHow can I help you today?",
+    welcomeChat: "Hello **{name}**! I'm delighted to welcome you.
+
+I'm your personal advisor and I know our entire store — our **{catCount} categories**, **{prodCount} products**, pricing and services.
+
+How can I help you today?",
     skip:        ['skip','passer','no','non','none','—','-'],
     chips:       null, // dynamic
-    noAnswer:    "I'm sorry, I don't have a precise answer to that question.\n\nI recommend contacting our store directly — our team will be happy to personally assist you.",
+    noAnswer:    "I'm sorry, I don't have a precise answer to that question.
+
+I recommend contacting our store directly — our team will be happy to personally assist you.",
     contactCTA:  "Contact the store",
     addCart:     "Add to cart",
     statusOnline:"Online · Responds immediately",
     statusTyping:"Emil is typing...",
     outOfStock:  "This product is **currently out of stock**. But don't worry — here are alternatives I recommend:",
-    noCategory:  "We don't have that category yet. Here's what we currently offer:\n\n**{cats}**\n\nCan I help you find something from these options?",
+    noCategory:  "We don't have that category yet. Here's what we currently offer:
+
+**{cats}**
+
+Can I help you find something from these options?",
     endMsg:      "Thank you {name} for visiting L'Empreinte D'Emil. Don't hesitate to come back — we're here for you! Have a great day. ✦",
     statusOnline:"Online · Responds immediately",
   }
@@ -9534,7 +9130,8 @@ function emilAddMsg(role, html) {
   const bubble = document.createElement('div');
   bubble.className = 'emil-bubble';
   bubble.innerHTML = html
-    .replace(/\n/g, '<br>')
+    .replace(/
+/g, '<br>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>');
   wrap.appendChild(bubble);
@@ -9777,16 +9374,24 @@ function emilRespond(lower, originalText) {
     const dateStr = now.toLocaleDateString(isFR ? 'fr-FR' : 'en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     const timeStr = now.toLocaleTimeString(isFR ? 'fr-FR' : 'en-US', { hour:'2-digit', minute:'2-digit' });
     emilAddMsg('emil', isFR
-      ? `Nous sommes le **${dateStr}** et il est **${timeStr}**.\n\nPuis-je vous aider avec autre chose${n} ?`
-      : `Today is **${dateStr}** and it's **${timeStr}**.\n\nCan I help you with anything else${n}?`);
+      ? `Nous sommes le **${dateStr}** et il est **${timeStr}**.
+
+Puis-je vous aider avec autre chose${n} ?`
+      : `Today is **${dateStr}** and it's **${timeStr}**.
+
+Can I help you with anything else${n}?`);
     return;
   }
 
   // ── Who are you / about Emil ────────────────────────────────
   if (/qui es-tu|who are you|c'est quoi|what are you|tu es|vous êtes|are you/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Je suis **Emil**, l'assistant IA de **L'Empreinte D'Emil**. Je connais tous nos produits, nos catégories, nos tarifs et nos services. Je suis ici pour vous aider à trouver ce qui vous convient le mieux.\n\nComment puis-je vous aider${n} ?`
-      : `I'm **Emil**, the AI assistant for **L'Empreinte D'Emil**. I know all our products, categories, pricing and services. I'm here to help you find exactly what you need.\n\nHow can I help you${n}?`);
+      ? `Je suis **Emil**, l'assistant IA de **L'Empreinte D'Emil**. Je connais tous nos produits, nos catégories, nos tarifs et nos services. Je suis ici pour vous aider à trouver ce qui vous convient le mieux.
+
+Comment puis-je vous aider${n} ?`
+      : `I'm **Emil**, the AI assistant for **L'Empreinte D'Emil**. I know all our products, categories, pricing and services. I'm here to help you find exactly what you need.
+
+How can I help you${n}?`);
     return;
   }
 
@@ -9817,14 +9422,22 @@ function emilRespond(lower, originalText) {
   // ── Hours / address ─────────────────────────────────────────
   if (/heure|hour|ouvert|open|horaire|schedule|fermé|closed/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Notre boutique est ouverte **${kb.hours}**.\n\nVous nous trouverez à **${kb.address}**. Venez nous rendre visite !`
-      : `Our store is open **${kb.hours}**.\n\nFind us at **${kb.address}**. Come visit us!`);
+      ? `Notre boutique est ouverte **${kb.hours}**.
+
+Vous nous trouverez à **${kb.address}**. Venez nous rendre visite !`
+      : `Our store is open **${kb.hours}**.
+
+Find us at **${kb.address}**. Come visit us!`);
     return;
   }
   if (/adresse|address|localisa|où|pk12|douala|trouver|find|where/.test(lower)) {
     emilAddMsg('emil', isFR
-      ? `Notre boutique se trouve au **${kb.address}**.\n\nOuverte ${kb.hours}.`
-      : `Our store is at **${kb.address}**.\n\nOpen ${kb.hours}.`);
+      ? `Notre boutique se trouve au **${kb.address}**.
+
+Ouverte ${kb.hours}.`
+      : `Our store is at **${kb.address}**.
+
+Open ${kb.hours}.`);
     return;
   }
 
@@ -9838,10 +9451,19 @@ function emilRespond(lower, originalText) {
     const catLines = categories.map(c => {
       const cnt = products.filter(p => p.catId === c.id && p.stock > 0).length;
       return `• **${isFR ? c.nameFR : (c.nameEN||c.nameFR)}** — ${cnt} ${isFR?'produit(s)':'product(s)'}`;
-    }).join('\n');
+    }).join('
+');
     emilAddMsg('emil', isFR
-      ? `Nous proposons actuellement **${kb.catCount} catégories** et **${kb.prodCount} produits** :\n\n${catLines}\n\nQuelle catégorie vous intéresse ?`
-      : `We currently offer **${kb.catCount} categories** and **${kb.prodCount} products**:\n\n${catLines}\n\nWhich category interests you?`);
+      ? `Nous proposons actuellement **${kb.catCount} catégories** et **${kb.prodCount} produits** :
+
+${catLines}
+
+Quelle catégorie vous intéresse ?`
+      : `We currently offer **${kb.catCount} categories** and **${kb.prodCount} products**:
+
+${catLines}
+
+Which category interests you?`);
     emilShowChips(emilGetChips('categories'));
     return;
   }
@@ -9984,8 +9606,12 @@ function emilRespond(lower, originalText) {
     if (!catProds.length) {
       // Category exists but all out of stock
       emilAddMsg('emil', isFR
-        ? `Notre catégorie **${catDisplay}** est actuellement en rupture de stock (${catProdTotal} produit(s) temporairement indisponibles).\n\nVoici ce que je vous recommande en attendant :`
-        : `Our **${catDisplay}** category is currently out of stock (${catProdTotal} product(s) temporarily unavailable).\n\nHere's what I recommend in the meantime:`);
+        ? `Notre catégorie **${catDisplay}** est actuellement en rupture de stock (${catProdTotal} produit(s) temporairement indisponibles).
+
+Voici ce que je vous recommande en attendant :`
+        : `Our **${catDisplay}** category is currently out of stock (${catProdTotal} product(s) temporarily unavailable).
+
+Here's what I recommend in the meantime:`);
       emilShowProducts(emilGetFeatured(null, 3));
     } else {
       const best = emilGetFeatured(matchedCat.id, 3);
@@ -10633,19 +10259,34 @@ renderAll = function() {
   if (typeof applyQuizFab === 'function') applyQuizFab();
 };
 
+
+);
+}
+
 // ============================================================
 // APPLY SAVED COLORS
+
+);
+}
+
 // ============================================================
 function applySavedColors() {
   const s = DB.get('colors',{});
   Object.entries(s).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
 }
 
+
+);
+}
+
 // ============================================================
 // RENDER ALL
+
+);
+}
+
 // ============================================================
 function renderAll() {
-  const safeRender = (id, func) => { if (document.getElementById(id) && typeof func === 'function') func(); };
   applyTR();
   updateNotifBell();
   renderNavCats();
@@ -10660,27 +10301,41 @@ function renderAll() {
   updateCartCount();
 }
 
+
+);
+}
+
 // ============================================================
 // INIT
+
+);
+}
+
 // ============================================================
 function init() {
   applySavedColors();
   lang = DB.get('lang','fr');
-  document.getElementById('lang-toggle').textContent = lang==='fr'?'EN':'FR';
+  const langToggle = document.getElementById('lang-toggle');
+  if (langToggle) langToggle.textContent = lang==='fr'?'EN':'FR';
   
-  // Load with defaults
-  categories = DB.get('categories', DEFAULT_CATS);
-  if (!categories || categories.length === 0) categories = DEFAULT_CATS;
+  categories = DB.get('categories', []);
+  if (!categories || categories.length === 0) {
+    categories = [...DEFAULT_CATS];
+    firebaseDb.ref('storeData_split/categories').set(categories);  
+  }
   
-  products = DB.get('products', DEFAULT_PRODUCTS);
-  if (!products || products.length === 0) products = DEFAULT_PRODUCTS;
+  products = DB.get('products', []);
+  if (!products || products.length === 0) {
+    products = [...DEFAULT_PRODUCTS];
+    DB.set('products', products);
+  }
 
   orders = DB.get('orders',[]);
   settings = DB.get('settings', DEFAULT_SETTINGS);
   deliveryFees = DB.get('deliveryFees', DEFAULT_DELIVERY_FEES);
   deliveryRules = DB.get('deliveryRules', DEFAULT_DELIVERY_RULES);
   reviews = DB.get('reviews', DEFAULT_REVIEWS);
-  // Emil initialized via module-level code
+  
   stockNotifConfig    = DB.get('stockNotifConfig', stockNotifConfig);
   stockNotifications  = DB.get('stockNotifications', []);
   stockAlertCooldowns = DB.get('stockAlertCooldowns', {});
@@ -10702,20 +10357,39 @@ function init() {
   giftSettings = DB.get('giftSettings', giftSettings);
   cart = DB.get('cart',[]);
 
-  // Pull remote data on load (async — won't block initial render)
   renderAll();
 
-  // After render, silently sync from remote if configured
   if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
     setTimeout(() => syncPull(true), 800);
   }
   startAutoSync();
 }
 
-try { init(); } catch(e) { console.error('Init error:', e); }
-try { initNewFeatures(); } catch(e) { console.error('InitNewFeatures error:', e); }
+init();
+
+    function hideLoading() {
+        const screen = document.getElementById('loading-screen');
+        if (screen) screen.classList.add('fade-out');
+    }
+    window.addEventListener('load', () => {
+        const txt = document.getElementById('loading-text');
+        if (txt) txt.textContent = lang === 'fr' ? "L'excitation va bientôt commencer..." : "The excitement is about to begin...";
+        setTimeout(hideLoading, 1500);
+    });
+    
+initNewFeatures();
 
 // Guarantee Emil is visible after everything loads
+
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            // Handle dynamic node insertion if needed
+        }
+    });
+});
+observer.observe(document.body, { childList: true, subtree: true });
+
 window.addEventListener('load', function() {
   // Small delay to ensure all scripts have run
   setTimeout(function() {
@@ -10733,5 +10407,10 @@ window.addEventListener('load', function() {
 });
 
 </script>
+
+    <div id="zoom-modal" onclick="this.classList.remove('open')">
+        <img id="zoom-img" src="" alt="Zoom">
+    </div>
+    
 </body>
 </html>
