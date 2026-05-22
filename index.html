@@ -3984,6 +3984,19 @@ function cacheSet(k, v) {
   try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
 }
 
+
+function saveLocal() {
+  try {
+    localStorage.setItem(PREFIX + 'products', JSON.stringify(products));
+    localStorage.setItem(PREFIX + 'categories', JSON.stringify(categories));
+    localStorage.setItem(PREFIX + 'settings', JSON.stringify(settings));
+    localStorage.setItem(PREFIX + 'reviews', JSON.stringify(reviews));
+    localStorage.setItem(PREFIX + 'orders', JSON.stringify(orders));
+  } catch (e) {
+    console.warn('[Cache] saveLocal failed:', e.message);
+  }
+}
+
 function initFirebase() {
   if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
   if (isSyncInitialized) return true;
@@ -4103,12 +4116,31 @@ async function syncPush() {
   }
 }
 
+
 async function syncPull(silent) {
   if (!initFirebase()) return;
   if (!silent) setSyncStatus('syncing');
-  // Data is handled by .on('value') listeners automatically
-  setSyncStatus('ok');
+  try {
+    const snapshot = await firebaseDb.ref("storeData").once("value");
+    const val = snapshot.val();
+    if (val) {
+      if (val.products) {
+        products = Object.values(val.products).filter(p => p !== null && typeof p === 'object' && p.id);
+      }
+      if (val.categories) {
+        categories = Object.values(val.categories).filter(c => c !== null && typeof c === 'object' && c.id);
+      }
+      if (typeof saveLocal === "function") saveLocal();
+      renderAll();
+      filterProducts();
+      setSyncStatus('ok');
+    }
+  } catch (e) {
+    console.warn("[Sync] Pull failed:", e.message);
+    setSyncStatus('offline');
+  }
 }
+
 
 function setSyncStatus(state) {
   const map = {
