@@ -4017,9 +4017,9 @@ function initFirebase() {
     }
     firebaseDb = firebase.database();
     
-    // Split Stream Listeners: Listen to each key separately under storeData_split/
+    // Split Stream Listeners: Listen to each key separately under storedData/
     SHARED_KEYS.forEach(key => {
-      firebaseDb.ref('storeData_split/' + key).on('value', (snapshot) => {
+      firebaseDb.ref('storedData/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) {
           handleKeyUpdate(key, val);
@@ -4103,7 +4103,7 @@ async function syncPush() {
     }
     
     if (val !== undefined) {
-      return firebaseDb.ref('storeData_split/' + key).set(val);
+      return firebaseDb.ref('storedData/' + key).set(val);
     }
   });
 
@@ -4121,7 +4121,7 @@ async function syncPull(silent) {
   if (!initFirebase()) return;
   if (!silent) setSyncStatus('syncing');
   try {
-    const snapshot = await firebaseDb.ref("storeData").once("value");
+    const snapshot = await firebaseDb.ref("storedData").once("value");
     const val = snapshot.val();
     if (val) {
       if (val.products) {
@@ -5950,7 +5950,7 @@ function sanitizeData() {
 }
 
 // ============================================================
-document.getElementById('search-input').addEventListener('input', function() {
+const el_search_input = document.getElementById('search-input'); if (el_search_input) el_search_input.addEventListener('input', function() {
   const q = this.value.toLowerCase().trim();
   const dd = document.getElementById('search-dropdown');
   if (!q) { dd.classList.remove('show'); return; }
@@ -6013,7 +6013,7 @@ function sanitizeData() {
 // openAdmin: secured version defined below (always requires password)
 // loginAdmin replaced with session-secured version above
 
-document.getElementById('admin-pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') loginAdmin(); });
+const el_admin_pwd = document.getElementById('admin-pwd'); if (el_admin_pwd) el_admin_pwd.addEventListener('keydown', e=>{ if(e.key==='Enter') loginAdmin(); });
 
 function showAdminPanel() {
   document.getElementById('admin-panel').classList.add('open');
@@ -6149,15 +6149,23 @@ async function saveProduct() {
   };
 
   if (editingProductId) {
-    const idx = products.findIndex(p=>p.id===editingProductId);
+        const idx = products.findIndex(p=>p.id===editingProductId);
     if (idx>-1) {
       products[idx] = {...products[idx], ...data};
       if (currentImgs.length) products[idx].imgs = currentImgs;
+      if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+        firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+      }
     }
     editingProductId = null;
     document.getElementById('edit-banner').style.display = 'none';
   } else {
-    products.unshift({ id:'p'+Date.now(), ...data, imgs: currentImgs.length?currentImgs:[] });
+        const nextIndex = products.length;
+    const newProd = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
+    products.push(newProd);
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      firebaseDb.ref('storedData/products/' + nextIndex).set(newProd);
+    }
   }
 
   DB.set('products', products);
@@ -9579,16 +9587,20 @@ const _origAddCategory = addCategory;
 addCategory = async function() {
   const nameFR = document.getElementById('cat-name-fr').value.trim();
   if (!nameFR) { showToast('Entrez un nom','⚠️'); return; }
+    const nextIndex = categories.length;
   const cat = {
-    id: 'c'+Date.now(),
+    id: 'c' + Date.now(),
     icon: document.getElementById('cat-icon').value.trim() || '🏷️',
-    img: catImgPending || '',
+    img: typeof catImgPending !== 'undefined' ? catImgPending : '',
     nameFR,
     nameEN: document.getElementById('cat-name-en').value.trim(),
     sloganFR: document.getElementById('cat-slogan-fr').value.trim(),
     sloganEN: document.getElementById('cat-slogan-en').value.trim(),
   };
   categories.push(cat);
+  if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+    firebaseDb.ref('storedData/categories/' + nextIndex).set(cat);
+  }
   DB.set('categories', categories);
   ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
@@ -10042,7 +10054,7 @@ function deleteCatFromModal() {
 }
 
 // Close on backdrop click
-document.getElementById('cat-edit-modal-overlay').addEventListener('click', function(e) {
+const el_cat_edit_modal_overlay = document.getElementById('cat-edit-modal-overlay'); if (el_cat_edit_modal_overlay) el_cat_edit_modal_overlay.addEventListener('click', function(e) {
   if (e.target === this) closeCatEditModal();
 });
 
@@ -11415,7 +11427,7 @@ function closePrivacyModal() {
 }
 
 // Close on backdrop click
-document.getElementById('privacy-modal-overlay').addEventListener('click', function(e) {
+const el_privacy_modal_overlay = document.getElementById('privacy-modal-overlay'); if (el_privacy_modal_overlay) el_privacy_modal_overlay.addEventListener('click', function(e) {
   if (e.target === this) closePrivacyModal();
 });
 
