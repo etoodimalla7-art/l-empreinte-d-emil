@@ -3981,7 +3981,14 @@ function cacheGet(k, def) {
 }
 
 function cacheSet(k, v) {
-  try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch(e) { console.warn('[Cache] set fail:', k); }
+  try {
+    const str = JSON.stringify(v);
+    localStorage.setItem(PREFIX + k, str);
+  } catch(e) {
+    console.warn('[Cache] set fail (likely quota):', k);
+    // If it's a critical key like products, we still want it in memory even if localStorage fails
+    // The global variable 'products' already holds the data, so we just continue.
+  }
 }
 
 
@@ -4085,7 +4092,6 @@ function handleKeyUpdate(key, value) {
 async function syncPush() {
   if (!initFirebase()) return;
   setSyncStatus('syncing');
-  
   // Push each shared key individually to its own node
   const pushPromises = SHARED_KEYS.map(async (key) => {
     let val;
@@ -4099,7 +4105,13 @@ async function syncPush() {
         }
       }
     } else {
-      val = cacheGet(key, undefined);
+      // Priority: use memory variable if available, else cache
+      if (key === 'products') val = products;
+      else if (key === 'categories') val = categories;
+      else if (key === 'orders') val = orders;
+      else if (key === 'settings') val = settings;
+      else if (key === 'reviews') val = reviews;
+      else val = cacheGet(key, undefined);
     }
     
     if (val !== undefined) {
@@ -6160,8 +6172,8 @@ async function saveProduct() {
     editingProductId = null;
     document.getElementById('edit-banner').style.display = 'none';
   } else {
-        const nextIndex = products.length;
-    const newProd = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
+        const newProd = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
+    const nextIndex = products.length;
     products.push(newProd);
     if (typeof firebaseDb !== 'undefined' && firebaseDb) {
       firebaseDb.ref('storedData/products/' + nextIndex).set(newProd);
@@ -6173,7 +6185,7 @@ async function saveProduct() {
   resetProductForm();
   renderAdminProducts();
   renderAdminDashboard();
-  if (typeof syncPush === 'function') await syncPush();
+  // syncPush handled via direct set or DB.set patch
 }
 
 function editProduct(id) {
@@ -6262,7 +6274,7 @@ async function addCategory() {
   ['cat-name-fr','cat-name-en','cat-icon','cat-slogan-fr','cat-slogan-en'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   renderAdminCats(); populateProdCatSelect();
   showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
+  // syncPush handled via direct set or DB.set patch
 }
 
 function editCat(id) {
@@ -9069,15 +9081,14 @@ function editProductGo(id) {
 
 // Patch saveProduct to save engraving config
 const _origSaveProduct = saveProduct;
-saveProduct = function() {
-  // Before calling original, we save engraving data to the product
-  // This happens after the original saves, so we intercept
-  _origSaveProduct();
+saveProduct = async function() {
+  // Call original which handles Firebase direct set and products array update
+  await _origSaveProduct();
+  
   // After save, check if engraving fields exist and update last saved product
   const enabled = document.getElementById('p-engraving-enabled')?.checked || false;
   if (products.length > 0) {
-    // Find just-saved product (first one if new, or the edited one)
-    const targetId = editingProductId || products[0]?.id;
+    const targetId = editingProductId || products[products.length - 1]?.id;
     if (targetId) {
       const idx = products.findIndex(p => p.id === targetId);
       if (idx > -1) {
@@ -9088,7 +9099,15 @@ saveProduct = function() {
           labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
           labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
         };
+        // Update Firebase directly for the engraving part too
+        if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+          firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+        }
+        // Save locally without triggering global syncPush again
+        const _oldSync = SYNC_CONFIG.enabled;
+        SYNC_CONFIG.enabled = false;
         DB.set('products', products);
+        SYNC_CONFIG.enabled = _oldSync;
       }
     }
   }
@@ -9609,7 +9628,7 @@ addCategory = async function() {
   renderAdminCats();
   populateProdCatSelect();
   showToast('Catégorie ajoutée !');
-  if (typeof syncPush === 'function') await syncPush();
+  // syncPush handled via direct set or DB.set patch
 };
 
 // Patch editCat to handle image upload
@@ -10032,7 +10051,7 @@ async function saveCatEdit() {
   renderAll();
   closeCatEditModal();
   showToast(`Catégorie "${nameFR}" mise à jour !`, '✅');
-  if (typeof syncPush === 'function') await syncPush();
+  // syncPush handled via direct set or DB.set patch
 }
 
 function deleteCatFromModal() {
