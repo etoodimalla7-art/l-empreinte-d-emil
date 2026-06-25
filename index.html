@@ -4111,7 +4111,11 @@ async function syncPush() {
       }
     } else {
       // Priority: use memory variable if available, else cache
-      if (key === 'products') val = products;
+      if (key === 'products') {
+        // On évite d'envoyer tout le catalogue via syncPush global pour prévenir l'erreur "Write too large"
+        // Les produits sont déjà synchronisés individuellement lors de leur sauvegarde.
+        return Promise.resolve();
+      }
       else if (key === 'categories') val = categories;
       else if (key === 'orders') val = orders;
       else if (key === 'settings') val = settings;
@@ -6181,7 +6185,8 @@ async function saveProduct() {
       products[idx] = {...products[idx], ...data};
       if (currentImgs.length) products[idx].imgs = currentImgs;
       if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-        firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+        // Mise à jour granulaire pour éviter "Write too large"
+        firebaseDb.ref('storedData/products/' + idx).update(products[idx]);
       }
     }
     editingProductId = null;
@@ -6191,6 +6196,7 @@ async function saveProduct() {
     const nextIndex = products.length;
     products.push(newProd);
     if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      // Ajout granulaire au nœud spécifique
       firebaseDb.ref('storedData/products/' + nextIndex).set(newProd);
     }
   }
@@ -6234,7 +6240,16 @@ function editProduct(id) {
 
 function deleteProduct(id) {
   if (!confirm('Supprimer ce produit ?')) return;
-  products = getValidProducts().filter(p=>p.id!==id);
+  const idx = products.findIndex(p=>p.id===id);
+  if (idx > -1) {
+    products.splice(idx, 1);
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      // On réécrit le nœud products après suppression car les index ont changé
+      // Note: Si le catalogue est énorme, il vaudrait mieux utiliser des ID Firebase uniques (push keys)
+      // mais pour l'instant on reste sur la structure actuelle en limitant l'usage de syncPush global.
+      firebaseDb.ref('storedData/products').set(products);
+    }
+  }
   DB.set('products', products);
   renderAdminProducts(); renderAdminDashboard();
   showToast('Produit supprimé','🗑');
