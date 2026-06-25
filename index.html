@@ -138,8 +138,18 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .cat-name{font-size:12px;font-weight:500;color:var(--light)}
 .cat-count{font-size:11px;color:var(--muted);margin-top:3px}
 
-/*  CARDS */
-.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+	/*  CARDS */
+	.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+	
+	/* VARIANTS */
+	.variant-selector{margin-bottom:15px}
+	.variant-label{font-size:11px;font-weight:600;color:var(--gold);text-transform:uppercase;margin-bottom:8px;display:block}
+	.variant-options{display:flex;gap:8px;flex-wrap:wrap}
+	.variant-opt{background:var(--dark-3);border:1px solid rgba(201,168,76,.2);color:var(--light);padding:6px 12px;font-size:12px;cursor:pointer;border-radius:4px;transition:var(--transition)}
+	.variant-opt:hover{border-color:var(--gold)}
+	.variant-opt.active{background:var(--gold);color:var(--noir);border-color:var(--gold);font-weight:600}
+	.promo-badge{background:var(--danger);color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:2px;margin-left:6px;vertical-align:middle;text-transform:uppercase}
+	
 .product-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;overflow:hidden;cursor:pointer;transition:var(--transition);position:relative}
 .product-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-4px);box-shadow:var(--shadow)}
 .product-img{width:100%;aspect-ratio:1;background:var(--dark-3);display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden;position:relative}
@@ -2407,9 +2417,25 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
                   <option value="bundle">Pack / Bundle</option>
                 </select>
               </div>
-              <div><label class="admin-label">Prix (FCFA) *</label><input class="admin-input" id="p-price" type="number" placeholder="15000"></div>
-              <div><label class="admin-label">Stock</label><input class="admin-input" id="p-stock" type="number" placeholder="10"></div>
-            </div>
+	              <div><label class="admin-label">Prix (FCFA) *</label><input class="admin-input" id="p-price" type="number" placeholder="15000"></div>
+	              <div><label class="admin-label">Stock</label><input class="admin-input" id="p-stock" type="number" placeholder="10"></div>
+	              <div style="display:flex;align-items:center;gap:10px;grid-column: span 2;background:rgba(192,57,43,.1);padding:10px;border-radius:4px;margin-top:5px">
+	                <label class="admin-label" style="margin:0;color:var(--danger)">✨ Éligible offre "3 pour 1000"</label>
+	                <label class="toggle-switch"><input type="checkbox" id="p-is-essential"><span class="toggle-slider"></span></label>
+	              </div>
+	            </div>
+	            
+	            <div id="variant-fields" style="margin-top:14px;display:none;background:var(--dark-3);padding:14px;border-radius:8px;border:1px solid rgba(201,168,76,.1)">
+	              <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">📏 Variantes (Tailles & Couleurs)</div>
+	              <div id="field-sizes" style="margin-bottom:10px">
+	                <label class="admin-label">Tailles disponibles (ex: 37, 38, 39...)</label>
+	                <input class="admin-input" id="p-sizes" placeholder="Séparez par des virgules">
+	              </div>
+	              <div id="field-colors">
+	                <label class="admin-label">Couleurs disponibles (ex: Noir, Doré, Blanc...)</label>
+	                <input class="admin-input" id="p-colors" placeholder="Séparez par des virgules">
+	              </div>
+	            </div>
             <div style="margin-top:14px"><label class="admin-label">Description (FR)</label><textarea class="admin-textarea" id="p-desc-fr" placeholder="Description en français..."></textarea></div>
             <div style="margin-top:10px"><label class="admin-label">Description (EN)</label><textarea class="admin-textarea" id="p-desc-en" placeholder="English description..."></textarea></div>
             <div id="bundle-section" style="display:none;margin-top:14px">
@@ -4391,6 +4417,8 @@ let adminLoggedIn = false;
 let editingProductId = null;
 let currentImgs = [];
 let pmQty = 1;
+let selectedSize = null;
+let selectedColor = null;
 let isInitialSyncing = true;
 
 function renderSkeletonCards(count = 4) {
@@ -5100,29 +5128,53 @@ function openProduct(id) {
       ${p.bundleItems.map(item=>`<div class="bundle-item-row"><div class="bundle-dot"></div>${item}</div>`).join('')}
     </div>` : '';
 
-  document.getElementById('pm-body').innerHTML = `
-    <div class="product-detail-grid">
-      <div class="product-gallery">
-        <div class="product-main-img">${mainImgHTML}</div>
-        ${thumbsHTML}
-      </div>
-      <div class="product-detail-info">
-        <div class="product-detail-cat">${cat?catName(cat):''} ${p.type==='bundle'?'· '+t('bundle_badge'):''}</div>
-        <div class="product-detail-name">${prodName(p)}</div>
-        <div class="product-detail-price">${fmt(p.price || 0)}</div>
-        <div class="product-detail-desc">${prodDesc(p)}</div>
-        ${bundleHTML}
-        <div class="qty-control">
-          <label>${t('qty_label')}</label>
-          <button class="qty-btn" onclick="changePMQty(-1)">−</button>
-          <span class="qty-num" id="pm-qty">1</span>
-          <button class="qty-btn" onclick="changePMQty(1)">+</button>
-        </div>
-        <button class="btn-add-cart" style="width:100%;padding:13px" onclick="addFromModal('${p.id}')">
-          ${t('add_cart')}
-        </button>
-      </div>
-    </div>`;
+	  selectedSize = null;
+	  selectedColor = null;
+	  
+	  let variantsHTML = '';
+	  if (p.sizes && p.sizes.length > 0) {
+	    variantsHTML += `
+	      <div class="variant-selector">
+	        <label class="variant-label">${lang==='fr'?'Choisir une taille':'Select Size'} *</label>
+	        <div class="variant-options">
+	          ${p.sizes.map(s => `<div class="variant-opt" onclick="selectVariant(this, 'size', '${s}')">${s}</div>`).join('')}
+	        </div>
+	      </div>`;
+	  }
+	  if (p.colors && p.colors.length > 0) {
+	    variantsHTML += `
+	      <div class="variant-selector">
+	        <label class="variant-label">${lang==='fr'?'Choisir une couleur':'Select Color'} *</label>
+	        <div class="variant-options">
+	          ${p.colors.map(c => `<div class="variant-opt" onclick="selectVariant(this, 'color', '${c}')">${c}</div>`).join('')}
+	        </div>
+	      </div>`;
+	  }
+
+	  document.getElementById('pm-body').innerHTML = `
+	    <div class="product-detail-grid">
+	      <div class="product-gallery">
+	        <div class="product-main-img">${mainImgHTML}</div>
+	        ${thumbsHTML}
+	      </div>
+	      <div class="product-detail-info">
+	        <div class="product-detail-cat">${cat?catName(cat):''} ${p.type==='bundle'?'· '+t('bundle_badge'):''}</div>
+	        <div class="product-detail-name">${prodName(p)} ${p.isEssential ? '<span class="promo-badge">3 pour 1000</span>' : ''}</div>
+	        <div class="product-detail-price">${fmt(p.price || 0)}</div>
+	        <div class="product-detail-desc">${prodDesc(p)}</div>
+	        ${bundleHTML}
+	        ${variantsHTML}
+	        <div class="qty-control">
+	          <label>${t('qty_label')}</label>
+	          <button class="qty-btn" onclick="changePMQty(-1)">−</button>
+	          <span class="qty-num" id="pm-qty">1</span>
+	          <button class="qty-btn" onclick="changePMQty(1)">+</button>
+	        </div>
+	        <button class="btn-add-cart" id="pm-add-btn" style="width:100%;padding:13px" onclick="addFromModal('${p.id}')">
+	          ${t('add_cart')}
+	        </button>
+	      </div>
+	    </div>`;
 
   document.getElementById('product-modal').classList.add('open');
 }
@@ -5139,8 +5191,26 @@ function changePMQty(d) {
   document.getElementById('pm-qty').textContent = pmQty;
 }
 
+function selectVariant(el, type, value) {
+  const container = el.parentElement;
+  container.querySelectorAll('.variant-opt').forEach(opt => opt.classList.remove('active'));
+  el.classList.add('active');
+  if (type === 'size') selectedSize = value;
+  if (type === 'color') selectedColor = value;
+}
+
 function addFromModal(id) {
-  addToCart(id, pmQty);
+  const p = getProd(id);
+  if (p.sizes && p.sizes.length > 0 && !selectedSize) {
+    showToast(lang==='fr'?'Veuillez sélectionner une taille':'Please select a size', '⚠️');
+    return;
+  }
+  if (p.colors && p.colors.length > 0 && !selectedColor) {
+    showToast(lang==='fr'?'Veuillez sélectionner une couleur':'Please select a color', '⚠️');
+    return;
+  }
+  
+  addToCart(id, pmQty, selectedSize, selectedColor);
   closeModal('product-modal');
 }
 
@@ -5183,28 +5253,74 @@ function sanitizeData() {
 }
 
 // ============================================================
-function addToCart(id, qty=1) {
+function addToCart(id, qty=1, size=null, color=null) {
   const p = getProd(id); if (!p) return;
-  const ex = cart.find(i=>i.id===id);
-  if (ex) ex.qty += qty; else cart.push({id, qty});
+  // A cart item is unique by its ID + Size + Color
+  const ex = cart.find(i => i.id === id && i.size === size && i.color === color);
+  if (ex) {
+    ex.qty += qty;
+  } else {
+    cart.push({ id, qty, size, color });
+  }
   saveCart(); renderCart(); showToast(t('toast_added')); openCart();
 }
 
-function removeFromCart(id) {
-  cart = cart.filter(i=>i.id!==id);
-  saveCart(); renderCart(); showToast(t('toast_removed'),'🗑');
+function removeFromCart(id, size=null, color=null) {
+  cart = cart.filter(i => !(i.id === id && i.size === size && i.color === color));
+  saveCart(); renderCart(); showToast(t('toast_removed'), '🗑');
 }
 
-function changeQty(id, d) {
-  const item = cart.find(i=>i.id===id); if (!item) return;
+function changeQty(id, d, size=null, color=null) {
+  const item = cart.find(i => i.id === id && i.size === size && i.color === color);
+  if (!item) return;
   item.qty = Math.max(1, item.qty + d);
   saveCart(); renderCart();
 }
 
 function calcCartTotals(city='Douala') {
-  const subtotal = cart.reduce((s,i)=>{const p=getProd(i.id);return p?s+p.price*i.qty:s;},0);
+  let subtotal = 0;
+  let essentialCount = 0;
+  let essentialNormalPriceTotal = 0;
+  
+  cart.forEach(item => {
+    const p = getProd(item.id);
+    if (!p) return;
+    
+    if (p.isEssential) {
+      essentialCount += item.qty;
+      essentialNormalPriceTotal += p.price * item.qty;
+    } else {
+      subtotal += p.price * item.qty;
+    }
+  });
+  
+  // Promo: 3 items for 1000 FCFA
+  const promoBundles = Math.floor(essentialCount / 3);
+  const remainingEssentials = essentialCount % 3;
+  
+  // For remaining items, we sum their actual prices
+  let remainingEssentialsPrice = 0;
+  if (remainingEssentials > 0) {
+    // Sort essentials by price (ascending) to be fair, or just take the first ones
+    const allEssentials = [];
+    cart.forEach(item => {
+      const p = getProd(item.id);
+      if (p && p.isEssential) {
+        for(let k=0; k<item.qty; k++) allEssentials.push(p.price);
+      }
+    });
+    // The items NOT in a bundle of 3 are the "remaining" ones. 
+    // Usually, we apply promo to the most expensive ones or just the last ones.
+    // Let's just take the last 'remainingEssentials' items from the list.
+    const remainingPrices = allEssentials.slice(-remainingEssentials);
+    remainingEssentialsPrice = remainingPrices.reduce((a,b) => a+b, 0);
+  }
+  
+  const essentialPromoPriceTotal = (promoBundles * 1000) + remainingEssentialsPrice;
+  subtotal += essentialPromoPriceTotal;
+  
   const delivery = getDeliveryFee(city);
-  return { subtotal, delivery, total: subtotal + delivery };
+  return { subtotal, delivery, total: subtotal + delivery, promoSavings: essentialNormalPriceTotal - (promoBundles * 1000 + remainingEssentialsPrice) };
 }
 
 function renderCart() {
@@ -5214,27 +5330,31 @@ function renderCart() {
     el.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛒</div><p>${t('cart_empty')}</p><small>${t('cart_empty_sub')}</small></div>`;
     footer.style.display = 'none'; return;
   }
-  el.innerHTML = cart.map(item=>{
-    const p = getProd(item.id); if (!p) return '';
-    const cat = getCat(p.catId);
-    const sub = p.price * item.qty;
-    const firstImg = p.imgs?.[0];
-    return `
-      <div class="cart-item">
-        <div class="cart-item-img">${firstImg?`<img src="${firstImg}" alt="">`:(cat?cat.icon:'📦')}</div>
-        <div class="cart-item-body">
-          <div class="cart-item-name">${prodName(p)}</div>
-          <div class="cart-item-type">${p.type==='bundle'?t('bundle_badge'):(lang==='fr'?'Produit':'Product')}</div>
-          <div class="cart-item-controls">
-            <button class="qty-btn" onclick="changeQty('${p.id}',-1)">−</button>
-            <span class="qty-num">${item.qty}</span>
-            <button class="qty-btn" onclick="changeQty('${p.id}',1)">+</button>
-            <button class="cart-item-remove" onclick="removeFromCart('${p.id}')">🗑</button>
-          </div>
-        </div>
-        <div class="cart-item-price">${fmt(sub)}</div>
-      </div>`;
-  }).join('');
+	  el.innerHTML = cart.map(item=>{
+	    const p = getProd(item.id); if (!p) return '';
+	    const cat = getCat(p.catId);
+	    const sub = p.price * item.qty;
+	    const firstImg = p.imgs?.[0];
+	    const variantStr = [item.size, item.color].filter(Boolean).join(' / ');
+	    return `
+	      <div class="cart-item">
+	        <div class="cart-item-img">${firstImg?`<img src="${firstImg}" alt="">`:(cat?cat.icon:'📦')}</div>
+	        <div class="cart-item-body">
+	          <div class="cart-item-name">${prodName(p)}</div>
+	          <div class="cart-item-type">
+	            ${variantStr ? `<span style="color:var(--gold)">${variantStr}</span> · ` : ''}
+	            ${p.type==='bundle'?t('bundle_badge'):(lang==='fr'?'Produit':'Product')}
+	          </div>
+	          <div class="cart-item-controls">
+	            <button class="qty-btn" onclick="changeQty('${p.id}',-1,'${item.size||''}','${item.color||''}')">−</button>
+	            <span class="qty-num">${item.qty}</span>
+	            <button class="qty-btn" onclick="changeQty('${p.id}',1,'${item.size||''}','${item.color||''}')">+</button>
+	            <button class="cart-item-remove" onclick="removeFromCart('${p.id}','${item.size||''}','${item.color||''}')">🗑</button>
+	          </div>
+	        </div>
+	        <div class="cart-item-price">${fmt(sub)}</div>
+	      </div>`;
+	  }).join('');
 
   const {subtotal, delivery, total} = calcCartTotals();
   document.getElementById('cart-subtotal').textContent = fmt(subtotal);
@@ -5453,7 +5573,8 @@ function updateDeliveryFee() {
   }
 
   coDelivery = fee;
-  const subtotal = cart.reduce((s,i)=>{const p=getProd(i.id);return p?s+p.price*i.qty:s;},0);
+  const totals = calcCartTotals(city);
+  const subtotal = totals.subtotal;
   const total = subtotal + fee;
   const coSub = document.getElementById('co-subtotal');
   const coDel = document.getElementById('co-delivery');
@@ -5518,7 +5639,7 @@ function sendWhatsApp() {
     locationLabel = `Douala · ${qName} (Zone ${zone})`;
   }
 
-  const subtotal = cart.reduce((s,i)=>{const p=getProd(i.id);return p?s+p.price*i.qty:s;},0);
+  const { subtotal } = calcCartTotals(city);
 
   // ── Gift option extra cost ──
   const giftMsg   = (typeof giftSelected !== 'undefined' && giftSelected)
@@ -5532,14 +5653,19 @@ function sendWhatsApp() {
 
   // ── Build WhatsApp message ──
   let msg = `${t('wa_hello')}\n\n`;
-  cart.forEach((item,i)=>{
-    const p = getProd(item.id); if (!p) return;
-    msg += `${i+1}. *${prodName(p)}*\n`;
-    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}\n`;
-    if (p.type==='bundle' && p.bundleItems?.length) {
-      msg += `   📦 ${t('wa_includes')}:\n`;
-      p.bundleItems.forEach(bi=>msg+=`   • ${bi}\n`);
-    }
+	  cart.forEach((item,i)=>{
+	    const p = getProd(item.id); if (!p) return;
+	    const variants = [];
+	    if (item.size) variants.push(`${lang==='fr'?'Taille':'Size'}: ${item.size}`);
+	    if (item.color) variants.push(`${lang==='fr'?'Couleur':'Color'}: ${item.color}`);
+	    const variantStr = variants.length > 0 ? ` - ${variants.join(' - ')}` : '';
+
+	    msg += `${i+1}. *${prodName(p)}${variantStr}*\n`;
+	    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}\n`;
+	    if (p.type==='bundle' && p.bundleItems?.length) {
+	      msg += `   📦 ${t('wa_includes')}:\n`;
+	      p.bundleItems.forEach(bi=>msg+=`   • ${bi}\n`);
+	    }
     // Engraving for this product
     if (engravings[item.id]?.text) {
       msg += `   💍 ${lang==='fr'?'Gravure':'Engraving'}: "${engravings[item.id].text}"\n`;
@@ -5547,6 +5673,10 @@ function sendWhatsApp() {
     msg += '\n';
   });
 
+  const totals = calcCartTotals(city);
+  if (totals.promoSavings > 0) {
+    msg += `✨ ${lang==='fr'?'Offre Spéciale appliquée':'Special Offer applied'}: -${fmt(totals.promoSavings)}\n`;
+  }
   msg += `\n${t('wa_subtotal')}: ${fmt(subtotal)}\n`;
   msg += `${t('wa_delivery')} (${locationLabel}): ${fmt(fee)}\n`;
   if (giftPrice > 0) msg += `🎁 ${lang==='fr'?'Emballage cadeau':'Gift wrapping'}: ${fmt(giftPrice)}\n`;
@@ -5563,9 +5693,10 @@ function sendWhatsApp() {
   const order = {
     id: orderId, name, phone,
     city: locationLabel, address, notes,
-    items: [...cart],
-    subtotal, delivery: fee, giftPrice,
-    total, date: new Date().toISOString(),
+	    items: [...cart],
+	    subtotal, delivery: fee, giftPrice,
+	    promoSavings: totals.promoSavings,
+	    total, date: new Date().toISOString(),
     giftMessage: giftMsg || null,
     engravings: Object.keys(engravings).length ? engravings : null
   };
@@ -5664,19 +5795,24 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
   const timeStr = new Date().toLocaleTimeString(lang==='fr'?'fr-FR':'en-US', {hour:'2-digit',minute:'2-digit'});
   const slogan = lang==='fr' ? (settings.sloganFR||'Signez votre passage, imposez votre style') : (settings.sloganEN||'Make your mark, define your style');
 
-  let itemsHTML = items.map(item=>{
-    const p = getProd(item.id); if (!p) return '';
-    let bundle = '';
-    if (p.type==='bundle' && p.bundleItems?.length) {
-      bundle = `<div style="font-size:11px;color:#888;margin-top:4px;padding-left:10px">
-        📦 ${lang==='fr'?'Contenu':'Contents'}: ${p.bundleItems.join(', ')}
-      </div>`;
-    }
-    return `
-      <tr>
-        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;font-size:13px">
-          ${prodName(p)}${bundle}
-        </td>
+	  let itemsHTML = items.map(item=>{
+	    const p = getProd(item.id); if (!p) return '';
+	    let bundle = '';
+	    if (p.type==='bundle' && p.bundleItems?.length) {
+	      bundle = `<div style="font-size:11px;color:#888;margin-top:4px;padding-left:10px">
+	        📦 ${lang==='fr'?'Contenu':'Contents'}: ${p.bundleItems.join(', ')}
+	      </div>`;
+	    }
+	    const variants = [];
+	    if (item.size) variants.push(`${lang==='fr'?'Taille':'Size'}: ${item.size}`);
+	    if (item.color) variants.push(`${lang==='fr'?'Couleur':'Color'}: ${item.color}`);
+	    const variantStr = variants.length > 0 ? `<div style="font-size:11px;color:var(--gold);margin-top:2px">${variants.join(' - ')}</div>` : '';
+
+	    return `
+	      <tr>
+	        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;font-size:13px">
+	          ${prodName(p)}${variantStr}${bundle}
+	        </td>
         <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:center;font-size:12px;color:#666">${item.qty}</td>
         <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;font-weight:500">${fmt(p.price || 0)}</td>
         <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;color:#9A7530;font-weight:600">${fmt(p.price*item.qty)}</td>
@@ -5750,11 +5886,16 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
       </tr></thead>
       <tbody>${itemsHTML}</tbody>
     </table>
-    <div style="margin-top:12px">
-      <div class="fee-row">
-        <span>${lang==='fr'?'Sous-total produits':'Products subtotal'}</span>
-        <span>${fmt(subtotal)}</span>
-      </div>
+	    <div style="margin-top:12px">
+	      ${(order.promoSavings > 0) ? `
+	      <div class="fee-row" style="color:#C0392B;font-weight:600">
+	        <span>✨ ${lang==='fr'?'Offre Spéciale':'Special Offer'}</span>
+	        <span>-${fmt(order.promoSavings)}</span>
+	      </div>` : ''}
+	      <div class="fee-row">
+	        <span>${lang==='fr'?'Sous-total produits':'Products subtotal'}</span>
+	        <span>${fmt(subtotal)}</span>
+	      </div>
       <div class="fee-row">
         <span>${lang==='fr'?'Frais de livraison':'Delivery fee'} (${city})</span>
         <span>${fmt(fee)}</span>
@@ -6161,7 +6302,10 @@ function renderAdminProducts() {
       <td>${prodName(p)}</td>
       <td>${cat?`${cat.icon} ${getCatName(cat)}`:'—'}</td>
       <td style="color:var(--gold)">${fmt(p.price || 0)}</td>
-      <td><span class="badge ${p.type==='bundle'?'badge-gold':'badge-muted'}">${p.type==='bundle'?'Pack':'Simple'}</span></td>
+	      <td>
+	        <span class="badge ${p.type==='bundle'?'badge-gold':'badge-muted'}">${p.type==='bundle'?'Pack':'Simple'}</span>
+	        ${p.isEssential ? '<br><span class="badge badge-danger" style="font-size:8px;margin-top:4px">PROMO 3/1000</span>' : ''}
+	      </td>
       <td><span class="badge ${p.stock>0?'badge-success':'badge-danger'}">${p.stock>0?p.stock+' stock':'Épuisé'}</span></td>
       <td style="display:flex;gap:5px">
         <button class="admin-btn admin-btn-sm" onclick="editProduct('${p.id}')">✏️</button>
@@ -6203,15 +6347,18 @@ async function saveProduct() {
   const price = parseInt(document.getElementById('p-price').value)||0;
   if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return; }
 
-  const data = {
-    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
-    catId: document.getElementById('p-cat').value,
-    type: document.getElementById('p-type').value,
-    price, stock: parseInt(document.getElementById('p-stock').value)||0,
-    descFR: document.getElementById('p-desc-fr').value.trim(),
-    descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
-  };
+	  const data = {
+	    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
+	    catId: document.getElementById('p-cat').value,
+	    type: document.getElementById('p-type').value,
+	    price, stock: parseInt(document.getElementById('p-stock').value)||0,
+	    descFR: document.getElementById('p-desc-fr').value.trim(),
+	    descEN: document.getElementById('p-desc-en').value.trim(),
+	    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+	    isEssential: document.getElementById('p-is-essential').checked,
+	    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+	    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+	  };
 
   if (editingProductId) {
         const idx = products.findIndex(p=>p.id===editingProductId);
@@ -6254,10 +6401,14 @@ function editProduct(id) {
   document.getElementById('p-type').value = p.type;
   document.getElementById('p-price').value = p.price;
   document.getElementById('p-stock').value = p.stock;
-  document.getElementById('p-desc-fr').value = p.descFR||'';
-  document.getElementById('p-desc-en').value = p.descEN||'';
-  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('\n');
-  toggleBundleSection();
+	  document.getElementById('p-desc-fr').value = p.descFR||'';
+	  document.getElementById('p-desc-en').value = p.descEN||'';
+	  document.getElementById('p-bundle-items').value = (p.bundleItems||[]).join('\n');
+	  document.getElementById('p-is-essential').checked = !!p.isEssential;
+	  document.getElementById('p-sizes').value = (p.sizes||[]).join(', ');
+	  document.getElementById('p-colors').value = (p.colors||[]).join(', ');
+	  toggleBundleSection();
+	  updateVariantFieldsVisibility();
 
   document.getElementById('edit-banner').style.display = 'block';
 
@@ -6291,9 +6442,11 @@ function deleteProduct(id) {
 
 function resetProductForm() {
   editingProductId=null; currentImgs=[];
-  ['p-name-fr','p-name-en','p-price','p-stock','p-desc-fr','p-desc-en','p-bundle-items'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
+	  ['p-name-fr','p-name-en','p-price','p-stock','p-desc-fr','p-desc-en','p-bundle-items','p-sizes','p-colors'].forEach(id=>{
+	    const el=document.getElementById(id); if(el) el.value='';
+	  });
+	  document.getElementById('p-is-essential').checked = false;
+	  document.getElementById('variant-fields').style.display = 'none';
   document.getElementById('img-previews-row').innerHTML='';
   document.getElementById('p-type').value='single';
   document.getElementById('bundle-section').style.display='none';
@@ -6304,7 +6457,37 @@ function populateProdCatSelect() {
   const opts = getValidCategories().map(c=>`<option value="${c.id}">${c.icon} ${c.nameFR}</option>`).join('');
   document.getElementById('p-cat').innerHTML = opts;
   document.getElementById('prod-cat-filter').innerHTML = '<option value="">Toutes catégories</option>'+opts;
+  
+  // Add listener for variant fields
+  document.getElementById('p-cat').addEventListener('change', updateVariantFieldsVisibility);
 }
+
+function updateVariantFieldsVisibility() {
+  const catId = document.getElementById('p-cat').value;
+  const cat = getCat(catId);
+  const variantFields = document.getElementById('variant-fields');
+  const sizeField = document.getElementById('field-sizes');
+  const colorField = document.getElementById('field-colors');
+  
+  if (!cat) { variantFields.style.display = 'none'; return; }
+  
+  const catName = cat.nameFR.toLowerCase();
+  const isShoes = catName.includes('chaussure') || catName.includes('talon') || catName.includes('escarpin');
+  const isBags = catName.includes('sac');
+  
+  if (isShoes) {
+    variantFields.style.display = 'block';
+    sizeField.style.display = 'block';
+    colorField.style.display = 'block';
+  } else if (isBags) {
+    variantFields.style.display = 'block';
+    sizeField.style.display = 'none';
+    colorField.style.display = 'block';
+  } else {
+    variantFields.style.display = 'none';
+  }
+}
+
 
 // CATEGORIES
 function renderAdminCats() {
