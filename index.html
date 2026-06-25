@@ -3952,6 +3952,7 @@ function loadSyncConfig() { /* Hardcoded */ }
 let firebaseApp = null;
 let firebaseDb = null;
 let isSyncInitialized = false;
+let isInitialPullComplete = false; // Bloqueur pour syncPush au démarrage
 
 const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
@@ -4091,6 +4092,10 @@ function handleKeyUpdate(key, value) {
 
 async function syncPush() {
   if (!initFirebase()) return;
+  if (!isInitialPullComplete) {
+    console.warn('[Sync] Push bloqué : Récupération initiale non terminée.');
+    return;
+  }
   setSyncStatus('syncing');
   // Push each shared key individually to its own node
   const pushPromises = SHARED_KEYS.map(async (key) => {
@@ -4136,17 +4141,27 @@ async function syncPull(silent) {
     const snapshot = await firebaseDb.ref("storedData").once("value");
     const val = snapshot.val();
     if (val) {
-      if (val.products) {
+      // Protection : On ne met à jour localement que si Firebase contient des données
+      if (val.products && Object.keys(val.products).length > 0) {
         products = Object.values(val.products).filter(p => p !== null && typeof p === 'object' && p.id);
       }
-      if (val.categories) {
+      if (val.categories && Object.keys(val.categories).length > 0) {
         categories = Object.values(val.categories).filter(c => c !== null && typeof c === 'object' && c.id);
       }
+      
+      // Synchronisation des autres clés partagées si présentes
+      SHARED_KEYS.forEach(key => {
+        if (val[key] !== undefined && key !== 'products' && key !== 'categories' && key !== 'ft_') {
+          handleKeyUpdate(key, val[key]);
+        }
+      });
+
       if (typeof saveLocal === "function") saveLocal();
       renderAll();
-      filterProducts();
+      if (typeof filterProducts === "function") filterProducts();
       setSyncStatus('ok');
     }
+    isInitialPullComplete = true; // Débloque les futurs syncPush
   } catch (e) {
     console.warn("[Sync] Pull failed:", e.message);
     setSyncStatus('offline');
@@ -11726,11 +11741,18 @@ function init() {
   document.getElementById('lang-toggle').textContent = lang==='fr'?'EN':'FR';
   
   // Load with defaults
-  categories = DB.get('categories', DEFAULT_CATS);
-  if (!categories || categories.length === 0) categories = DEFAULT_CATS;
+  // Chargement initial depuis le cache local uniquement
+  categories = DB.get('categories', []);
+  if ((!categories || categories.length === 0) && !SYNC_CONFIG.enabled) {
+    categories = DEFAULT_CATS;
+  }
   
-  products = DB.get('products', DEFAULT_PRODUCTS);
-  if (!products || products.length === 0) products = DEFAULT_PRODUCTS;
+  // Chargement initial depuis le cache local uniquement
+  products = DB.get('products', []);
+  // On n'injecte les produits par défaut QUE si le cache est vide ET qu'on n'est pas en mode sync
+  if ((!products || products.length === 0) && !SYNC_CONFIG.enabled) {
+    products = DEFAULT_PRODUCTS;
+  }
 
   orders = DB.get('orders',[]);
   settings = DB.get('settings', DEFAULT_SETTINGS);
@@ -11762,11 +11784,16 @@ function init() {
   // Pull remote data on load (async — won't block initial render)
   renderAll();
 
-  // After render, silently sync from remote if configured
+  // Au démarrage, on lance impérativement le pull avant d'activer quoi que ce soit d'autre
   if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
-    setTimeout(() => syncPull(true), 800);
+    syncPull(true).then(() => {
+      console.log('[Sync] Initial pull complete, auto-sync ready.');
+      startAutoSync();
+    });
+  } else {
+    isInitialPullComplete = true; // Pas de sync, on débloque
+    startAutoSync();
   }
-  startAutoSync();
 }
 
 try { init(); } catch(e) { console.error('Init error:', e); }
