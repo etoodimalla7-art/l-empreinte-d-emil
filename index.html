@@ -157,6 +157,18 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .btn-view{background:var(--dark-3);color:var(--light);border:1px solid rgba(245,240,232,.12);padding:9px 12px;font-size:13px;cursor:pointer;border-radius:2px;transition:var(--transition)}
 .btn-view:hover{border-color:var(--gold);color:var(--gold)}
 
+/* SKELETON LOADER */
+.skeleton-card { background: var(--dark-2); border: 1px solid rgba(201,168,76,0.08); border-radius: 8px; overflow: hidden; height: 380px; position: relative; }
+.skeleton-img { width: 100%; aspect-ratio: 1; background: var(--dark-3); }
+.skeleton-info { padding: 14px; }
+.skeleton-line { height: 12px; background: var(--dark-3); margin-bottom: 10px; border-radius: 2px; }
+.skeleton-line.short { width: 40%; }
+.skeleton-line.medium { width: 70%; }
+.skeleton-line.long { width: 90%; }
+.skeleton-pulse { position: relative; overflow: hidden; }
+.skeleton-pulse::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(201,168,76,0.05), transparent); animation: skeleton-loading 1.5s infinite; }
+@keyframes skeleton-loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
 /* CART DRAWER */
 #cart-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;opacity:0;visibility:hidden;transition:var(--transition)}
 #cart-overlay.open{opacity:1;visibility:visible}
@@ -4161,6 +4173,7 @@ async function syncPull(silent) {
       });
 
       if (typeof saveLocal === "function") saveLocal();
+      isInitialSyncing = false;
       renderAll();
       if (typeof filterProducts === "function") filterProducts();
       setSyncStatus('ok');
@@ -4168,6 +4181,8 @@ async function syncPull(silent) {
     isInitialPullComplete = true; // Débloque les futurs syncPush
   } catch (e) {
     console.warn("[Sync] Pull failed:", e.message);
+    isInitialSyncing = false;
+    renderAll();
     setSyncStatus('offline');
   }
 }
@@ -4285,16 +4300,7 @@ const DEFAULT_CATS = [
   { id:'c10',icon:'👗', nameFR:'Vêtements', nameEN:'Clothing', sloganFR:"Portez votre signature, chaque jour", sloganEN:"Wear your signature, every day" },
 ];
 
-const DEFAULT_PRODUCTS = [
-  { id:'p1', nameFR:'Oud Royal', nameEN:'Royal Oud', catId:'c1', type:'single', price:25000, stock:15, imgs:[], descFR:'Parfum oriental de luxe aux notes de bois de santal et de rose. Une fragrance envoûtante pour les occasions spéciales.', descEN:'Luxury oriental perfume with sandalwood and rose notes. An enchanting fragrance for special occasions.', bundleItems:[] },
-  { id:'p2', nameFR:'Mist Floral Rose', nameEN:'Floral Rose Mist', catId:'c2', type:'single', price:12000, stock:20, imgs:[], descFR:'Brume corporelle légère aux fleurs de rose et jasmin. Fraîcheur toute la journée.', descEN:'Light body mist with rose and jasmine flowers. Freshness all day long.', bundleItems:[] },
-  { id:'p3', nameFR:'Pack Prestige Parfums', nameEN:'Prestige Perfumes Pack', catId:'c1', type:'bundle', price:45000, stock:5, imgs:[], descFR:'Le pack parfum ultime — 3 fragrances de luxe soigneusement sélectionnées.', descEN:'The ultimate perfume pack — 3 luxury fragrances carefully selected.', bundleItems:['Oud Royal 50ml','Mist Floral 100ml','Huile Essentielle Rose 30ml'] },
-  { id:'p4', nameFR:'Rouge Intense', nameEN:'Intense Red', catId:'c6', type:'single', price:8000, stock:30, imgs:[], descFR:'Rouge à lèvres longue durée mat et velouté pour un look sophistiqué.', descEN:'Long-lasting matte velvet lipstick for a sophisticated look.', bundleItems:[] },
-  { id:'p5', nameFR:'Talons Élégance Noire', nameEN:'Black Elegance Heels', catId:'c4', type:'single', price:35000, stock:8, imgs:[], descFR:'Escarpins noirs élégants avec détails dorés. Talon aiguille 10cm. Cuir véritable.', descEN:'Elegant black heels with gold details. 10cm stiletto heel. Genuine leather.', bundleItems:[] },
-  { id:'p6', nameFR:'Casquette Dorée Luxe', nameEN:'Golden Luxury Cap', catId:'c5', type:'single', price:15000, stock:12, imgs:[], descFR:'Casquette de luxe avec broderies dorées. Tissu premium ajustable.', descEN:'Luxury cap with gold embroidery. Premium adjustable fabric.', bundleItems:[] },
-  { id:'p7', nameFR:'Pack Beauté Complète', nameEN:'Complete Beauty Pack', catId:'c6', type:'bundle', price:55000, stock:3, imgs:[], descFR:'Le pack beauté tout-en-un : maquillage, soins, et parfum inclus.', descEN:'The all-in-one beauty pack: makeup, skincare, and perfume included.', bundleItems:['Rouge Intense Lèvres','Fond de Teint HD','Parfum Floral','Sérum Éclat'] },
-  { id:'p8', nameFR:'Robe Soirée Dorée', nameEN:'Golden Evening Dress', catId:'c10', type:'single', price:75000, stock:6, imgs:[], descFR:'Robe de soirée longue aux reflets dorés. Tissu satiné haute qualité.', descEN:'Long evening dress with golden reflections. High quality satin fabric.', bundleItems:[] },
-];
+const DEFAULT_PRODUCTS = [];
 
 const DEFAULT_DELIVERY_FEES = [
   { city:'Douala', fee:500, delay:'< 24h' },
@@ -4385,7 +4391,24 @@ let adminLoggedIn = false;
 let editingProductId = null;
 let currentImgs = [];
 let pmQty = 1;
+let isInitialSyncing = true;
 
+function renderSkeletonCards(count = 4) {
+  let html = '';
+  for(let i=0; i<count; i++) {
+    html += `
+      <div class="skeleton-card">
+        <div class="skeleton-img skeleton-pulse"></div>
+        <div class="skeleton-info">
+          <div class="skeleton-line short skeleton-pulse"></div>
+          <div class="skeleton-line long skeleton-pulse"></div>
+          <div class="skeleton-line medium skeleton-pulse"></div>
+          <div class="skeleton-line long skeleton-pulse" style="margin-top:20px;height:35px"></div>
+        </div>
+      </div>`;
+  }
+  return html;
+}
 
 function getValidProducts() {
   return (products || []).filter(p => p !== null && p !== undefined && typeof p === 'object' && p.id && p.catId);
@@ -4877,8 +4900,15 @@ function renderHomePage() {
       <div class="cat-name">${catName(c)}</div>
       <div class="cat-count">${getValidProducts().filter(p=>p.catId===c.id).length} ${t('results')}</div>
     </div>`).join('');
-  document.getElementById('featured-grid').innerHTML = products.slice(0,4).map(renderProductCard).join('');
-  document.getElementById('new-grid').innerHTML = [...products].reverse().slice(0,4).map(renderProductCard).join('');
+
+  if (isInitialSyncing && products.length === 0) {
+    document.getElementById('featured-grid').innerHTML = renderSkeletonCards(4);
+    document.getElementById('new-grid').innerHTML = renderSkeletonCards(4);
+  } else {
+    document.getElementById('featured-grid').innerHTML = products.slice(0,4).map(renderProductCard).join('');
+    document.getElementById('new-grid').innerHTML = [...products].reverse().slice(0,4).map(renderProductCard).join('');
+  }
+
   renderHomeReviews();
   renderLookDuMoment();
   renderNavCats();
@@ -4999,9 +5029,13 @@ function filterProducts() {
   if (sort==='price-asc') ps.sort((a,b)=>a.price-b.price);
   else if (sort==='price-desc') ps.sort((a,b)=>b.price-a.price);
   else if (sort==='name') ps.sort((a,b)=>prodName(a).localeCompare(prodName(b)));
-  document.getElementById('shop-grid').innerHTML = ps.length
-    ? ps.map(renderProductCard).join('')
-    : `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--muted)"><div style="font-size:36px;margin-bottom:10px">🔍</div><div style="font-family:var(--font-display);font-size:18px">${lang==='fr'?'Aucun produit trouvé':'No products found'}</div></div>`;
+  if (isInitialSyncing && products.length === 0) {
+    document.getElementById('shop-grid').innerHTML = renderSkeletonCards(8);
+  } else {
+    document.getElementById('shop-grid').innerHTML = ps.length
+      ? ps.map(renderProductCard).join('')
+      : `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--muted)"><div style="font-size:36px;margin-bottom:10px">🔍</div><div style="font-family:var(--font-display);font-size:18px">${lang==='fr'?'Aucun produit trouvé':'No products found'}</div></div>`;
+  }
   document.getElementById('results-count').textContent = ps.length + ' ' + t('results');
 }
 
