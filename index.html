@@ -2522,17 +2522,25 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 	              </div>
 	            </div>
 	            
-	            <div id="variant-fields" style="margin-top:14px;display:none;background:var(--dark-3);padding:14px;border-radius:8px;border:1px solid rgba(201,168,76,.1)">
-	              <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">📏 Variantes (Tailles & Couleurs)</div>
-	              <div id="field-sizes" style="margin-bottom:10px">
-	                <label class="admin-label">Tailles disponibles (ex: 37, 38, 39...)</label>
-	                <input class="admin-input" id="p-sizes" placeholder="Séparez par des virgules">
-	              </div>
-	              <div id="field-colors">
-	                <label class="admin-label">Couleurs disponibles (ex: Noir, Doré, Blanc...)</label>
-	                <input class="admin-input" id="p-colors" placeholder="Séparez par des virgules">
-	              </div>
-	            </div>
+		            <div id="variant-fields" style="margin-top:14px;display:none;background:var(--dark-3);padding:14px;border-radius:8px;border:1px solid rgba(201,168,76,.1)">
+		              <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">📏 Variantes (Tailles, Couleurs & Contenances)</div>
+		              
+		              <div id="field-sizes" style="margin-bottom:10px">
+		                <label class="admin-label">Tailles disponibles (ex: 37, 38, 39...)</label>
+		                <input class="admin-input" id="p-sizes" placeholder="Séparez par des virgules">
+		              </div>
+		              
+		              <div id="field-colors" style="margin-bottom:10px">
+		                <label class="admin-label">Couleurs disponibles (ex: Noir, Doré, Blanc...)</label>
+		                <input class="admin-input" id="p-colors" placeholder="Séparez par des virgules">
+		              </div>
+
+		              <div id="field-volumes">
+		                <label class="admin-label">Contenances & Prix (ex: 35ml:5000, 50ml:8000...)</label>
+		                <input class="admin-input" id="p-volumes" placeholder="Format: volume:prix, volume:prix">
+		                <div style="font-size:9px;color:var(--muted);margin-top:4px">Si rempli, ces prix remplaceront le prix principal pour chaque variante choisie.</div>
+		              </div>
+		            </div>
             <div style="margin-top:14px"><label class="admin-label">Description (FR)</label><textarea class="admin-textarea" id="p-desc-fr" placeholder="Description en français..."></textarea></div>
             <div style="margin-top:10px"><label class="admin-label">Description (EN)</label><textarea class="admin-textarea" id="p-desc-en" placeholder="English description..."></textarea></div>
             <div id="bundle-section" style="display:none;margin-top:14px">
@@ -4508,6 +4516,7 @@ let currentImgs = [];
 let pmQty = 1;
 let selectedSize = null;
 let selectedColor = null;
+let selectedVolume = null;
 let isInitialSyncing = false;
 
 function renderSkeletonCards(count = 4) {
@@ -5289,8 +5298,19 @@ function addFromModal(id) {
     showToast(lang==='fr'?'Veuillez sélectionner une couleur':'Please select a color', '⚠️');
     return;
   }
+  if (p.volumes && p.volumes.length > 0 && !selectedVolume) {
+    showToast(lang==='fr'?'Veuillez sélectionner une contenance':'Please select a volume', '⚠️');
+    return;
+  }
   
-  addToCart(id, pmQty, selectedSize, selectedColor);
+  // Récupérer le prix spécifique si volume sélectionné
+  let finalPrice = p.price;
+  if (selectedVolume && p.volumes) {
+    const vol = p.volumes.find(v => v.name === selectedVolume);
+    if (vol) finalPrice = vol.price;
+  }
+  
+  addToCart(id, pmQty, selectedSize, selectedColor, selectedVolume, finalPrice);
   closeModal('product-modal');
 }
 
@@ -5333,25 +5353,43 @@ function sanitizeData() {
 }
 
 // ============================================================
-function addToCart(id, qty=1, size=null, color=null) {
+function addToCart(id, qty=1, size=null, color=null, volume=null, price=null) {
   const p = getProd(id); if (!p) return;
-  // A cart item is unique by its ID + Size + Color
-  const ex = cart.find(i => i.id === id && i.size === size && i.color === color);
+  // A cart item is unique by its ID + Size + Color + Volume
+  const ex = cart.find(i => i.id === id && i.size === size && i.color === color && i.volume === volume);
   if (ex) {
     ex.qty += qty;
+    // On met à jour le prix au cas où (pour les variantes)
+    if (price !== null) ex.price = price;
   } else {
-    cart.push({ id, qty, size, color });
+    cart.push({ id, qty, size, color, volume, price: price !== null ? price : p.price });
   }
   saveCart(); renderCart(); showToast(t('toast_added')); openCart();
 }
 
-function removeFromCart(id, size=null, color=null) {
-  cart = cart.filter(i => !(i.id === id && i.size === size && i.color === color));
+function removeFromCart(id, size, color, volume) {
+  const s = size || null;
+  const c = color || null;
+  const v = volume || null;
+  cart = cart.filter(item => {
+    const itemS = item.size || null;
+    const itemC = item.color || null;
+    const itemV = item.volume || null;
+    return !(item.id === id && itemS === s && itemC === c && itemV === v);
+  });
   saveCart(); renderCart(); showToast(t('toast_removed'), '🗑');
 }
 
-function changeQty(id, d, size=null, color=null) {
-  const item = cart.find(i => i.id === id && i.size === size && i.color === color);
+function changeQty(id, d, size, color, volume) {
+  const s = size || null;
+  const c = color || null;
+  const v = volume || null;
+  const item = cart.find(item => {
+    const itemS = item.size || null;
+    const itemC = item.color || null;
+    const itemV = item.volume || null;
+    return item.id === id && itemS === s && itemC === c && itemV === v;
+  });
   if (!item) return;
   item.qty = Math.max(1, item.qty + d);
   saveCart(); renderCart();
@@ -5366,11 +5404,12 @@ function calcCartTotals(city='Douala') {
     const p = getProd(item.id);
     if (!p) return;
     
+    const itemPrice = item.price !== undefined ? item.price : p.price;
     if (p.isEssential) {
       essentialCount += item.qty;
-      essentialNormalPriceTotal += p.price * item.qty;
+      essentialNormalPriceTotal += itemPrice * item.qty;
     } else {
-      subtotal += p.price * item.qty;
+      subtotal += itemPrice * item.qty;
     }
   });
   
@@ -5386,7 +5425,8 @@ function calcCartTotals(city='Douala') {
     cart.forEach(item => {
       const p = getProd(item.id);
       if (p && p.isEssential) {
-        for(let k=0; k<item.qty; k++) allEssentials.push(p.price);
+        const itemPrice = item.price !== undefined ? item.price : p.price;
+        for(let k=0; k<item.qty; k++) allEssentials.push(itemPrice);
       }
     });
     // The items NOT in a bundle of 3 are the "remaining" ones. 
@@ -5413,9 +5453,10 @@ function renderCart() {
 	  el.innerHTML = cart.map(item=>{
 	    const p = getProd(item.id); if (!p) return '';
 	    const cat = getCat(p.catId);
-	    const sub = p.price * item.qty;
+	    const itemPrice = item.price !== undefined ? item.price : p.price;
+	    const sub = itemPrice * item.qty;
 	    const firstImg = p.imgs?.[0];
-	    const variantStr = [item.size, item.color].filter(Boolean).join(' / ');
+	    const variantStr = [item.size, item.color, item.volume].filter(Boolean).join(' / ');
 	    return `
 	      <div class="cart-item">
 	        <div class="cart-item-img">${firstImg?`<img src="${firstImg}" alt="">`:(cat?cat.icon:'📦')}</div>
@@ -5426,10 +5467,10 @@ function renderCart() {
 	            ${p.type==='bundle'?t('bundle_badge'):(lang==='fr'?'Produit':'Product')}
 	          </div>
 	          <div class="cart-item-controls">
-	            <button class="qty-btn" onclick="changeQty('${p.id}',-1,'${item.size||''}','${item.color||''}')">−</button>
+	            <button class="qty-btn" onclick="changeQty('${p.id}',-1,'${item.size||''}','${item.color||''}','${item.volume||''}')">−</button>
 	            <span class="qty-num">${item.qty}</span>
-	            <button class="qty-btn" onclick="changeQty('${p.id}',1,'${item.size||''}','${item.color||''}')">+</button>
-	            <button class="cart-item-remove" onclick="removeFromCart('${p.id}','${item.size||''}','${item.color||''}')">🗑</button>
+	            <button class="qty-btn" onclick="changeQty('${p.id}',1,'${item.size||''}','${item.color||''}','${item.volume||''}')">+</button>
+	            <button class="cart-item-remove" onclick="removeFromCart('${p.id}','${item.size || ''}','${item.color || ''}','${item.volume||''}')">🗑</button>
 	          </div>
 	        </div>
 	        <div class="cart-item-price">${fmt(sub)}</div>
@@ -5672,7 +5713,16 @@ function openCheckout() {
   let sum = `<h4>${lang==='fr'?'Récapitulatif':'Summary'}</h4>`;
   cart.forEach(item=>{
     const p=getProd(item.id); if (!p) return;
-    sum += `<div class="checkout-item-row"><span>${prodName(p)} × ${item.qty}</span><span>${fmt(p.price*item.qty)}</span></div>`;
+    const itemPrice = item.price !== undefined ? item.price : p.price;
+    const variantStr = [item.size, item.color, item.volume].filter(Boolean).join(' / ');
+    sum += `
+      <div class="checkout-item-row" style="flex-direction:column;align-items:flex-start;gap:2px">
+        <div style="display:flex;justify-content:space-between;width:100%">
+          <strong>${prodName(p)} × ${item.qty}</strong>
+          <span>${fmt(itemPrice * item.qty)}</span>
+        </div>
+        ${variantStr ? `<div style="font-size:10px;color:var(--gold)">${variantStr}</div>` : ''}
+      </div>`;
   });
   document.getElementById('checkout-summary').innerHTML = sum;
 
@@ -5733,15 +5783,17 @@ function sendWhatsApp() {
 
   // ── Build WhatsApp message ──
   let msg = `${t('wa_hello')}\n\n`;
-	  cart.forEach((item,i)=>{
+	  	  cart.forEach((item,i)=>{
 	    const p = getProd(item.id); if (!p) return;
 	    const variants = [];
 	    if (item.size) variants.push(`${lang==='fr'?'Taille':'Size'}: ${item.size}`);
 	    if (item.color) variants.push(`${lang==='fr'?'Couleur':'Color'}: ${item.color}`);
+	    if (item.volume) variants.push(`${lang==='fr'?'Contenance':'Volume'}: ${item.volume}`);
 	    const variantStr = variants.length > 0 ? ` - ${variants.join(' - ')}` : '';
 
+	    const itemPrice = item.price !== undefined ? item.price : p.price;
 	    msg += `${i+1}. *${prodName(p)}${variantStr}*\n`;
-	    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(p.price * item.qty)}\n`;
+	    msg += `   ${t('wa_qty')}: ${item.qty} · ${t('wa_price')}: ${fmt(itemPrice * item.qty)}\n`;
 	    if (p.type==='bundle' && p.bundleItems?.length) {
 	      msg += `   📦 ${t('wa_includes')}:\n`;
 	      p.bundleItems.forEach(bi=>msg+=`   • ${bi}\n`);
@@ -5886,16 +5938,18 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
 	    const variants = [];
 	    if (item.size) variants.push(`${lang==='fr'?'Taille':'Size'}: ${item.size}`);
 	    if (item.color) variants.push(`${lang==='fr'?'Couleur':'Color'}: ${item.color}`);
+	    if (item.volume) variants.push(`${lang==='fr'?'Contenance':'Volume'}: ${item.volume}`);
 	    const variantStr = variants.length > 0 ? `<div style="font-size:11px;color:var(--gold);margin-top:2px">${variants.join(' - ')}</div>` : '';
 
+	    const itemPrice = item.price !== undefined ? item.price : p.price;
 	    return `
 	      <tr>
 	        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;font-size:13px">
 	          ${prodName(p)}${variantStr}${bundle}
 	        </td>
         <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:center;font-size:12px;color:#666">${item.qty}</td>
-        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;font-weight:500">${fmt(p.price || 0)}</td>
-        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;color:#9A7530;font-weight:600">${fmt(p.price*item.qty)}</td>
+        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;font-weight:500">${fmt(itemPrice || 0)}</td>
+        <td style="padding:8px 6px;border-bottom:1px solid #f0ebe0;text-align:right;font-size:13px;color:#9A7530;font-weight:600">${fmt(itemPrice * item.qty)}</td>
       </tr>`;
   }).join('');
 
@@ -6438,6 +6492,11 @@ async function saveProduct() {
 	    isEssential: document.getElementById('p-is-essential').checked,
 	    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
 	    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+	    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
+	      const parts = s.split(':');
+	      if (parts.length < 2) return null;
+	      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
+	    }).filter(Boolean),
 	  };
 
   if (editingProductId) {
@@ -6487,6 +6546,7 @@ function editProduct(id) {
 	  document.getElementById('p-is-essential').checked = !!p.isEssential;
 	  document.getElementById('p-sizes').value = (p.sizes||[]).join(', ');
 	  document.getElementById('p-colors').value = (p.colors||[]).join(', ');
+	  document.getElementById('p-volumes').value = (p.volumes||[]).map(v => `${v.name}:${v.price}`).join(', ');
 	  toggleBundleSection();
 	  updateVariantFieldsVisibility();
 
@@ -6522,7 +6582,7 @@ function deleteProduct(id) {
 
 function resetProductForm() {
   editingProductId=null; currentImgs=[];
-	  ['p-name-fr','p-name-en','p-price','p-stock','p-desc-fr','p-desc-en','p-bundle-items','p-sizes','p-colors'].forEach(id=>{
+	  ['p-name-fr','p-name-en','p-price','p-stock','p-desc-fr','p-desc-en','p-bundle-items','p-sizes','p-colors','p-volumes'].forEach(id=>{
 	    const el=document.getElementById(id); if(el) el.value='';
 	  });
 	  document.getElementById('p-is-essential').checked = false;
@@ -6554,15 +6614,25 @@ function updateVariantFieldsVisibility() {
   const catName = cat.nameFR.toLowerCase();
   const isShoes = catName.includes('chaussure') || catName.includes('talon') || catName.includes('escarpin');
   const isBags = catName.includes('sac');
+  const isPerfume = catName.includes('parfum') || catName.includes('mist') || catName.includes('huile');
+  
+  const volumeField = document.getElementById('field-volumes');
   
   if (isShoes) {
     variantFields.style.display = 'block';
     sizeField.style.display = 'block';
     colorField.style.display = 'block';
+    volumeField.style.display = 'none';
   } else if (isBags) {
     variantFields.style.display = 'block';
     sizeField.style.display = 'none';
     colorField.style.display = 'block';
+    volumeField.style.display = 'none';
+  } else if (isPerfume) {
+    variantFields.style.display = 'block';
+    sizeField.style.display = 'none';
+    colorField.style.display = 'none';
+    volumeField.style.display = 'block';
   } else {
     variantFields.style.display = 'none';
   }
