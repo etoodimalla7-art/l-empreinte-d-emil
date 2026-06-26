@@ -31,6 +31,62 @@
   --shadow: 0 8px 32px rgba(0,0,0,0.4);
   --shadow-gold: 0 4px 24px rgba(201,168,76,0.3);
 }
+/* LUXE SPLASH SCREEN */
+#luxe-splash {
+  position: fixed;
+  inset: 0;
+  background: var(--noir);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+#luxe-splash.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+.splash-logo {
+  font-family: var(--font-display);
+  font-size: 42px;
+  color: var(--gold);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  animation: splash-glow 2s ease-in-out infinite alternate;
+}
+.splash-logo small {
+  display: block;
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.4em;
+  margin-top: 10px;
+  color: rgba(201,168,76, 0.6);
+}
+@keyframes splash-glow {
+  from { text-shadow: 0 0 10px rgba(201,168,76, 0.2); opacity: 0.8; }
+  to { text-shadow: 0 0 30px rgba(201,168,76, 0.5); opacity: 1; }
+}
+.splash-loader {
+  width: 40px;
+  height: 1px;
+  background: rgba(201,168,76, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+.splash-loader::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: var(--gold);
+  animation: splash-load 1.5s infinite;
+}
+@keyframes splash-load {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--noir);color:var(--light);overflow-x:hidden;font-size:14px}
@@ -1916,9 +1972,29 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 </style>
 </head>
 <body>
+<!-- LUXE SPLASH SCREEN -->
+<div id="luxe-splash">
+  <div class="splash-logo">
+    L'EMPREINTE D'EMIL
+    <small>SIGNATURE DE LUXE</small>
+  </div>
+  <div class="splash-loader"></div>
+</div>
+
 <script>
   // Exécution immédiate du rendu dès que le body commence à parser
   (function() {
+    const data = window.__PRE_RENDER__;
+    const hasCache = data && data.products && data.products.length > 0;
+    
+    // Si on a du cache, on masque le splash plus vite
+    if (hasCache) {
+      setTimeout(() => {
+        const splash = document.getElementById('luxe-splash');
+        if (splash) splash.classList.add('fade-out');
+      }, 300);
+    }
+
     if (window.__INSTANT_RENDER__) {
       const run = () => {
         const fGrid = document.getElementById('featured-grid');
@@ -4225,6 +4301,10 @@ async function syncPull(silent) {
       if (typeof renderAll === "function") renderAll();
       if (typeof filterProducts === "function" && currentPage === 'shop') filterProducts();
       
+      // Masquer le splash screen une fois les produits réels chargés
+      const splash = document.getElementById('luxe-splash');
+      if (splash) splash.classList.add('fade-out');
+
       setSyncStatus('ok');
     }
     isInitialPullComplete = true; // Débloque les futurs syncPush
@@ -4334,19 +4414,7 @@ function sanitizeData() {
 }
 
 // ============================================================
-const DEFAULT_CATS = [
-  { id:'c1', icon:'🌹', nameFR:'Parfums', nameEN:'Perfumes', sloganFR:"L'art du parfum, l'essence du luxe", sloganEN:"The art of perfume, the essence of luxury" },
-  { id:'c2', icon:'💧', nameFR:'Body Mist', nameEN:'Body Mist', sloganFR:"Une brume de fraîcheur pour chaque instant", sloganEN:"A mist of freshness for every moment" },
-  { id:'c3', icon:'🌿', nameFR:'Huiles Essentielles', nameEN:'Essential Oils', sloganFR:"La nature à l'état pur", sloganEN:"Nature in its purest form" },
-  { id:'c4', icon:'👠', nameFR:'Chaussures & Talons', nameEN:'Shoes & Heels', sloganFR:"Marchez avec élégance, partout", sloganEN:"Walk with elegance, everywhere" },
-  { id:'c5', icon:'🧢', nameFR:'Chapeaux & Casquettes', nameEN:'Hats & Caps', sloganFR:"Couvrez-vous avec style", sloganEN:"Cover yourself with style" },
-  { id:'c6', icon:'💄', nameFR:'Cosmétiques', nameEN:'Cosmetics', sloganFR:"Révélez votre beauté naturelle", sloganEN:"Reveal your natural beauty" },
-  { id:'c7', icon:'👑', nameFR:'Perruques', nameEN:'Wigs', sloganFR:"Changez de look, gardez votre essence", sloganEN:"Change your look, keep your essence" },
-  { id:'c8', icon:'💎', nameFR:'Accessoires', nameEN:'Accessories', sloganFR:"Les détails font la perfection", sloganEN:"Details make perfection" },
-  { id:'c9', icon:'📱', nameFR:'Électronique', nameEN:'Electronics', sloganFR:"La technologie au service du style", sloganEN:"Technology at the service of style" },
-  { id:'c10',icon:'👗', nameFR:'Vêtements', nameEN:'Clothing', sloganFR:"Portez votre signature, chaque jour", sloganEN:"Wear your signature, every day" },
-];
-
+const DEFAULT_CATS = [];
 const DEFAULT_PRODUCTS = [];
 
 const DEFAULT_DELIVERY_FEES = [
@@ -12008,6 +12076,17 @@ function init() {
   
   // Rendu final complet
   renderAll();
+
+  // Si pas de produits en cache, on garde le splash visible
+  if (!products || products.length === 0) {
+    // Splash reste visible jusqu'au syncPull
+  } else {
+    // Si cache présent, on masque après un court délai pour l'effet "Luxe"
+    setTimeout(() => {
+      const splash = document.getElementById('luxe-splash');
+      if (splash) splash.classList.add('fade-out');
+    }, 600);
+  }
   
   // 3. FIREBASE EN ARRIÈRE-PLAN TOTAL (500ms+)
   // On utilise requestIdleCallback si disponible, sinon un setTimeout long
