@@ -1916,6 +1916,27 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 </style>
 </head>
 <body>
+<script>
+  // Exécution immédiate du rendu dès que le body commence à parser
+  (function() {
+    if (window.__INSTANT_RENDER__) {
+      const run = () => {
+        const fGrid = document.getElementById('featured-grid');
+        if (fGrid) {
+          window.__INSTANT_RENDER__();
+          return true;
+        }
+        return false;
+      };
+      if (!run()) {
+        const observer = new MutationObserver((mutations, obs) => {
+          if (run()) obs.disconnect();
+        });
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+      }
+    }
+  })();
+</script>
 <!-- FLASH PROMO BAR -->
 <div id="flash-promo-bar">
   <span id="promo-bar-text">🎉 PROMO SPÉCIALE — -10% sur toute la boutique !</span>
@@ -11951,7 +11972,7 @@ function sanitizeData() {
 
 // ============================================================
 function init() {
-  // 1. CHARGEMENT SYNCHRONE ET IMMÉDIAT DU CACHE
+  // 1. HYDRATATION DU STATE DEPUIS LE CACHE (DÉJÀ FAIT PARTIELLEMENT EN HAUT, MAIS ON RÉALIGNE)
   lang = DB.get('lang','fr');
   categories = DB.get('categories', DEFAULT_CATS);
   products = DB.get('products', DEFAULT_PRODUCTS);
@@ -11977,19 +11998,20 @@ function init() {
   faqItems = DB.get('faqItems', faqItems);
   cart = DB.get('cart',[]);
   
-  // 2. RENDU PRIORITAIRE (0ms)
-  isInitialSyncing = false; // Désactive les skeletons immédiatement
+  // 2. RENDU COMPLET (Le rendu immédiat en haut n'est que partiel)
+  isInitialSyncing = false;
   sanitizeData();
   applySavedColors();
   
   const langToggle = document.getElementById('lang-toggle');
   if (langToggle) langToggle.textContent = lang==='fr'?'EN':'FR';
   
-  // Injection directe dans le DOM
+  // Rendu final complet
   renderAll();
   
-  // 3. SYNCHRONISATION EN ARRIÈRE-PLAN (BACKGROUND PULL)
-  setTimeout(() => {
+  // 3. FIREBASE EN ARRIÈRE-PLAN TOTAL (500ms+)
+  // On utilise requestIdleCallback si disponible, sinon un setTimeout long
+  const backgroundSync = () => {
     if (SYNC_CONFIG.enabled && SYNC_CONFIG.apiKey && SYNC_CONFIG.databaseURL) {
       syncPull(true).then(() => {
         isInitialPullComplete = true;
@@ -11999,7 +12021,13 @@ function init() {
       isInitialPullComplete = true;
       startAutoSync();
     }
-  }, 100); // Léger délai pour laisser le thread principal respirer après le premier rendu
+  };
+
+  if (window.requestIdleCallback) {
+    requestIdleCallback(() => backgroundSync());
+  } else {
+    setTimeout(backgroundSync, 800);
+  }
 }
 
 try { init(); } catch(e) { console.error('Init error:', e); }
