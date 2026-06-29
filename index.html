@@ -3857,10 +3857,6 @@ Action: Immediate restocking required.</textarea></div>
           <a class="social-link" href="https://www.facebook.com/profile.php?id=61572098811025" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
-		  <!-- Linktree -->
-		  <a class="social-link" href="https://linktr.ee/lempreintedemil" target="_blank" rel="noopener" title="Linktree" id="footer-linktree">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M13.511 5.853H17.5L12 0 6.5 5.853h3.989c.044 2.822-.196 5.378-1.744 7.644H12.5c1.472-2.316 1.139-4.916 1.011-7.644zm-3.022 9.07H6.5L12 21l5.5-6.077h-3.989c-.039-1.339.061-2.489.389-3.484H10.1c.328.994.428 2.144.389 3.484zM11 22h2v2h-2v-2z"/></svg>
-          </a>
         </div>
       </div>
       <div class="footer-col">
@@ -4522,6 +4518,9 @@ let selectedSize = null;
 let selectedColor = null;
 let selectedVolume = null;
 let isInitialSyncing = false;
+let shopPage = 1;
+const ITEMS_PER_PAGE = 20;
+let observer = null;
 
 function renderSkeletonCards(count = 4) {
   let html = '';
@@ -4968,7 +4967,7 @@ function renderProductCard(p) {
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" loading="lazy">`:(cat?cat.icon:'📦')}
+        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" loading="lazy" width="100%" height="auto">`:(cat?cat.icon:'📦')}
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -5157,7 +5156,60 @@ function filterProducts() {
   document.getElementById('shop-grid').innerHTML = ps.length
     ? ps.map(renderProductCard).join('')
     : `<div style="grid-column:1/-1;text-align:center;padding:56px;color:var(--muted)"><div style="font-size:36px;margin-bottom:10px">🔍</div><div style="font-family:var(--font-display);font-size:18px">${lang==='fr'?'Aucun produit trouvé':'No products found'}</div></div>`;
+  
+  // Pagination logic
+  const grid = document.getElementById('shop-grid');
+  if (ps.length > 0) {
+    shopPage = 1;
+    const initialItems = ps.slice(0, ITEMS_PER_PAGE);
+    grid.innerHTML = initialItems.map(renderProductCard).join('') + '<div id="scroll-sentinel" style="height:10px;grid-column:1/-1"></div>';
+    initInfiniteScroll(ps);
+  }
+  
   document.getElementById('results-count').textContent = ps.length + ' ' + t('results');
+}
+
+function initInfiniteScroll(allProducts) {
+  if (observer) observer.disconnect();
+  
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (!sentinel) return;
+
+  observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      loadMoreProducts(allProducts);
+    }
+  }, { threshold: 0.1 });
+
+  observer.observe(sentinel);
+}
+
+function loadMoreProducts(allProducts) {
+  const grid = document.getElementById('shop-grid');
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (!sentinel) return;
+
+  const start = shopPage * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const nextItems = allProducts.slice(start, end);
+
+  if (nextItems.length > 0) {
+    shopPage++;
+    // Insert before sentinel
+    const temp = document.createElement('div');
+    temp.innerHTML = nextItems.map(renderProductCard).join('');
+    while (temp.firstChild) {
+      grid.insertBefore(temp.firstChild, sentinel);
+    }
+    
+    if (end >= allProducts.length) {
+      observer.disconnect();
+      sentinel.remove();
+    }
+  } else {
+    observer.disconnect();
+    sentinel.remove();
+  }
 }
 
 
