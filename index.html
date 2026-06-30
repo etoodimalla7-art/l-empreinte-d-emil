@@ -29,10 +29,67 @@
   --font-body: 'Jost', sans-serif;
   --transition: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --shadow: 0 8px 32px rgba(0,0,0,0.4);
-  --shadow-gold: 0 4px 24px rgba(201,168,76,0.3);
-}
+	--shadow-gold: 0 4px 24px rgba(201,168,76,0.3);
+	}
+	
+	/* LUXE SPLASH SCREEN */
+	#luxe-splash {
+	  position: fixed;
+	  inset: 0;
+	  background: var(--noir);
+	  z-index: 9999;
+	  display: flex;
+	  flex-direction: column;
+	  align-items: center;
+	  justify-content: center;
+	  transition: opacity 0.8s ease, visibility 0.8s ease;
+	}
+	#luxe-splash.fade-out {
+	  opacity: 0;
+	  visibility: hidden;
+	}
+	.splash-logo {
+	  font-family: var(--font-display);
+	  font-size: 42px;
+	  color: var(--gold);
+	  letter-spacing: 0.2em;
+	  text-transform: uppercase;
+	  margin-bottom: 20px;
+	  animation: splash-glow 2s ease-in-out infinite alternate;
+	}
+	.splash-logo small {
+	  display: block;
+	  font-size: 12px;
+	  text-align: center;
+	  letter-spacing: 0.4em;
+	  margin-top: 10px;
+	  color: rgba(201,168,76, 0.6);
+	}
+	@keyframes splash-glow {
+	  from { text-shadow: 0 0 10px rgba(201,168,76, 0.2); opacity: 0.8; }
+	  to { text-shadow: 0 0 30px rgba(201,168,76, 0.5); opacity: 1; }
+	}
+	.splash-loader {
+	  width: 40px;
+	  height: 1px;
+	  background: rgba(201,168,76, 0.2);
+	  position: relative;
+	  overflow: hidden;
+	}
+	.splash-loader::after {
+	  content: '';
+	  position: absolute;
+	  top: 0; left: -100%;
+	  width: 100%; height: 100%;
+	  background: var(--gold);
+	  animation: splash-load 1.5s infinite;
+	}
+	@keyframes splash-load {
+	  0% { left: -100%; }
+	  100% { left: 100%; }
+	}
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+	*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:var(--font-body);background:var(--noir);color:var(--light);overflow-x:hidden;font-size:14px}
 
@@ -1929,22 +1986,44 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 <script>
   // Exécution immédiate du rendu dès que le body commence à parser
   (function() {
-    const data = window.__PRE_RENDER__;
-    const hasCache = data && data.products && data.products.length > 0;
+    // 1. RÉCUPÉRATION DU CACHE (On utilise le nom de clé utilisé par la classe DB)
+    const cacheKey = 'manus_products';
+    let productsCache = [];
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      productsCache = raw ? JSON.parse(raw) : [];
+    } catch(e) { console.warn('Cache error', e); }
     
-    // Si on a du cache, on masque le splash plus vite
+    const hasCache = productsCache && productsCache.length > 0;
+    
+    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 4s quoi qu'il arrive)
+    const safetyTimeout = setTimeout(() => {
+      const splash = document.getElementById('luxe-splash');
+      if (splash && !splash.classList.contains('fade-out')) {
+        splash.classList.add('fade-out');
+        console.log('[Luxe] Safety timeout triggered');
+      }
+    }, 4000);
+
+    // 3. LOGIQUE HYBRIDE CACHE / PREMIÈRE VISITE
     if (hasCache) {
+      // Masquage rapide du splash (0.5s pour le style visuel)
       setTimeout(() => {
         const splash = document.getElementById('luxe-splash');
-        if (splash) splash.classList.add('fade-out');
-      }, 300);
+        if (splash) {
+          splash.classList.add('fade-out');
+          clearTimeout(safetyTimeout);
+        }
+      }, 500);
     }
 
+    // 4. OBSERVER POUR LE RENDU INSTANTANÉ
     if (window.__INSTANT_RENDER__) {
       const run = () => {
         const fGrid = document.getElementById('featured-grid');
         if (fGrid) {
-          window.__INSTANT_RENDER__();
+          // On passe le cache à la fonction de rendu si présent
+          window.__INSTANT_RENDER__(hasCache ? productsCache : null);
           return true;
         }
         return false;
@@ -2318,7 +2397,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   <div class="login-box">
     <div class="logo">⚙️ Admin</div>
     <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
-    <p>Panneau d'administration</p>
+    <p>Panneau d'administration </p>
     <div class="form-group">
       <label class="form-label">Mot de passe</label>
       <input class="form-input" id="admin-pwd" type="password" placeholder="••••••••">
@@ -4324,8 +4403,8 @@ async function testSyncConnection() {
 }
 
 const DB = {
-  get(k, d) { try { const v = localStorage.getItem('lemil_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
-  set(k, v) { try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e) {} }
+  get(k, d) { try { const v = localStorage.getItem('manus_' + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
+  set(k, v) { try { localStorage.setItem('manus_' + k, JSON.stringify(v)); } catch(e) {} }
 };
   
 
