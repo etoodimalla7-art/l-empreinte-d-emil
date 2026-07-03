@@ -2,15 +2,36 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<!-- Encodage et Affichage Mobile -->
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="L'Empreinte D'Emil — Boutique de luxe à Douala, Cameroun">
+
+<!-- Informations Générales & Référencement (SEO) -->
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
+<meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, articles haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
+<meta name="keywords" content="L'Empreinte d'Emil, boutique luxe Douala, parfums de luxe Cameroun, mode haut de gamme, créateur, élégance">
+<meta name="author" content="L'Atelier d'Emil">
+
+<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram) -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://lempreinte-demil.onrender.com/"> <!-- Met ton lien Render ici -->
+<meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
+<meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
+<meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png"> <!-- Ton lien direct Postimages ! -->
+
+<!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
+<meta name="twitter:description" content="Signez votre passage, imposez votre style. Parfums et articles haut de gamme à Douala.">
+<meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
+
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"><style>
 :root {
   --gold: #C9A84C;
   --gold-light: #E8C97A;
@@ -48,27 +69,39 @@
 	  opacity: 0;
 	  visibility: hidden;
 	}
-	.splash-logo {
-	  font-family: var(--font-display);
-	  font-size: 42px;
-	  color: var(--gold);
-	  letter-spacing: 0.2em;
-	  text-transform: uppercase;
-	  margin-bottom: 20px;
-	  animation: splash-glow 2s ease-in-out infinite alternate;
-	}
-	.splash-logo small {
-	  display: block;
-	  font-size: 12px;
-	  text-align: center;
-	  letter-spacing: 0.4em;
-	  margin-top: 10px;
-	  color: rgba(201,168,76, 0.6);
-	}
-	@keyframes splash-glow {
-	  from { text-shadow: 0 0 10px rgba(201,168,76, 0.2); opacity: 0.8; }
-	  to { text-shadow: 0 0 30px rgba(201,168,76, 0.5); opacity: 1; }
-	}
+		.splash-content {
+		  text-align: center;
+		  animation: splash-fade-in 1.2s ease-out forwards;
+		}
+		.splash-logo-img {
+		  width: 220px;
+		  height: auto;
+		  margin-bottom: 24px;
+		  filter: drop-shadow(0 0 15px rgba(201,168,76, 0.3));
+		  animation: logo-shimmer 3s infinite alternate;
+		}
+		.splash-brand {
+		  font-family: var(--font-display);
+		  font-size: 28px;
+		  color: var(--gold);
+		  letter-spacing: 0.25em;
+		  text-transform: uppercase;
+		  margin-bottom: 8px;
+		}
+		.splash-tagline {
+		  font-size: 10px;
+		  letter-spacing: 0.4em;
+		  color: rgba(201,168,76, 0.6);
+		  text-transform: uppercase;
+		}
+		@keyframes splash-fade-in {
+		  from { opacity: 0; transform: translateY(10px); }
+		  to { opacity: 1; transform: translateY(0); }
+		}
+		@keyframes logo-shimmer {
+		  0% { filter: drop-shadow(0 0 10px rgba(201,168,76, 0.2)); opacity: 0.9; }
+		  100% { filter: drop-shadow(0 0 30px rgba(201,168,76, 0.6)); opacity: 1; }
+		}
 	.splash-loader {
 	  width: 40px;
 	  height: 1px;
@@ -1976,11 +2009,12 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 <body>
 <!-- LUXE SPLASH SCREEN -->
 <div id="luxe-splash">
-  <div class="splash-logo">
-    L'EMPREINTE D'EMIL
-    <small>SIGNATURE DE LUXE</small>
+  <div class="splash-content">
+    <img src="https://i.postimg.cc/HLdg7Tb5/logo.png" alt="L'Empreinte d'Emil" class="splash-logo-img">
+    <div class="splash-brand">L'EMPREINTE D'EMIL</div>
+    <div class="splash-tagline">Signez votre passage · Imposez votre style</div>
   </div>
-  <div class="splash-loader"></div>
+  <div class="splash-loader" style="margin-top: 30px;"></div>
 </div>
 
 <script>
@@ -2397,7 +2431,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   <div class="login-box">
     <div class="logo">⚙️ Admin</div>
     <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
-    <p>Panneau d'administration </p>
+    <p>Panneau d'administration — Mot de passe par défaut: admin123</p>
     <div class="form-group">
       <label class="form-label">Mot de passe</label>
       <input class="form-input" id="admin-pwd" type="password" placeholder="••••••••">
@@ -3881,9 +3915,9 @@ Action: Immediate restocking required.</textarea></div>
           <a class="social-link" href="https://www.facebook.com/profile.php?id=61572098811025" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
-			<!-- Linktree -->
+		  <!-- Linktree -->
 			<a class="social-link"  href="https://linktr.ee/lempreintedemil" target="_blank" rel="noopener" title="Linktree"  id="footer-linktree"> 
-	          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"> <path d="M13 2h-2v7H4v2h7v2H7l5 5 5-5h-4v-2h7V9h-7V2z"/> </svg> 
+	          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"> <path d="M13 2h-2v7H4v2h7v2H7l5 5 5-5h-4v-2h7V9h-7V2z"/> </svg>
 			</a>
         </div>
       </div>
