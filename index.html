@@ -2,36 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<!-- Encodage et Affichage Mobile -->
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- Informations Générales & Référencement (SEO) -->
+<meta name="description" content="L'Empreinte D'Emil — Boutique de luxe à Douala, Cameroun">
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
-<meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, articles haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
-<meta name="keywords" content="L'Empreinte d'Emil, boutique luxe Douala, parfums de luxe Cameroun, mode haut de gamme, créateur, élégance">
-<meta name="author" content="L'Atelier d'Emil">
-
-<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram) -->
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://lempreinte-demil.onrender.com/"> <!-- Met ton lien Render ici -->
-<meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
-<meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
-<meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png"> <!-- Ton lien direct Postimages ! -->
-
-<!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
-<meta name="twitter:description" content="Signez votre passage, imposez votre style. Parfums et articles haut de gamme à Douala.">
-<meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"><style>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
 :root {
   --gold: #C9A84C;
   --gold-light: #E8C97A;
@@ -2030,26 +2009,27 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     
     const hasCache = productsCache && productsCache.length > 0;
     
-    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 4s quoi qu'il arrive)
-    const safetyTimeout = setTimeout(() => {
+    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 25s quoi qu'il arrive)
+    window.splashSafetyTimeout = setTimeout(() => {
       const splash = document.getElementById('luxe-splash');
       if (splash && !splash.classList.contains('fade-out')) {
         splash.classList.add('fade-out');
-        console.log('[Luxe] Safety timeout triggered');
+        console.log('[Luxe] Safety timeout triggered (25s)');
       }
-    }, 4000);
+    }, 25000);
 
-    // 3. LOGIQUE HYBRIDE CACHE / PREMIÈRE VISITE
-    if (hasCache) {
-      // Masquage rapide du splash (0.5s pour le style visuel)
-      setTimeout(() => {
-        const splash = document.getElementById('luxe-splash');
-        if (splash) {
+    // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Appelée après l'injection des produits)
+    window.closeSplash = function() {
+      const splash = document.getElementById('luxe-splash');
+      if (splash && !splash.classList.contains('fade-out')) {
+        // On vérifie qu'il y a bien des produits injectés avant de fermer (sécurité sup)
+        const fGrid = document.getElementById('featured-grid');
+        if (fGrid && fGrid.children.length > 0) {
           splash.classList.add('fade-out');
-          clearTimeout(safetyTimeout);
+          if (window.splashSafetyTimeout) clearTimeout(window.splashSafetyTimeout);
         }
-      }, 500);
-    }
+      }
+    };
 
     // 4. OBSERVER POUR LE RENDU INSTANTANÉ
     if (window.__INSTANT_RENDER__) {
@@ -3915,7 +3895,7 @@ Action: Immediate restocking required.</textarea></div>
           <a class="social-link" href="https://www.facebook.com/profile.php?id=61572098811025" target="_blank" rel="noopener" title="Facebook" id="footer-facebook">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           </a>
-		  <!-- Linktree -->
+			  <!-- Linktree -->
 			<a class="social-link"  href="https://linktr.ee/lempreintedemil" target="_blank" rel="noopener" title="Linktree"  id="footer-linktree"> 
 	          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"> <path d="M13 2h-2v7H4v2h7v2H7l5 5 5-5h-4v-2h7V9h-7V2z"/> </svg>
 			</a>
@@ -4372,8 +4352,7 @@ async function syncPull(silent) {
       if (typeof filterProducts === "function" && currentPage === 'shop') filterProducts();
       
       // Masquer le splash screen une fois les produits réels chargés
-      const splash = document.getElementById('luxe-splash');
-      if (splash) splash.classList.add('fade-out');
+      if (typeof window.closeSplash === 'function') window.closeSplash();
 
       setSyncStatus('ok');
     }
@@ -10288,6 +10267,9 @@ renderHomePage = function() {
   renderLookDuMoment();
   renderNavCats();
   renderFooter();
+  
+  // FIN DE L'ANIMATION : Les produits sont injectés dans le DOM
+  if (typeof window.closeSplash === 'function') window.closeSplash();
 };
 
 // Override renderShopPage sidebar cats with images
