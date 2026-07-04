@@ -2010,24 +2010,20 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     const hasCache = productsCache && productsCache.length > 0;
     
     // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 25s quoi qu'il arrive)
-    window.splashSafetyTimeout = setTimeout(() => {
+    window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       const splash = document.getElementById('luxe-splash');
       if (splash && !splash.classList.contains('fade-out')) {
         splash.classList.add('fade-out');
-        console.log('[Luxe] Safety timeout triggered (25s)');
+        console.log('[Luxe] Safety timeout (25s) triggered');
       }
     }, 25000);
 
-    // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Appelée après l'injection des produits)
-    window.closeSplash = function() {
+    // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Sera appelée après rendu réel)
+    window.closeLuxeSplash = function() {
       const splash = document.getElementById('luxe-splash');
       if (splash && !splash.classList.contains('fade-out')) {
-        // On vérifie qu'il y a bien des produits injectés avant de fermer (sécurité sup)
-        const fGrid = document.getElementById('featured-grid');
-        if (fGrid && fGrid.children.length > 0) {
-          splash.classList.add('fade-out');
-          if (window.splashSafetyTimeout) clearTimeout(window.splashSafetyTimeout);
-        }
+        splash.classList.add('fade-out');
+        if (window.__SPLASH_TIMEOUT__) clearTimeout(window.__SPLASH_TIMEOUT__);
       }
     };
 
@@ -4347,13 +4343,10 @@ async function syncPull(silent) {
 
       if (typeof saveLocal === "function") saveLocal();
       
-      // Mise à jour transparente du DOM
+      // Mise à jour transparente du DOM (Déclenche aussi closeLuxeSplash via renderAll)
       if (typeof renderAll === "function") renderAll();
       if (typeof filterProducts === "function" && currentPage === 'shop') filterProducts();
       
-      // Masquer le splash screen une fois les produits réels chargés
-      if (typeof window.closeSplash === 'function') window.closeSplash();
-
       setSyncStatus('ok');
     }
     isInitialPullComplete = true; // Débloque les futurs syncPush
@@ -10267,9 +10260,6 @@ renderHomePage = function() {
   renderLookDuMoment();
   renderNavCats();
   renderFooter();
-  
-  // FIN DE L'ANIMATION : Les produits sont injectés dans le DOM
-  if (typeof window.closeSplash === 'function') window.closeSplash();
 };
 
 // Override renderShopPage sidebar cats with images
@@ -12216,6 +12206,15 @@ function renderAll() {
   else if (currentPage==='contact') renderContactPage();
   renderCart();
   updateCartCount();
+
+  // ── FERMETURE AUTOMATIQUE DU SPLASH ──
+  // Si des produits sont présents dans le DOM, on peut fermer l'animation
+  const hasProducts = getValidProducts().length > 0;
+  if (hasProducts) {
+    setTimeout(() => {
+      if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
+    }, 300);
+  }
 }
 
 
