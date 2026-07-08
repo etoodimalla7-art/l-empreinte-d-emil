@@ -2005,6 +2005,8 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     try {
       const raw = localStorage.getItem(cacheKey);
       productsCache = raw ? JSON.parse(raw) : [];
+      // On force l'injection globale immédiate si disponible
+      if (productsCache.length > 0) window.products = productsCache;
     } catch(e) { 
       console.warn('[Luxe] Cache read error', e);
       productsCache = [];
@@ -2029,6 +2031,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
         if (window.__SPLASH_TIMEOUT__) clearTimeout(window.__SPLASH_TIMEOUT__);
       }
     };
+    window.closeSplash = window.closeLuxeSplash;
 
     // 4. OBSERVER POUR LE RENDU INSTANTANÉ
     if (window.__INSTANT_RENDER__) {
@@ -5055,7 +5058,7 @@ function renderProductCard(p) {
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" loading="lazy" width="100%" height="auto">`:(cat?cat.icon:'📦')}
+        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" width="100%" height="auto" class="prod-img-tag">`:(cat?cat.icon:'📦')}
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -10295,7 +10298,7 @@ renderHomePage = function() {
   document.getElementById('home-cats').innerHTML = getValidCategories().map(c=>`
     <div class="cat-card" onclick="navigateToCat('${c.id}')">
       ${c.img
-        ? `<div class="cat-img-wrap"><img src="${c.img}" alt="${catName(c)}" loading="lazy"><div class="cat-img-overlay"></div></div>
+        ? `<div class="cat-img-wrap"><img src="${c.img}" alt="${catName(c)}" class="cat-img-tag"><div class="cat-img-overlay"></div></div>
            <div class="cat-card-info">
              <div class="cat-name">${catName(c)}</div>
              <div class="cat-count">${getValidProducts().filter(p=>p.catId===c.id).length} ${t('results')}</div>
@@ -12265,14 +12268,41 @@ function renderAll() {
     console.error('[Render] renderAll failed', e);
   }
 
-  // ── FERMETURE AUTOMATIQUE DU SPLASH ──
-  // Sécurisé : On tente de fermer le splash même si le rendu a partiellement échoué
-  const hasProducts = getValidProducts().length > 0;
-  if (hasProducts || isInitialPullComplete) {
-    setTimeout(() => {
-      if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 300);
-  }
+  // ── FERMETURE AUTOMATIQUE DU SPLASH AVEC ATTENTE DES IMAGES ──
+  (async function() {
+    const hasProducts = getValidProducts().length > 0;
+    if (hasProducts || isInitialPullComplete) {
+      // On capture toutes les images injectées dans les grilles principales
+      const containers = ['featured-grid', 'new-grid', 'home-cats'];
+      let images = [];
+      containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) images = [...images, ...el.querySelectorAll('img')];
+      });
+
+      if (images.length > 0) {
+        console.log(`[Luxe] Waiting for ${images.length} images to load...`);
+        const imagePromises = images.map(img => {
+          if (img.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve; // On résout quand même en cas d'erreur pour ne pas bloquer indéfiniment
+          });
+        });
+        
+        // On attend que toutes les images soient chargées
+        await Promise.all(imagePromises);
+        console.log('[Luxe] All images loaded, opening curtain.');
+      }
+
+      // Petit délai de confort pour le rendu final du navigateur
+      setTimeout(() => {
+        if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
+        // Alias demandé par l'utilisateur si jamais utilisé ailleurs
+        if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
+      }, 400);
+    }
+  })();
 }
 
 
