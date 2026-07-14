@@ -4,76 +4,46 @@
 <!-- Encodage et Affichage Mobile -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0A0A">
 
 <!-- Informations Générales & Référencement (SEO) -->
-<title>L'EMPREINTE D'EMIL | Parfums de Luxe & Mode Premium à Douala</title>
-<meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, accessoires haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
-<meta name="author" content="L'atelier D'EMIL">
+<title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
+<meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, articles haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
+<meta name="keywords" content="L'Empreinte d'Emil, boutique luxe Douala, parfums de luxe Cameroun, mode haut de gamme, créateur, élégance, sneakers de luxe, casquettes premium">
+<meta name="author" content="L'Atelier D'EMIL">
 <meta name="robots" content="index, follow">
-<meta http-equiv="content-language" content="fr">
-<meta name="theme-color" content="#000000">
-
-<!-- URL Canonique (Évite le contenu dupliqué) -->
+<meta name="language" content="French">
 <link rel="canonical" href="https://lempreinte-demil.onrender.com/">
-
-<!-- Icône du Site (Favicon) -->
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
 
-<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram, LinkedIn) -->
+
+<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram) -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="L'EMPREINTE D'EMIL">
-<meta property="og:locale" content="fr_CM">
 <meta property="og:url" content="https://lempreinte-demil.onrender.com/">
-<meta property="og:title" content="L'EMPREINTE D'EMIL | Boutique de Luxe à Douala">
-<meta property="og:description" content="Découvrez notre collection exclusive de parfums de créateurs, accessoires haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
+<meta property="og:site_name" content="L'Empreinte D'Emil">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
+<meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
 <meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="L'Empreinte D'Emil - Boutique de Luxe à Douala">
 
-<!-- Balises Twitter Card (Pour X / Twitter) -->
+<!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="L'EMPREINTE D'EMIL | Boutique de Luxe à Douala">
-<meta name="twitter:description" content="Découvrez notre collection de parfums de créateurs et d'articles haut de gamme à Douala.">
+<meta name="twitter:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
+<meta name="twitter:description" content="Signez votre passage, imposez votre style. Parfums et articles haut de gamme à Douala.">
 <meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta name="twitter:image:alt" content="L'Empreinte D'Emil - Boutique de Luxe">
-
-<!-- Compatibilité Apple / iPhone -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="L'EMPREINTE D'EMIL">
-
-<!-- Manifest (Pour transformer le site en application PWA plus tard) -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Données Structurées (Schema.org - SEO Google) -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Store",
-  "name": "L'Empreinte D'Emil",
-  "url": "https://lempreinte-demil.onrender.com/",
-  "logo": "https://i.postimg.cc/HLdg7Tb5/logo.png",
-  "description": "Boutique de luxe spécialisée dans les parfums de créateurs, accessoires premium et articles haut de gamme à Douala.",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Douala",
-    "addressCountry": "CM"
-  }
-}
-</script>
-
-<!-- Optimisation des Connexions (Google Fonts) -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<!-- Polices du Site -->
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --gold: #C9A84C;
@@ -829,6 +799,38 @@ body.promo-active #hero{margin-top:144px}
 .showcase-item-caption{font-size:12px;color:var(--light);font-weight:500}
 .showcase-item-tag{font-size:10px;color:var(--gold);display:block;margin-top:2px}
 .showcase-empty{text-align:center;padding:48px;color:var(--muted);grid-column:1/-1}
+
+/* ── LOOKBOOK VIDÉO IMMERSIF (REELS STYLE) ───────────────────── */
+.lookbook-section{padding:72px 0;background:var(--noir);overflow:hidden}
+.lookbook-track{
+  display:flex;gap:16px;overflow-x:auto;padding:8px 4px 24px;margin-top:32px;
+  scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.lookbook-track::-webkit-scrollbar{display:none}
+.lookbook-card{
+  position:relative;flex:0 0 auto;width:230px;aspect-ratio:9/16;border-radius:14px;
+  overflow:hidden;background:var(--dark-3);scroll-snap-align:start;
+  border:1px solid rgba(201,168,76,.15);box-shadow:var(--shadow);
+}
+.lookbook-video{width:100%;height:100%;object-fit:cover;display:block;background:var(--dark-3)}
+.lookbook-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+  padding:16px 14px;background:linear-gradient(to top,rgba(0,0,0,.88) 0%,rgba(0,0,0,.25) 45%,transparent 70%);
+  pointer-events:none;
+}
+.lookbook-title{font-family:var(--font-display);font-size:17px;color:var(--gold-light);font-weight:600;line-height:1.25;margin-bottom:4px}
+.lookbook-desc{font-size:11px;color:var(--light);opacity:.85;line-height:1.5}
+.lookbook-badge{
+  position:absolute;top:12px;right:12px;width:26px;height:26px;border-radius:50%;
+  background:rgba(10,10,10,.55);border:1px solid rgba(201,168,76,.4);
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--gold);
+  backdrop-filter:blur(4px);
+}
+.lookbook-empty{color:var(--muted);font-size:12px;padding:20px;text-align:center;width:100%}
+@media(max-width:640px){
+  .lookbook-card{width:180px}
+  .lookbook-title{font-size:15px}
+}
 
 /* ── ORDER TRACKING ───────────────────────────────────────────── */
 .tracking-search{max-width:480px;margin:0 auto 40px;display:flex;gap:10px}
@@ -2078,14 +2080,14 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     
     const hasCache = productsCache && productsCache.length > 0;
     
-    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 25s quoi qu'il arrive)
+    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 60s pour laisser le temps à Firebase)
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       const splash = document.getElementById('luxe-splash');
       if (splash && !splash.classList.contains('fade-out')) {
         splash.classList.add('fade-out');
-        console.log('[Luxe] Safety timeout (25s) triggered');
+        console.log('[Luxe] Safety timeout (60s) triggered');
       }
-    }, 25000);
+    }, 60000);
 
     // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Sera appelée après rendu réel)
     window.closeLuxeSplash = function() {
@@ -2544,6 +2546,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
       <div class="admin-nav-item" data-section="tracking-admin" onclick="adminNav(this)"><span class="icon">🚀</span> Suivi Commandes</div>
       <div class="admin-nav-item" data-section="faq-admin" onclick="adminNav(this)"><span class="icon">❓</span> FAQ</div>
       <div class="admin-nav-item" data-section="hero-admin" onclick="adminNav(this)"><span class="icon">🎬</span> Vidéo Hero</div>
+      <div class="admin-nav-item" data-section="lookbook-admin" onclick="adminNav(this)"><span class="icon">🎞️</span> Lookbook Vidéo</div>
       <div class="admin-nav-group">Options Produits</div>
       <div class="admin-nav-item" data-section="engraving-admin" onclick="adminNav(this)"><span class="icon">💍</span> Gravure</div>
       <div class="admin-nav-group">Alertes</div>
@@ -3217,6 +3220,50 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
         </div>
       </div>
 
+      <!-- ╔══ LOOKBOOK VIDÉO ADMIN ══╗ -->
+      <div class="admin-section" id="admin-lookbook-admin">
+        <div class="admin-section-title">🎞️ Lookbook Vidéo Immersif</div>
+        <div style="max-width:640px">
+          <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:18px">
+            Les fichiers vidéo sont envoyés sur <strong>Firebase Storage</strong> (pas dans la base de données) —
+            seuls le titre, la description et l'URL sont synchronisés en temps réel. Format vertical (9:16) recommandé, style Reels/TikTok.
+          </p>
+
+          <!-- Upload zone -->
+          <label class="admin-label" style="margin-bottom:8px">Vidéo (MP4/WebM, vertical 9:16 recommandé, max 30MB)</label>
+          <div class="video-upload-area" id="lookbook-video-upload-area">
+            <input type="file" accept="video/mp4,video/webm,video/*" id="lookbook-video-file">
+            <div class="video-upload-icon">🎞️</div>
+            <div class="video-upload-text">Cliquez ou glissez-déposez votre vidéo ici<br><span style="font-size:10px;opacity:.6">MP4 ou WebM · Format vertical recommandé</span></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
+            <div><label class="admin-label">Titre (FR)</label><input class="admin-input" id="lookbook-title-fr" placeholder="Nuit de Velours"></div>
+            <div><label class="admin-label">Titre (EN)</label><input class="admin-input" id="lookbook-title-en" placeholder="Velvet Night"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+            <div><label class="admin-label">Description (FR)</label><textarea class="admin-input" id="lookbook-desc-fr" rows="2" placeholder="Courte description du look..."></textarea></div>
+            <div><label class="admin-label">Description (EN)</label><textarea class="admin-input" id="lookbook-desc-en" rows="2" placeholder="Short look description..."></textarea></div>
+          </div>
+
+          <div id="lookbook-upload-progress-wrap" style="margin-top:16px;display:none">
+            <div style="height:6px;background:var(--dark-3);border-radius:3px;overflow:hidden">
+              <div id="lookbook-upload-progress-bar" style="height:100%;width:0%;background:var(--gold);transition:width .2s"></div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px" id="lookbook-upload-status"></div>
+          </div>
+
+          <button class="admin-btn" style="margin-top:16px" onclick="uploadLookbookVideo()" id="lookbook-upload-btn">⬆️ Ajouter au Lookbook</button>
+
+          <div style="margin-top:28px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <label class="admin-label" style="margin:0">Vidéos publiées</label>
+              <span style="font-size:11px;color:var(--muted)" id="lookbook-admin-count">0 vidéo(s)</span>
+            </div>
+            <div id="lookbook-admin-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px"></div>
+          </div>
+        </div>
+      </div>
 
       <!-- ╔══ ENGRAVING ADMIN ══╗ -->
       <div class="admin-section" id="admin-engraving-admin">
@@ -3512,6 +3559,17 @@ Action: Immediate restocking required.</textarea></div>
       <div class="container">
         <div class="section-header"><div class="section-label" data-i18n="new_label">Nouveautés</div><h2 class="section-title">Dernières <em>Arrivées</em></h2></div>
         <div class="products-grid" id="new-grid"></div>
+      </div>
+    </section>
+
+    <section class="lookbook-section" id="home-lookbook-section">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-label" data-i18n="lookbook_label">Immersion</div>
+          <h2 class="section-title" data-i18n="lookbook_title">Le <em>Lookbook</em></h2>
+          <p style="font-size:13px;color:var(--muted);max-width:480px;margin:0 auto;line-height:1.7" data-i18n="lookbook_sub">Plongez dans l'univers L'Empreinte D'Emil en mouvement</p>
+        </div>
+        <div class="lookbook-track" id="lookbook-track"></div>
       </div>
     </section>
 
@@ -4202,6 +4260,7 @@ function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
 let firebaseDb = null;
+let firebaseStorage = null;
 let isSyncInitialized = false;
 let isInitialPullComplete = false; // Bloqueur pour syncPush au démarrage
 
@@ -4216,6 +4275,7 @@ const SHARED_KEYS = [
   'stockNotifConfig','stockNotifications',
   'pendingReviews','emilConvs','emilConfig',
   'videoLibrary','orders',
+  'lookbook',
   'ft_'
 ];
 
@@ -4275,6 +4335,7 @@ function initFirebase() {
       firebaseApp = firebase.app();
     }
     firebaseDb = firebase.database();
+    try { firebaseStorage = firebase.storage(); } catch(e) { console.warn('[Firebase] Storage init error (bucket non configuré ?)', e); }
     
     // Split Stream Listeners: Listen to each key separately under storedData/
     SHARED_KEYS.forEach(key => {
@@ -4330,12 +4391,20 @@ function handleKeyUpdate(key, value) {
   else if (key === 'emilConfig') emilConfig = value;
   else if (key === 'videoLibrary') videoLibrary = value;
   else if (key === 'stockNotifConfig') stockNotifConfig = value;
+  else if (key === 'lookbook') {
+    lookbook = value;
+    if (currentPage === 'home' && typeof renderLookbook === 'function') renderLookbook();
+    if (adminLoggedIn && typeof renderLookbookAdmin === 'function') renderLookbookAdmin();
+  }
   
   if (typeof applySavedColors === 'function') applySavedColors();
   
   // Re-render UI
   if (typeof renderAll === 'function') {
-    if (currentPage === 'home' || !adminLoggedIn) renderAll();
+    // On force le rendu si on est sur la home ou si le catalogue vient d'arriver (hasProducts pass de 0 à >0)
+    if (currentPage === 'home' || !adminLoggedIn || (key === 'products' && value.length > 0)) {
+      renderAll();
+    }
   }
   
   setSyncStatus('ok');
@@ -4660,6 +4729,7 @@ let cart = DB.get('cart',[]);
 let categories = DB.get('categories', DEFAULT_CATS);
 let products = DB.get('products', DEFAULT_PRODUCTS);
 let orders = DB.get('orders',[]);
+let lookbook = DB.get('lookbook', []); // [{id,titleFR,titleEN,descFR,descEN,videoUrl,storagePath,posterUrl,active}]
 let settings = DB.get('settings', DEFAULT_SETTINGS);
 let deliveryFees = DB.get('deliveryFees', DEFAULT_DELIVERY_FEES);
 let deliveryRules = DB.get('deliveryRules', DEFAULT_DELIVERY_RULES);
@@ -4783,6 +4853,7 @@ const TR = {
     about_tagline:"L'Empreinte d'EMIL : Marquez les esprits, laissez votre empreinte.",
     about_pillars_label:'Notre Collection', about_pillars_title:'Ce que nous Offrons',
     about_why_label:'Pourquoi nous', about_why_title:"Pourquoi choisir L'Empreinte",
+    lookbook_label:'Immersion', lookbook_title:'Le Lookbook', lookbook_sub:"Plongez dans l'univers L'Empreinte D'Emil en mouvement",
     look_label:'Style du Moment', look_title:'Le Look du Moment',
     look_sub:'Composez votre look complet avec nos sélections du moment',
     look_cta_title:'Complétez votre Signature',
@@ -4855,6 +4926,7 @@ const TR = {
     about_tagline:"L'Empreinte d'EMIL: Make your mark, leave your impression.",
     about_pillars_label:'Our Collection', about_pillars_title:'What We Offer',
     about_why_label:'Why us', about_why_title:"Why Choose L'Empreinte",
+    lookbook_label:'Immersion', lookbook_title:'The Lookbook', lookbook_sub:"Step into the L'Empreinte D'Emil universe in motion",
     look_label:'Style of the Moment', look_title:'The Look of the Moment',
     look_sub:'Compose your complete look with our curated selections',
     look_cta_title:'Complete your Signature',
@@ -5190,8 +5262,13 @@ function renderHomePage() {
 
   renderHomeReviews();
   renderLookDuMoment();
+  if (typeof renderLookbook === 'function') renderLookbook();
   renderNavCats();
   renderFooter();
+}
+
+function getValidLookbook() {
+  return (lookbook || []).filter(v => v && typeof v === 'object' && v.id && v.videoUrl && v.active !== false);
 }
 
 function renderNavCats() {
@@ -6828,13 +6905,26 @@ function deleteProduct(id) {
   if (idx > -1) {
     products.splice(idx, 1);
     if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-      // On réécrit le nœud products après suppression car les index ont changé
-      // Note: Si le catalogue est énorme, il vaudrait mieux utiliser des ID Firebase uniques (push keys)
-      // mais pour l'instant on reste sur la structure actuelle en limitant l'usage de syncPush global.
-      firebaseDb.ref('storedData/products').set(products);
+      // Suppression CIBLÉE : on supprime uniquement l'entrée du produit dans son
+      // nœud d'index (storedData/products/<idx>) au lieu de réécrire tout le
+      // catalogue avec .set(products). Un set() global sur un gros catalogue
+      // (images en base64, etc.) dépasse la taille de write autorisée par
+      // Firebase et déclenche l'erreur "INTERNAL ERROR ... Write too large".
+      // remove() ne touche que ce nœud précis, donc c'est instantané et léger,
+      // quelle que soit la taille du reste du catalogue.
+      firebaseDb.ref('storedData/products/' + idx).remove()
+        .catch(e => console.warn('[Firebase] Échec suppression ciblée du produit:', e && e.message));
     }
   }
-  DB.set('products', products);
+  // Le cache local est mis à jour dans un bloc try/catch dédié : si le
+  // localStorage est saturé (QuotaExceededError), on ne bloque jamais
+  // l'interface — le produit reste supprimé visuellement et en mémoire,
+  // seul le cache hors-ligne peut rester légèrement désynchronisé.
+  try {
+    DB.set('products', products);
+  } catch(e) {
+    console.warn('[Cache] Échec DB.set("products") après suppression (quota ?):', e && e.message);
+  }
   renderAdminProducts(); renderAdminDashboard();
   showToast('Produit supprimé','🗑');
 }
@@ -7179,7 +7269,7 @@ function changePwd() {
 
 function clearAllData() {
   if (!confirm('ATTENTION: Supprimer TOUTES les données ?')) return;
-  ['cart','categories','products','orders','settings','colors','lang','deliveryFees','deliveryRules','admin_pwd','reviews','quartiers','pillars','whyItems','lookProducts','aboutTagline','pendingReviews','promos','quizQuestions','bundleRelations','loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns','orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig','stockNotifications','stockAlertCooldowns'].forEach(k=>localStorage.removeItem('lemil_'+k));
+  ['cart','categories','products','orders','settings','colors','lang','deliveryFees','deliveryRules','admin_pwd','reviews','quartiers','pillars','whyItems','lookProducts','aboutTagline','pendingReviews','promos','quizQuestions','bundleRelations','loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns','orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig','stockNotifications','stockAlertCooldowns','lookbook'].forEach(k=>localStorage.removeItem('lemil_'+k));
   location.reload();
 }
 
@@ -7655,6 +7745,203 @@ function renderLookDuMoment() {
 function addLookToCart() {
   lookProducts.forEach(id => addToCart(id, 1));
   showToast(lang==='fr'?'Look ajouté au panier !':'Look added to cart!', '🛍️');
+}
+
+// ── LOOKBOOK VIDÉO IMMERSIF ──────────────────────────────────────
+// Un seul IntersectionObserver global, ré-attaché à chaque rendu.
+// Les <video> n'ont PAS d'attribut src au départ (uniquement data-src) :
+// aucun octet n'est téléchargé tant que la carte n'approche pas l'écran.
+// C'est l'équivalent "lazy loading" natif pour la balise <video>, qui ne
+// supporte pas l'attribut loading="lazy" (réservé à <img>/<iframe>).
+let lookbookObserver = null;
+
+function renderLookbook() {
+  const track = document.getElementById('lookbook-track');
+  const section = document.getElementById('home-lookbook-section');
+  if (!track) return;
+
+  const items = getValidLookbook();
+
+  // Si aucune vidéo n'est configurée, on masque toute la section
+  // (zéro impact visuel/perf pour les visiteurs si l'admin n'a rien uploadé).
+  if (!items.length) {
+    if (section) section.style.display = 'none';
+    track.innerHTML = '';
+    return;
+  }
+  if (section) section.style.display = '';
+
+  track.innerHTML = items.map(v => {
+    const title = lang === 'fr' ? (v.titleFR || '') : (v.titleEN || v.titleFR || '');
+    const desc  = lang === 'fr' ? (v.descFR  || '') : (v.descEN  || v.descFR  || '');
+    return `
+      <div class="lookbook-card">
+        <video class="lookbook-video"
+               data-src="${v.videoUrl}"
+               ${v.posterUrl ? `poster="${v.posterUrl}"` : ''}
+               muted loop playsinline preload="none"></video>
+        <div class="lookbook-badge">▶</div>
+        <div class="lookbook-overlay">
+          ${title ? `<div class="lookbook-title">${title}</div>` : ''}
+          ${desc  ? `<div class="lookbook-desc">${desc}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  initLookbookObserver();
+}
+
+function initLookbookObserver() {
+  // On coupe l'ancien observer pour éviter les doublons entre deux rendus
+  if (lookbookObserver) lookbookObserver.disconnect();
+
+  lookbookObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const vid = entry.target;
+      if (entry.isIntersecting) {
+        // On n'attribue le src qu'au moment où la vidéo devient visible
+        if (!vid.src && vid.dataset.src) vid.src = vid.dataset.src;
+        const playPromise = vid.play();
+        if (playPromise && playPromise.catch) playPromise.catch(() => {}); // autoplay parfois bloqué, on ignore silencieusement
+      } else {
+        vid.pause();
+      }
+    });
+  }, { root: null, rootMargin: '150px', threshold: 0.5 });
+
+  document.querySelectorAll('.lookbook-video').forEach(v => lookbookObserver.observe(v));
+}
+
+// ── ADMIN : Upload / Suppression Lookbook (Firebase Storage) ────
+async function uploadLookbookVideo() {
+  const fileInput = document.getElementById('lookbook-video-file');
+  const file = fileInput?.files?.[0];
+  if (!file) { showToast('Sélectionne une vidéo', '⚠️'); return; }
+  if (!file.type.startsWith('video/')) { showToast('Fichier invalide (vidéo requise)', '⚠️'); return; }
+  const MAX_MB = 30;
+  if (file.size > MAX_MB * 1024 * 1024) { showToast(`Vidéo trop lourde (max ${MAX_MB}MB)`, '⚠️'); return; }
+
+  const titleFR = document.getElementById('lookbook-title-fr').value.trim();
+  const titleEN = document.getElementById('lookbook-title-en').value.trim();
+  const descFR  = document.getElementById('lookbook-desc-fr').value.trim();
+  const descEN  = document.getElementById('lookbook-desc-en').value.trim();
+
+  if (!titleFR) { showToast('Le titre (FR) est requis', '⚠️'); return; }
+
+  if (!initFirebase() || !firebaseStorage) {
+    showToast('Firebase Storage non disponible', '⚠️');
+    return;
+  }
+
+  const btn = document.getElementById('lookbook-upload-btn');
+  const wrap = document.getElementById('lookbook-upload-progress-wrap');
+  const bar = document.getElementById('lookbook-upload-progress-bar');
+  const status = document.getElementById('lookbook-upload-status');
+  btn.disabled = true; btn.textContent = '⏳ Envoi en cours...';
+  wrap.style.display = 'block'; bar.style.width = '0%'; status.textContent = 'Démarrage...';
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  const storagePath = `lookbook/${Date.now()}_${safeName}`;
+  const storageRef = firebaseStorage.ref().child(storagePath);
+  const uploadTask = storageRef.put(file);
+
+  uploadTask.on('state_changed',
+    (snapshot) => {
+      const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+      bar.style.width = pct + '%';
+      status.textContent = `Envoi... ${pct}%`;
+    },
+    (error) => {
+      console.error('[Lookbook] Upload error:', error);
+      showToast('Échec de l\'envoi de la vidéo', '❌');
+      btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook';
+      wrap.style.display = 'none';
+    },
+    async () => {
+      try {
+        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+        const entry = {
+          id: 'lb_' + Date.now(),
+          titleFR, titleEN, descFR, descEN,
+          videoUrl: downloadURL,
+          storagePath: storagePath,
+          active: true,
+          date: new Date().toISOString()
+        };
+
+        lookbook.push(entry);
+        const idx = lookbook.length - 1;
+
+        // Écriture CIBLÉE : seul ce nouvel index texte est envoyé à la
+        // Realtime Database. La vidéo elle-même reste sur Firebase Storage.
+        if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+          await firebaseDb.ref('storedData/lookbook/' + idx).set(entry)
+            .catch(e => console.warn('[Firebase] Échec sync lookbook:', e && e.message));
+        }
+
+        try { DB.set('lookbook', lookbook); }
+        catch(e) { console.warn('[Cache] DB.set("lookbook") a échoué (quota ?):', e && e.message); }
+
+        // Reset du formulaire
+        fileInput.value = '';
+        document.getElementById('lookbook-title-fr').value = '';
+        document.getElementById('lookbook-title-en').value = '';
+        document.getElementById('lookbook-desc-fr').value = '';
+        document.getElementById('lookbook-desc-en').value = '';
+
+        renderLookbookAdmin();
+        renderLookbook();
+        showToast('Vidéo ajoutée au Lookbook', '🎞️');
+      } catch (e) {
+        console.error('[Lookbook] Post-upload error:', e);
+        showToast('Vidéo envoyée mais erreur de sauvegarde', '⚠️');
+      } finally {
+        btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook';
+        wrap.style.display = 'none';
+      }
+    }
+  );
+}
+
+function deleteLookbookVideo(id) {
+  if (!confirm('Supprimer cette vidéo du Lookbook ?')) return;
+  const idx = lookbook.findIndex(v => v.id === id);
+  if (idx === -1) return;
+  const entry = lookbook[idx];
+  lookbook.splice(idx, 1);
+
+  if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+    // Suppression CIBLÉE du nœud texte (même principe que pour les produits)
+    firebaseDb.ref('storedData/lookbook/' + idx).remove()
+      .catch(e => console.warn('[Firebase] Échec suppression ciblée lookbook:', e && e.message));
+  }
+  if (firebaseStorage && entry?.storagePath) {
+    firebaseStorage.ref().child(entry.storagePath).delete()
+      .catch(e => console.warn('[Storage] Échec suppression fichier vidéo:', e && e.message));
+  }
+
+  try { DB.set('lookbook', lookbook); }
+  catch(e) { console.warn('[Cache] DB.set("lookbook") a échoué après suppression (quota ?):', e && e.message); }
+
+  renderLookbookAdmin();
+  renderLookbook();
+  showToast('Vidéo supprimée', '🗑');
+}
+
+function renderLookbookAdmin() {
+  const list = document.getElementById('lookbook-admin-list');
+  const count = document.getElementById('lookbook-admin-count');
+  if (!list) return;
+  count.textContent = `${lookbook.length} vidéo(s)`;
+  list.innerHTML = lookbook.length ? lookbook.map(v => `
+    <div style="background:var(--dark-3);border-radius:8px;overflow:hidden;border:1px solid rgba(201,168,76,.1)">
+      <video src="${v.videoUrl}" muted loop playsinline style="width:100%;aspect-ratio:9/16;object-fit:cover;background:var(--dark-2)" onmouseenter="this.play()" onmouseleave="this.pause()"></video>
+      <div style="padding:8px 10px">
+        <div style="font-size:11px;font-weight:600;color:var(--gold-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.titleFR || '—'}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.titleEN || ''}</div>
+        <button class="admin-btn admin-btn-sm admin-btn-danger" style="width:100%;margin-top:8px" onclick="deleteLookbookVideo('${v.id}')">🗑 Supprimer</button>
+      </div>
+    </div>`).join('') : `<div class="lookbook-empty">Aucune vidéo pour le moment</div>`;
 }
 
 // ── Contact form ──────────────────────────────────────────────
@@ -9593,6 +9880,7 @@ showAdminPanel = function() {
   loadGiftAdmin();
   loadHeroAdmin();
   renderHeatmap();
+  if (typeof renderLookbookAdmin === 'function') renderLookbookAdmin();
 };
 
 // Patch renderHomePage to apply features
@@ -10599,7 +10887,7 @@ clearAllData = function() {
     'lookProducts','aboutTagline','pendingReviews','promos','quizQuestions','bundleRelations',
     'loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns',
     'orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig',
-    'stockNotifications','stockAlertCooldowns','videoLibrary'];
+    'stockNotifications','stockAlertCooldowns','videoLibrary','lookbook'];
   allKeys.forEach(k => localStorage.removeItem('lemil_'+k));
   location.reload();
 };
@@ -12332,40 +12620,46 @@ function renderAll() {
     console.error('[Render] renderAll failed', e);
   }
 
-  // ── FERMETURE AUTOMATIQUE DU SPLASH AVEC ATTENTE DES IMAGES ──
+  // ── FERMETURE AUTOMATIQUE DU SPLASH AVEC ATTENTE DES PRODUITS ET DES IMAGES ──
   (async function() {
-    const hasProducts = getValidProducts().length > 0;
-    if (hasProducts || isInitialPullComplete) {
-      // On capture toutes les images injectées dans les grilles principales
-      const containers = ['featured-grid', 'new-grid', 'home-cats'];
-      let images = [];
-      containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) images = [...images, ...el.querySelectorAll('img')];
-      });
-
-      if (images.length > 0) {
-        console.log(`[Luxe] Waiting for ${images.length} images to load...`);
-        const imagePromises = images.map(img => {
-          if (img.complete) return Promise.resolve();
-          return new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve; // On résout quand même en cas d'erreur pour ne pas bloquer indéfiniment
-          });
-        });
-        
-        // On attend que toutes les images soient chargées
-        await Promise.all(imagePromises);
-        console.log('[Luxe] All images loaded, opening curtain.');
-      }
-
-      // Petit délai de confort pour le rendu final du navigateur
-      setTimeout(() => {
-        if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-        // Alias demandé par l'utilisateur si jamais utilisé ailleurs
-        if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
-      }, 400);
+    const validProducts = getValidProducts();
+    const hasProducts = validProducts.length > 0;
+    
+    // CONDITION DE SÉCURITÉ : Interdiction d'ouvrir si 0 produits
+    if (!hasProducts) {
+      console.log('[Luxe] 0 products found, keeping curtain closed...');
+      return; 
     }
+
+    // On capture toutes les images injectées dans les grilles principales
+    const containers = ['featured-grid', 'new-grid', 'home-cats'];
+    let images = [];
+    containers.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) images = [...images, ...el.querySelectorAll('img')];
+    });
+
+    if (images.length > 0) {
+      console.log(`[Luxe] Waiting for ${images.length} images to load...`);
+      const imagePromises = images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve; // On résout quand même en cas d'erreur pour ne pas bloquer indéfiniment
+        });
+      });
+      
+      // On attend que toutes les images soient chargées
+      await Promise.all(imagePromises);
+      console.log('[Luxe] All images loaded, opening curtain.');
+    }
+
+    // Petit délai de confort pour le rendu final du navigateur
+    setTimeout(() => {
+      if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
+      // Alias demandé par l'utilisateur si jamais utilisé ailleurs
+      if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
+    }, 400);
   })();
 }
 
