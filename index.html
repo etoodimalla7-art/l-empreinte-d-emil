@@ -26,8 +26,8 @@
 <meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
 <meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta property="og:image:width" content="630">
-<meta property="og:image:height" content="1200">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 
 <!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
 <meta name="twitter:card" content="summary_large_image">
@@ -3230,11 +3230,13 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
           </p>
 
           <!-- Upload zone -->
-          <label class="admin-label" style="margin-bottom:8px">Vidéo (MP4/WebM, vertical 9:16 recommandé, max 30MB)</label>
+          <label class="admin-label" style="margin-bottom:8px">Vidéo par URL (MP4/WebM, YouTube ou Cloudinary)</label>
           <div class="video-upload-area" id="lookbook-video-upload-area">
-            <input type="file" accept="video/mp4,video/webm,video/*" id="lookbook-video-file">
+            <label class="admin-label" for="lookbook-video-url">URL de la vidéo *</label>
+            <input class="admin-input" type="url" id="lookbook-video-url" placeholder="https://...mp4, https://youtube.com/watch?v=... ou https://youtu.be/..." inputmode="url">
+            <small style="display:block;color:var(--muted);margin-top:6px">Utilisez une URL HTTPS publique. Les liens MP4/Cloudinary sont lus directement ; les liens YouTube sont intégrés automatiquement.</small>
             <div class="video-upload-icon">🎞️</div>
-            <div class="video-upload-text">Cliquez ou glissez-déposez votre vidéo ici<br><span style="font-size:10px;opacity:.6">MP4 ou WebM · Format vertical recommandé</span></div>
+            <div class="video-upload-text">Collez une URL publique HTTPS ci-dessus<br><span style="font-size:10px;opacity:.6">Aucun fichier n’est envoyé vers Firebase Storage</span></div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
@@ -7972,12 +7974,12 @@ function renderLookbook() {
   track.innerHTML = items.map(v => {
     const title = lang === 'fr' ? (v.titleFR || '') : (v.titleEN || v.titleFR || '');
     const desc  = lang === 'fr' ? (v.descFR  || '') : (v.descEN  || v.descFR  || '');
+    const media = v.videoType === 'youtube'
+      ? `<iframe class="lookbook-video lookbook-embed" src="${v.videoUrl}" title="${title || 'Lookbook video'}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
+      : `<video class="lookbook-video" data-src="${v.videoUrl}" ${v.posterUrl ? `poster="${v.posterUrl}"` : ''} muted loop playsinline preload="none" controls></video>`;
     return `
       <div class="lookbook-card">
-        <video class="lookbook-video"
-               data-src="${v.videoUrl}"
-               ${v.posterUrl ? `poster="${v.posterUrl}"` : ''}
-               muted loop playsinline preload="none"></video>
+        ${media}
         <div class="lookbook-badge">▶</div>
         <div class="lookbook-overlay">
           ${title ? `<div class="lookbook-title">${title}</div>` : ''}
@@ -7997,11 +7999,12 @@ function initLookbookObserver() {
     entries.forEach(entry => {
       const vid = entry.target;
       if (entry.isIntersecting) {
-        // On n'attribue le src qu'au moment où la vidéo devient visible
+        // Les iframes YouTube ont déjà leur src et ne possèdent pas play().
+        if (vid.tagName === 'IFRAME') return;
         if (!vid.src && vid.dataset.src) vid.src = vid.dataset.src;
         const playPromise = vid.play();
         if (playPromise && playPromise.catch) playPromise.catch(() => {}); // autoplay parfois bloqué, on ignore silencieusement
-      } else {
+      } else if (vid.tagName === 'VIDEO') {
         vid.pause();
       }
     });
@@ -8011,93 +8014,81 @@ function initLookbookObserver() {
 }
 
 // ── ADMIN : Upload / Suppression Lookbook (Firebase Storage) ────
-async function uploadLookbookVideo() {
-  const fileInput = document.getElementById('lookbook-video-file');
-  const file = fileInput?.files?.[0];
-  if (!file) { showToast('Sélectionne une vidéo', '⚠️'); return; }
-  if (!file.type.startsWith('video/')) { showToast('Fichier invalide (vidéo requise)', '⚠️'); return; }
-  const MAX_MB = 30;
-  if (file.size > MAX_MB * 1024 * 1024) { showToast(`Vidéo trop lourde (max ${MAX_MB}MB)`, '⚠️'); return; }
+function normalizeLookbookVideoUrl(rawUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) throw new Error('URL vidéo obligatoire.');
+  let url;
+  try { url = new URL(value); } catch (_) { throw new Error('URL vidéo invalide.'); }
+  if (url.protocol !== 'https:') throw new Error('L’URL vidéo doit commencer par https://.');
 
+  // YouTube watch, short links and embed links are rendered in an iframe.
+  if (url.hostname === 'youtu.be') {
+    const id = url.pathname.replace(/^\//, '').split('/')[0];
+    if (!id) throw new Error('Lien YouTube invalide.');
+    return { url: `https://www.youtube.com/embed/${encodeURIComponent(id)}`, type: 'youtube' };
+  }
+  if (url.hostname === 'youtube.com' || url.hostname === 'www.youtube.com' || url.hostname === 'm.youtube.com') {
+    const id = url.searchParams.get('v') || url.pathname.match(/^\/embed\/([^/]+)/)?.[1] || url.pathname.match(/^\/shorts\/([^/]+)/)?.[1];
+    if (!id) throw new Error('Lien YouTube invalide.');
+    return { url: `https://www.youtube.com/embed/${encodeURIComponent(id)}`, type: 'youtube' };
+  }
+  return { url: url.href, type: 'direct' };
+}
+
+async function uploadLookbookVideo() {
+  const urlInput = document.getElementById('lookbook-video-url');
+  const rawUrl = urlInput?.value.trim();
   const titleFR = document.getElementById('lookbook-title-fr').value.trim();
   const titleEN = document.getElementById('lookbook-title-en').value.trim();
   const descFR  = document.getElementById('lookbook-desc-fr').value.trim();
   const descEN  = document.getElementById('lookbook-desc-en').value.trim();
 
-  if (!titleFR) { showToast('Le titre (FR) est requis', '⚠️'); return; }
-
-  if (!initFirebase() || !firebaseStorage) {
-    showToast('Firebase Storage non disponible', '⚠️');
-    return;
-  }
+  if (!titleFR) { showToast('Le titre (FR) est requis', '⚠️'); return false; }
+  let video;
+  try { video = normalizeLookbookVideoUrl(rawUrl); }
+  catch (error) { console.error('[Lookbook] URL invalide :', error); showToast(error.message, '⚠️'); return false; }
 
   const btn = document.getElementById('lookbook-upload-btn');
   const wrap = document.getElementById('lookbook-upload-progress-wrap');
-  const bar = document.getElementById('lookbook-upload-progress-bar');
   const status = document.getElementById('lookbook-upload-status');
-  btn.disabled = true; btn.textContent = '⏳ Envoi en cours...';
-  wrap.style.display = 'block'; bar.style.width = '0%'; status.textContent = 'Démarrage...';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enregistrement...'; }
+  if (wrap) wrap.style.display = 'block';
+  if (status) status.textContent = 'Enregistrement de l’URL...';
 
-  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-  const storagePath = `lookbook/${Date.now()}_${safeName}`;
-  const storageRef = firebaseStorage.ref().child(storagePath);
-  const uploadTask = storageRef.put(file);
-
-  uploadTask.on('state_changed',
-    (snapshot) => {
-      const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-      bar.style.width = pct + '%';
-      status.textContent = `Envoi... ${pct}%`;
-    },
-    (error) => {
-      console.error('[Lookbook] Upload error:', error);
-      showToast('Échec de l\'envoi de la vidéo', '❌');
-      btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook';
-      wrap.style.display = 'none';
-    },
-    async () => {
-      try {
-        const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
-        if (!/^https:\/\//i.test(downloadURL)) {
-          throw new Error('Firebase Storage n’a pas retourné une URL HTTPS valide.');
-        }
-        const entry = {
-          id: 'lb_' + Date.now(),
-          titleFR, titleEN, descFR, descEN,
-          videoUrl: downloadURL,
-          storagePath: storagePath,
-          active: true,
-          date: new Date().toISOString()
-        };
-
-        const idx = lookbook.length;
-        // La RTDB ne reçoit que les métadonnées texte et l’URL vidéo.
-        if (typeof firebaseDb === 'undefined' || !firebaseDb) {
-          throw new Error('Firebase Realtime Database indisponible.');
-        }
-        await firebaseDb.ref('storedData/lookbook/' + idx).set(entry);
-        lookbook.push(entry);
-        cacheSet('lookbook', lookbook);
-
-        // Reset du formulaire
-        fileInput.value = '';
-        document.getElementById('lookbook-title-fr').value = '';
-        document.getElementById('lookbook-title-en').value = '';
-        document.getElementById('lookbook-desc-fr').value = '';
-        document.getElementById('lookbook-desc-en').value = '';
-
-        renderLookbookAdmin();
-        renderLookbook();
-        showToast('Vidéo ajoutée au Lookbook', '🎞️');
-      } catch (e) {
-        console.error('[Lookbook] Post-upload/RTDB error:', e);
-        showToast('Vidéo non enregistrée : erreur de synchronisation Firebase', '❌');
-      } finally {
-        btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook';
-        wrap.style.display = 'none';
-      }
+  try {
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+      throw new Error('Firebase Realtime Database indisponible.');
     }
-  );
+    const entry = {
+      id: 'lb_' + Date.now(),
+      titleFR, titleEN, descFR, descEN,
+      videoUrl: video.url,
+      videoType: video.type,
+      active: true,
+      date: new Date().toISOString()
+    };
+    const nextLookbook = [...lookbook, entry];
+    await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
+    lookbook = nextLookbook;
+    cacheSet('lookbook', lookbook);
+
+    if (urlInput) urlInput.value = '';
+    document.getElementById('lookbook-title-fr').value = '';
+    document.getElementById('lookbook-title-en').value = '';
+    document.getElementById('lookbook-desc-fr').value = '';
+    document.getElementById('lookbook-desc-en').value = '';
+    renderLookbookAdmin();
+    renderLookbook();
+    showToast('Vidéo ajoutée au Lookbook', '🎞️');
+    return true;
+  } catch (error) {
+    console.error('[Lookbook] Échec de sauvegarde RTDB :', error);
+    showToast('Vidéo non enregistrée : erreur Firebase Realtime Database.', '❌');
+    return false;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook'; }
+    if (wrap) wrap.style.display = 'none';
+  }
 }
 
 async function deleteLookbookVideo(id) {
@@ -8140,7 +8131,9 @@ function renderLookbookAdmin() {
   count.textContent = `${lookbook.length} vidéo(s)`;
   list.innerHTML = lookbook.length ? lookbook.map(v => `
     <div style="background:var(--dark-3);border-radius:8px;overflow:hidden;border:1px solid rgba(201,168,76,.1)">
-      <video src="${v.videoUrl}" muted loop playsinline style="width:100%;aspect-ratio:9/16;object-fit:cover;background:var(--dark-2)" onmouseenter="this.play()" onmouseleave="this.pause()"></video>
+      ${v.videoType === 'youtube'
+        ? `<iframe src="${v.videoUrl}" title="${v.titleFR || 'Lookbook video'}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen style="width:100%;aspect-ratio:9/16;border:0;background:var(--dark-2)"></iframe>`
+        : `<video src="${v.videoUrl}" muted loop playsinline controls style="width:100%;aspect-ratio:9/16;object-fit:cover;background:var(--dark-2)" onmouseenter="this.play()" onmouseleave="this.pause()"></video>`}
       <div style="padding:8px 10px">
         <div style="font-size:11px;font-weight:600;color:var(--gold-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.titleFR || '—'}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.titleEN || ''}</div>
