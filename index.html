@@ -9,41 +9,31 @@
 
 <!-- Informations Générales & Référencement (SEO) -->
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
-<!-- SEO -->
 <meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, articles haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
-
+<meta name="keywords" content="L'Empreinte d'Emil, boutique luxe Douala, parfums de luxe Cameroun, mode haut de gamme, créateur, élégance, sneakers de luxe, casquettes premium">
 <meta name="author" content="L'Atelier D'EMIL">
 <meta name="robots" content="index, follow">
-<meta name="language" content="fr">
-
+<meta name="language" content="French">
 <link rel="canonical" href="https://lempreinte-demil.onrender.com/">
-
-<!-- Favicon -->
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
 
-<!-- Open Graph -->
+
+<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram) -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://lempreinte-demil.onrender.com/">
 <meta property="og:site_name" content="L'Empreinte D'Emil">
 <meta property="og:locale" content="fr_FR">
-
 <meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
-
 <meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="L'Empreinte D'Emil — Boutique de Luxe à Douala">
+<meta property="og:image:width" content="630">
+<meta property="og:image:height" content="1200">
 
-<!-- Twitter / X -->
+<!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta name="twitter:description" content="Signez votre passage, imposez votre style. Parfums et articles haut de gamme à Douala.">
 <meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta name="twitter:image:alt" content="L'Empreinte D'Emil — Boutique de Luxe à Douala">
-
-<!-- Browser theme -->
-<meta name="theme-color" content="#0a0a0a">
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -4266,6 +4256,16 @@ const SYNC_CONFIG = {
   autoSync: 30
 };
 
+// Hébergement d’images sans Firebase Storage. Cloudinary unsigned est utilisé
+// par défaut : le nom du cloud et l’upload preset doivent être configurés dans
+// le tableau de bord Cloudinary. Ne jamais mettre une clé secrète côté client.
+const IMAGE_HOSTING_CONFIG = {
+  provider: 'imgbb',
+  cloudName: 'A_CONFIGURER',
+  uploadPreset: 'A_CONFIGURER',
+  imgbbApiKey: 'f9a5d4676da2957c171a035913a5de9a'
+};
+
 function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
@@ -4302,32 +4302,85 @@ function cacheGet(k, def) {
   try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
 }
 
-function cacheSet(k, v) {
+// Le cache navigateur ne doit jamais contenir d'image Base64. Les images sont
+// conservées dans Firebase Storage et les produits ne gardent que leurs URLs.
+function removeInlineImages(value) {
+  if (typeof value === 'string') {
+    return /^data:image\//i.test(value) ? null : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(removeInlineImages).filter(item => item !== null);
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, item]) => [key, removeInlineImages(item)])
+        .filter(([, item]) => item !== null)
+    );
+  }
+  return value;
+}
+
+function clearNonEssentialCache() {
   try {
-    const str = JSON.stringify(v);
-    localStorage.setItem(PREFIX + k, str);
-  } catch(e) {
-    console.warn('[Cache] set fail (likely quota):', k);
-    // If it's a critical key like products, we still want it in memory even if localStorage fails
-    // The global variable 'products' already holds the data, so we just continue.
+    const keysToKeep = [
+      // Données partagées essentielles
+      PREFIX + 'products', PREFIX + 'categories', PREFIX + 'settings', PREFIX + 'lang',
+      // Données locales à préserver impérativement
+      PREFIX + 'cart', PREFIX + 'adminSession', PREFIX + 'admin_pwd',
+      PREFIX + 'loyalty_phone', PREFIX + 'stockAlertCooldowns'
+    ];
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(PREFIX) && !keysToKeep.includes(key)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  } catch (cleanupError) {
+    console.warn('[Cache] Nettoyage du cache non essentiel impossible :', cleanupError);
   }
 }
 
+function cacheSet(k, v) {
+  const valueWithoutInlineImages = removeInlineImages(v);
+  const str = JSON.stringify(valueWithoutInlineImages);
+  try {
+    localStorage.setItem(PREFIX + k, str);
+  } catch (error) {
+    console.warn('[Cache] Écriture refusée pour ' + k + ' :', error);
+    if (error && (error.name === 'QuotaExceededError' || error.code === 22)) {
+      clearNonEssentialCache();
+      try {
+        localStorage.setItem(PREFIX + k, str);
+      } catch (retryError) {
+        // Le cache est facultatif : les variables mémoire et Firebase restent
+        // la source de vérité même si le navigateur est totalement saturé.
+        console.warn('[Cache] Quota toujours dépassé après nettoyage :', retryError);
+      }
+    }
+  }
+}
 
 function saveLocal() {
-  try {
-    localStorage.setItem(PREFIX + 'products', JSON.stringify(products));
-    localStorage.setItem(PREFIX + 'categories', JSON.stringify(categories));
-    localStorage.setItem(PREFIX + 'settings', JSON.stringify(settings));
-    localStorage.setItem(PREFIX + 'reviews', JSON.stringify(reviews));
-    localStorage.setItem(PREFIX + 'orders', JSON.stringify(orders));
-  } catch (e) {
-    console.warn('[Cache] saveLocal failed:', e.message);
-  }
+  cacheSet('products', products);
+  cacheSet('categories', categories);
+  cacheSet('settings', settings);
+  cacheSet('reviews', reviews);
+  cacheSet('orders', orders);
 }
 
 function initFirebase() {
   if (!SYNC_CONFIG.enabled || !SYNC_CONFIG.apiKey || !SYNC_CONFIG.databaseURL) return false;
+  if (!/^https:\/\/.+\.(firebaseio\.com|firebasedatabase\.app)(\/.*)?$/i.test(SYNC_CONFIG.databaseURL)) {
+    console.error('[Firebase] databaseURL invalide :', SYNC_CONFIG.databaseURL);
+    return false;
+  }
+  if (!SYNC_CONFIG.storageBucket) {
+    console.error('[Firebase] storageBucket manquant dans la configuration.');
+    return false;
+  }
   if (isSyncInitialized) return true;
   try {
     const config = {
@@ -4340,12 +4393,24 @@ function initFirebase() {
       appId: SYNC_CONFIG.appId
     };
     if (!firebase.apps.length) {
-      try { firebaseApp = firebase.initializeApp(config); } catch(e) { console.error('Firebase init error', e); }
+      firebaseApp = firebase.initializeApp(config);
     } else {
       firebaseApp = firebase.app();
+      if (firebaseApp.options.databaseURL !== SYNC_CONFIG.databaseURL) {
+        console.error('[Firebase] databaseURL de l’application déjà initialisée différente de SYNC_CONFIG.databaseURL.', {
+          initialized: firebaseApp.options.databaseURL,
+          configured: SYNC_CONFIG.databaseURL
+        });
+        return false;
+      }
     }
     firebaseDb = firebase.database();
-    try { firebaseStorage = firebase.storage(); } catch(e) { console.warn('[Firebase] Storage init error (bucket non configuré ?)', e); }
+    try {
+      firebaseStorage = firebase.storage();
+    } catch(e) {
+      console.error('[Firebase] Storage init error :', e);
+      firebaseStorage = null;
+    }
     
     // Split Stream Listeners: Listen to each key separately under storedData/
     SHARED_KEYS.forEach(key => {
@@ -4401,12 +4466,21 @@ function handleKeyUpdate(key, value) {
   else if (key === 'emilConfig') emilConfig = value;
   else if (key === 'videoLibrary') videoLibrary = value;
   else if (key === 'stockNotifConfig') stockNotifConfig = value;
-  else if (key === 'lookbook') {
+    else if (key === 'lookbook') {
     lookbook = value;
-    if (currentPage === 'home' && typeof renderLookbook === 'function') renderLookbook();
+    if (typeof renderLookbook === 'function') renderLookbook();
     if (adminLoggedIn && typeof renderLookbookAdmin === 'function') renderLookbookAdmin();
   }
-  
+  // Les avis doivent se refléter immédiatement sur la page publique et dans
+  // l’interface de modération, y compris lorsqu’un autre appareil les modifie.
+  if (key === 'reviews') {
+    if (typeof renderHomeReviews === 'function') renderHomeReviews();
+    if (typeof renderReviewsPage === 'function' && currentPage === 'reviews') renderReviewsPage();
+    if (adminLoggedIn && typeof renderAdminReviews === 'function') renderAdminReviews();
+  }
+  if (key === 'pendingReviews' && adminLoggedIn && typeof renderAdminReviews === 'function') {
+    renderAdminReviews();
+  }
   if (typeof applySavedColors === 'function') applySavedColors();
   
   // Re-render UI
@@ -4589,31 +4663,12 @@ const DB = {
       return d; 
     } 
   },
-  set(k, v) { 
-    try { 
-      localStorage.setItem('lemil_' + k, JSON.stringify(v)); 
-    } catch(e) { 
-      console.warn('[DB] Set failed for ' + k, e);
-      // Si quota dépassé, on tente un nettoyage partiel du cache non critique
-      if (e.name === 'QuotaExceededError' || e.code === 22) {
-        console.warn('[DB] Quota exceeded, clearing non-essential cache...');
-        this.clearNonEssential();
-        // On réessaie une fois après nettoyage
-        try { localStorage.setItem('lemil_' + k, JSON.stringify(v)); } catch(e2) {}
-      }
-    } 
+  set(k, v) {
+    // DB.set passe par le cache sécurisé : aucune image Base64 n'est persistée.
+    cacheSet(k, v);
   },
   clearNonEssential() {
-    try {
-      // On garde products et categories, on vire le reste (reviews, orders, etc.)
-      const keysToKeep = ['lemil_products', 'lemil_categories', 'lemil_settings', 'lemil_lang'];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('lemil_') && !keysToKeep.includes(key)) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch(e) {}
+    clearNonEssentialCache();
   }
 };
   
@@ -6823,67 +6878,161 @@ function toggleBundleSection() {
   document.getElementById('bundle-section').style.display = document.getElementById('p-type').value==='bundle'?'block':'none';
 }
 
+function dataUrlToBlob(dataUrl) {
+  const parts = dataUrl.split(',');
+  if (parts.length !== 2) throw new Error('Image Base64 invalide.');
+  const match = parts[0].match(/^data:([^;]+);base64$/i);
+  if (!match) throw new Error('Format d’image non pris en charge.');
+  const binary = atob(parts[1]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: match[1] });
+}
+
+async function uploadImageToExternalHost(dataUrl, productId, index) {
+  const provider = String(IMAGE_HOSTING_CONFIG.provider || '').toLowerCase();
+  let publicUrl = '';
+
+  if (provider === 'cloudinary') {
+    const { cloudName, uploadPreset } = IMAGE_HOSTING_CONFIG;
+    if (!cloudName || cloudName === 'A_CONFIGURER' || !uploadPreset || uploadPreset === 'A_CONFIGURER') {
+      throw new Error('Cloudinary non configuré : renseignez cloudName et uploadPreset.');
+    }
+    const formData = new FormData();
+    formData.append('file', dataUrlToBlob(dataUrl), productId + '-' + index + '.webp');
+    formData.append('upload_preset', uploadPreset);
+    const response = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cloudName) + '/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.secure_url) {
+      throw new Error('Cloudinary upload failed: ' + (result.error?.message || response.status));
+    }
+    publicUrl = result.secure_url;
+  } else if (provider === 'imgbb') {
+    const apiKey = IMAGE_HOSTING_CONFIG.imgbbApiKey;
+    if (!apiKey || apiKey === 'A_CONFIGURER') {
+      throw new Error('ImgBB non configuré : renseignez imgbbApiKey.');
+    }
+    const formData = new FormData();
+    formData.append('key', apiKey);
+    formData.append('image', dataUrl.split(',')[1]);
+    const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success || !result.data?.display_url) {
+      throw new Error('ImgBB upload failed: ' + (result.error?.message || response.status));
+    }
+    publicUrl = result.data.display_url;
+  } else {
+    throw new Error('Fournisseur d’images inconnu : ' + provider);
+  }
+
+  if (!/^https:\/\//i.test(publicUrl)) {
+    throw new Error('L’hébergeur n’a pas retourné une URL HTTPS publique.');
+  }
+  return publicUrl;
+}
+
+async function uploadProductImages(productId, imageSources) {
+  const sources = Array.isArray(imageSources) ? imageSources : [];
+  const uploadedUrls = [];
+  for (let index = 0; index < sources.length; index++) {
+    const source = sources[index];
+    if (typeof source !== 'string' || !/^data:image\//i.test(source)) {
+      if (source && /^https:\/\//i.test(source)) uploadedUrls.push(source);
+      continue;
+    }
+    uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
+  }
+  return uploadedUrls;
+}
+
 async function saveProduct() {
   const nameFR = document.getElementById('p-name-fr').value.trim();
   const price = parseInt(document.getElementById('p-price').value)||0;
-  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return; }
+  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return false; }
 
-	  const data = {
-	    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
-	    catId: document.getElementById('p-cat').value,
-	    type: document.getElementById('p-type').value,
-	    price, stock: parseInt(document.getElementById('p-stock').value)||0,
-	    descFR: document.getElementById('p-desc-fr').value.trim(),
-	    descEN: document.getElementById('p-desc-en').value.trim(),
-	    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
-	    isEssential: document.getElementById('p-is-essential').checked,
-	    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
-	    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
-	    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
-	      const parts = s.split(':');
-	      if (parts.length < 2) return null;
-	      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
-	    }).filter(Boolean),
-	  };
+  const data = {
+    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
+    catId: document.getElementById('p-cat').value,
+    type: document.getElementById('p-type').value,
+    price, stock: parseInt(document.getElementById('p-stock').value)||0,
+    descFR: document.getElementById('p-desc-fr').value.trim(),
+    descEN: document.getElementById('p-desc-en').value.trim(),
+    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    isEssential: document.getElementById('p-is-essential').checked,
+    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
+      const parts = s.split(':');
+      if (parts.length < 2) return null;
+      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
+    }).filter(Boolean),
+  };
+
+  // Firebase est la source distante principale : on refuse de confirmer
+  // l'enregistrement si la base n'est pas initialisée ou si l'écriture échoue.
+  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+    const error = new Error('Firebase Realtime Database non disponible.');
+    console.error('[saveProduct] Firebase indisponible :', error);
+    showToast('Échec Firebase : impossible d’enregistrer le produit.', '❌');
+    return false;
+  }
+
+  let idx = -1;
+  let previousProduct = null;
+  let productToSave;
+  let isNewProduct = false;
 
   if (editingProductId) {
-        const idx = products.findIndex(p=>p.id===editingProductId);
-    if (idx>-1) {
-      products[idx] = {...products[idx], ...data};
-      if (currentImgs.length) products[idx].imgs = currentImgs;
-      if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-        // Mise à jour granulaire pour éviter "Write too large"
-        firebaseDb.ref('storedData/products/' + idx).update(products[idx]);
-      }
+    idx = products.findIndex(p => p.id === editingProductId);
+    if (idx === -1) {
+      console.error('[saveProduct] Produit à modifier introuvable :', editingProductId);
+      showToast('Produit introuvable.', '❌');
+      return false;
     }
-    editingProductId = null;
-    document.getElementById('edit-banner').style.display = 'none';
+    previousProduct = products[idx];
+    productToSave = {...previousProduct, ...data};
+    if (currentImgs.length) productToSave.imgs = currentImgs;
   } else {
-        const newProd = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
-    const nextIndex = products.length;
-    products.push(newProd);
-    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-      // Ajout granulaire au nœud spécifique
-      firebaseDb.ref('storedData/products/' + nextIndex).set(newProd);
-    }
+    isNewProduct = true;
+    idx = products.length;
+    productToSave = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
   }
 
-  // Le cache LocalStorage est facultatif : une saturation du quota ne doit
-  // jamais empêcher l’enregistrement direct déjà envoyé à Firebase ci-dessus.
   try {
-    localStorage.setItem('lemil_products', JSON.stringify(products));
-  } catch (cacheError) {
-    if (cacheError && (cacheError.name === 'QuotaExceededError' || cacheError.code === 22)) {
-      console.warn('[saveProduct] Quota LocalStorage dépassé : cache ignoré.', cacheError);
-    } else {
-      console.warn('[saveProduct] Échec du cache LocalStorage : cache ignoré.', cacheError);
+    // Les aperçus Base64 restent uniquement en mémoire pendant l’édition.
+    // Avant toute écriture RTDB, ils sont remplacés par des URLs HTTPS externes.
+    productToSave.imgs = await uploadProductImages(productToSave.id, productToSave.imgs);
+
+    // Écriture explicite et ciblée dans Realtime Database. L'appel await
+    // garantit que le succès n'est annoncé qu'après résolution de Firebase.
+    await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
+  } catch (firebaseError) {
+    console.error('[saveProduct] Échec de l’upload externe ou de l’écriture RTDB pour le produit ' + productToSave.id + ':', firebaseError);
+    if (isNewProduct) {
+      products.splice(idx, 0);
+    } else if (previousProduct) {
+      products[idx] = previousProduct;
     }
+    showToast('Échec : image non hébergée ou produit non enregistré. Vérifiez la configuration de l’hébergeur et la connexion.', '❌');
+    return false;
   }
-  showToast('Produit enregistré !');
+
+  if (isNewProduct) products.push(productToSave);
+  else products[idx] = productToSave;
+
+  editingProductId = null;
+  document.getElementById('edit-banner').style.display = 'none';
+
+  // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
+  cacheSet('products', products);
+
   resetProductForm();
   renderAdminProducts();
   renderAdminDashboard();
-  // syncPush handled via direct set or DB.set patch
+  return true;
 }
 
 function editProduct(id) {
@@ -7364,7 +7513,17 @@ const DEFAULT_REVIEWS = [
 let reviews = DB.get('reviews', DEFAULT_REVIEWS);
 let currentReviewStars = 5;
 
-function saveReviews() { DB.set('reviews', reviews); }
+async function writeSharedData(updates) {
+  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+    throw new Error('Firebase Realtime Database indisponible.');
+  }
+  await firebaseDb.ref('storedData').update(updates);
+  Object.entries(updates).forEach(([key, value]) => cacheSet(key, value));
+}
+
+async function saveReviews() {
+  await writeSharedData({ reviews });
+}
 
 // ---- Star rating helpers ----
 function renderStars(n, size='15px') {
@@ -7494,11 +7653,10 @@ function populateReviewProductSelect() {
     + getValidProducts().map(p=>`<option value="${p.id}">${prodName(p)}</option>`).join('');
 }
 
-function saveReview() {
+async function saveReview() {
   const name = document.getElementById('rv-name').value.trim();
   const textFR = document.getElementById('rv-text-fr').value.trim();
-  if (!name || !textFR) { showToast('Nom et avis (FR) obligatoires','⚠️'); return; }
-
+  if (!name || !textFR) { showToast('Nom et avis (FR) obligatoires','⚠️'); return false; }
   const editingId = document.getElementById('editing-review-id').value;
   const rv = {
     id: editingId || 'rev'+Date.now(),
@@ -7510,18 +7668,27 @@ function saveReview() {
     date: document.getElementById('rv-date').value || new Date().toISOString().slice(0,10),
     verified: true,
   };
-
+  const nextReviews = [...reviews];
   if (editingId) {
-    const idx = reviews.findIndex(r=>r.id===editingId);
-    if (idx>-1) reviews[idx] = rv;
+    const idx = nextReviews.findIndex(r=>r.id===editingId);
+    if (idx > -1) nextReviews[idx] = rv;
+    else { showToast('Avis introuvable.', '❌'); return false; }
   } else {
-    reviews.unshift(rv);
+    nextReviews.unshift(rv);
   }
-
-  saveReviews();
+  try {
+    await writeSharedData({ reviews: nextReviews });
+    reviews = nextReviews;
+  } catch (error) {
+    console.error('[Reviews] Échec de sauvegarde Firebase :', error);
+    showToast('Avis non enregistré : erreur de synchronisation Firebase.', '❌');
+    return false;
+  }
   resetReviewForm();
   renderAdminReviews();
-  showToast('Avis enregistré !');
+  renderHomeReviews();
+  showToast('Avis enregistré et synchronisé !');
+  return true;
 }
 
 function editReview(id) {
@@ -7541,12 +7708,21 @@ function editReview(id) {
   showToast('Modification en cours...','\u270F\uFE0F');
 }
 
-function deleteReview(id) {
-  if (!confirm('Supprimer cet avis ?')) return;
-  reviews = reviews.filter(r=>r.id!==id);
-  saveReviews();
+async function deleteReview(id) {
+  if (!confirm('Supprimer cet avis ?')) return false;
+  const nextReviews = reviews.filter(r=>r.id!==id);
+  try {
+    await writeSharedData({ reviews: nextReviews });
+    reviews = nextReviews;
+  } catch (error) {
+    console.error('[Reviews] Échec de suppression Firebase :', error);
+    showToast('Avis non supprimé : erreur de synchronisation Firebase.', '❌');
+    return false;
+  }
   renderAdminReviews();
-  showToast('Avis supprimé','🗑');
+  renderHomeReviews();
+  showToast('Avis supprimé et synchronisé','🗑');
+  return true;
 }
 
 function resetReviewForm() {
@@ -7708,7 +7884,9 @@ let pubStars = 0;
 function savePillars()    { DB.set('pillars', pillars); }
 function saveWhyItems()   { DB.set('whyItems', whyItems); }
 function saveLook()       { DB.set('lookProducts', lookProducts); }
-function savePendingRvs() { DB.set('pendingReviews', pendingReviews); }
+async function savePendingRvs() {
+  await writeSharedData({ pendingReviews });
+}
 
 // ── About page render ─────────────────────────────────────────
 function renderAboutPage() {
@@ -7880,6 +8058,9 @@ async function uploadLookbookVideo() {
     async () => {
       try {
         const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+        if (!/^https:\/\//i.test(downloadURL)) {
+          throw new Error('Firebase Storage n’a pas retourné une URL HTTPS valide.');
+        }
         const entry = {
           id: 'lb_' + Date.now(),
           titleFR, titleEN, descFR, descEN,
@@ -7889,18 +8070,14 @@ async function uploadLookbookVideo() {
           date: new Date().toISOString()
         };
 
-        lookbook.push(entry);
-        const idx = lookbook.length - 1;
-
-        // Écriture CIBLÉE : seul ce nouvel index texte est envoyé à la
-        // Realtime Database. La vidéo elle-même reste sur Firebase Storage.
-        if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-          await firebaseDb.ref('storedData/lookbook/' + idx).set(entry)
-            .catch(e => console.warn('[Firebase] Échec sync lookbook:', e && e.message));
+        const idx = lookbook.length;
+        // La RTDB ne reçoit que les métadonnées texte et l’URL vidéo.
+        if (typeof firebaseDb === 'undefined' || !firebaseDb) {
+          throw new Error('Firebase Realtime Database indisponible.');
         }
-
-        try { DB.set('lookbook', lookbook); }
-        catch(e) { console.warn('[Cache] DB.set("lookbook") a échoué (quota ?):', e && e.message); }
+        await firebaseDb.ref('storedData/lookbook/' + idx).set(entry);
+        lookbook.push(entry);
+        cacheSet('lookbook', lookbook);
 
         // Reset du formulaire
         fileInput.value = '';
@@ -7913,8 +8090,8 @@ async function uploadLookbookVideo() {
         renderLookbook();
         showToast('Vidéo ajoutée au Lookbook', '🎞️');
       } catch (e) {
-        console.error('[Lookbook] Post-upload error:', e);
-        showToast('Vidéo envoyée mais erreur de sauvegarde', '⚠️');
+        console.error('[Lookbook] Post-upload/RTDB error:', e);
+        showToast('Vidéo non enregistrée : erreur de synchronisation Firebase', '❌');
       } finally {
         btn.disabled = false; btn.textContent = '⬆️ Ajouter au Lookbook';
         wrap.style.display = 'none';
@@ -7923,29 +8100,37 @@ async function uploadLookbookVideo() {
   );
 }
 
-function deleteLookbookVideo(id) {
-  if (!confirm('Supprimer cette vidéo du Lookbook ?')) return;
+async function deleteLookbookVideo(id) {
+  if (!confirm('Supprimer cette vidéo du Lookbook ?')) return false;
   const idx = lookbook.findIndex(v => v.id === id);
-  if (idx === -1) return;
+  if (idx === -1) return false;
   const entry = lookbook[idx];
-  lookbook.splice(idx, 1);
+  const nextLookbook = lookbook.filter(v => v.id !== id);
 
-  if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-    // Suppression CIBLÉE du nœud texte (même principe que pour les produits)
-    firebaseDb.ref('storedData/lookbook/' + idx).remove()
-      .catch(e => console.warn('[Firebase] Échec suppression ciblée lookbook:', e && e.message));
+  try {
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+      throw new Error('Firebase Realtime Database indisponible.');
+    }
+    // Réécriture de la petite collection de métadonnées pour conserver des
+    // index contigus et éviter qu’un prochain ajout n’écrase une entrée.
+    await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
+    lookbook = nextLookbook;
+    cacheSet('lookbook', lookbook);
+    if (firebaseStorage && entry?.storagePath) {
+      await firebaseStorage.ref().child(entry.storagePath).delete().catch(error => {
+        console.warn('[Storage] Métadonnée supprimée mais fichier vidéo non supprimé :', error);
+      });
+    }
+  } catch (error) {
+    console.error('[Lookbook] Échec de suppression Firebase :', error);
+    showToast('Vidéo non supprimée : erreur de synchronisation Firebase.', '❌');
+    return false;
   }
-  if (firebaseStorage && entry?.storagePath) {
-    firebaseStorage.ref().child(entry.storagePath).delete()
-      .catch(e => console.warn('[Storage] Échec suppression fichier vidéo:', e && e.message));
-  }
-
-  try { DB.set('lookbook', lookbook); }
-  catch(e) { console.warn('[Cache] DB.set("lookbook") a échoué après suppression (quota ?):', e && e.message); }
 
   renderLookbookAdmin();
   renderLookbook();
-  showToast('Vidéo supprimée', '🗑');
+  showToast('Vidéo supprimée et synchronisée', '🗑');
+  return true;
 }
 
 function renderLookbookAdmin() {
@@ -8040,15 +8225,15 @@ function populatePubReviewProductSelect() {
     + getValidProducts().map(p => `<option value="${p.id}">${prodName(p)}</option>`).join('');
 }
 
-function submitPublicReview() {
+async function submitPublicReview() {
   const name = document.getElementById('pub-rv-name').value.trim();
   const text = document.getElementById('pub-rv-text').value.trim();
   const stars = parseInt(document.getElementById('pub-rv-stars').value)||0;
   const productId = document.getElementById('pub-rv-product').value;
 
-  if (!name) { showToast(lang==='fr'?'Entrez votre nom':'Enter your name','⚠️'); return; }
-  if (!text)  { showToast(lang==='fr'?'Rédigez votre avis':'Write your review','⚠️'); return; }
-  if (!stars) { showToast(lang==='fr'?'Sélectionnez une note':'Select a rating','⚠️'); return; }
+  if (!name) { showToast(lang==='fr'?'Entrez votre nom':'Enter your name','⚠️'); return false; }
+  if (!text)  { showToast(lang==='fr'?'Rédigez votre avis':'Write your review','⚠️'); return false; }
+  if (!stars) { showToast(lang==='fr'?'Sélectionnez une note':'Select a rating','⚠️'); return false; }
 
   const rv = {
     id: 'pub'+Date.now(), name, productId, stars,
@@ -8057,11 +8242,16 @@ function submitPublicReview() {
     date: new Date().toISOString().slice(0,10),
     verified: false, pending: true
   };
+  const nextPendingReviews = [rv, ...pendingReviews];
+  try {
+    await writeSharedData({ pendingReviews: nextPendingReviews });
+    pendingReviews = nextPendingReviews;
+  } catch (error) {
+    console.error('[Reviews] Échec de soumission Firebase :', error);
+    showToast(lang==='fr' ? 'Avis non envoyé : erreur de synchronisation.' : 'Review not sent: synchronization error.', '❌');
+    return false;
+  }
 
-  pendingReviews.unshift(rv);
-  savePendingRvs();
-
-  // Show success
   const sentEl = document.getElementById('pub-rv-sent');
   const sentTxt = document.getElementById('pub-rv-sent-text');
   if (sentEl) {
@@ -8076,10 +8266,10 @@ function submitPublicReview() {
   document.getElementById('pub-rv-stars').value = '0';
   pubStars = 0;
   document.querySelectorAll('.pub-star').forEach(s => s.classList.remove('active'));
-
-  // Notify admin
-  document.getElementById('admin-notif').style.display = 'block';
-  showToast(lang==='fr'?'Avis soumis, merci !':'Review submitted, thank you!','⭐');
+  const adminNotif = document.getElementById('admin-notif');
+  if (adminNotif) adminNotif.style.display = 'block';
+  showToast(lang==='fr'?'Avis soumis et synchronisé !':'Review submitted and synchronized!','⭐');
+  return true;
 }
 
 // ── Admin: About content management ──────────────────────────
@@ -8212,23 +8402,43 @@ function switchReviewTab(el, tab) {
   renderAdminReviews();
 }
 
-function approveReview(id) {
-  const idx = pendingReviews.findIndex(r => r.id===id); if (idx<0) return;
+async function approveReview(id) {
+  const idx = pendingReviews.findIndex(r => r.id===id); if (idx<0) return false;
   const rv = {...pendingReviews[idx], pending:false, verified:false};
-  pendingReviews.splice(idx,1);
-  savePendingRvs();
-  reviews.unshift(rv);
-  saveReviews();
+  const nextPendingReviews = pendingReviews.filter(r => r.id !== id);
+  const nextReviews = [rv, ...reviews];
+  try {
+    await writeSharedData({
+      pendingReviews: nextPendingReviews,
+      reviews: nextReviews
+    });
+    pendingReviews = nextPendingReviews;
+    reviews = nextReviews;
+  } catch (error) {
+    console.error('[Reviews] Échec d’approbation Firebase :', error);
+    showToast('Avis non approuvé : erreur de synchronisation Firebase.', '❌');
+    return false;
+  }
   renderAdminReviews();
-  showToast('Avis approuvé !','✅');
+  renderHomeReviews();
+  showToast('Avis approuvé et synchronisé !','✅');
+  return true;
 }
 
-function rejectReview(id) {
-  if (!confirm('Rejeter et supprimer cet avis ?')) return;
-  pendingReviews = pendingReviews.filter(r => r.id!==id);
-  savePendingRvs();
+async function rejectReview(id) {
+  if (!confirm('Rejeter et supprimer cet avis ?')) return false;
+  const nextPendingReviews = pendingReviews.filter(r => r.id!==id);
+  try {
+    await writeSharedData({ pendingReviews: nextPendingReviews });
+    pendingReviews = nextPendingReviews;
+  } catch (error) {
+    console.error('[Reviews] Échec de rejet Firebase :', error);
+    showToast('Avis non rejeté : erreur de synchronisation Firebase.', '❌');
+    return false;
+  }
   renderAdminReviews();
-  showToast('Avis rejeté','🗑');
+  showToast('Avis rejeté et synchronisé','🗑');
+  return true;
 }
 
 // ── i18n additions ────────────────────────────────────────────
@@ -10046,35 +10256,39 @@ function editProductGo(id) {
 // Patch saveProduct to save engraving config
 const _origSaveProduct = saveProduct;
 saveProduct = async function() {
-  // Call original which handles Firebase direct set and products array update
-  await _origSaveProduct();
-  
-  // After save, check if engraving fields exist and update last saved product
+  // Conserver l'identifiant avant que la fonction principale ne réinitialise
+  // editingProductId, afin de mettre à jour le bon produit en mode édition.
+  const productIdBeingEdited = editingProductId;
+  const saved = await _origSaveProduct();
+  if (!saved) return false;
+
   const enabled = document.getElementById('p-engraving-enabled')?.checked || false;
-  if (products.length > 0) {
-    const targetId = editingProductId || products[products.length - 1]?.id;
-    if (targetId) {
-      const idx = products.findIndex(p => p.id === targetId);
-      if (idx > -1) {
-        products[idx].engraving = {
-          enabled,
-          price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
-          maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
-          labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
-          labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
-        };
-        // Update Firebase directly for the engraving part too
-        if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-          firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
-        }
-        // Save locally without triggering global syncPush again
-        const _oldSync = SYNC_CONFIG.enabled;
-        SYNC_CONFIG.enabled = false;
-        DB.set('products', products);
-        SYNC_CONFIG.enabled = _oldSync;
+  const targetId = productIdBeingEdited || products[products.length - 1]?.id;
+  if (targetId) {
+    const idx = products.findIndex(p => p.id === targetId);
+    if (idx > -1) {
+      products[idx].engraving = {
+        enabled,
+        price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
+        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
+        labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
+        labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
+      };
+      try {
+        // Cette seconde écriture est attendue avant la confirmation finale.
+        await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+      } catch (firebaseError) {
+        console.error('[saveProduct] Échec Firebase pour la configuration de gravure :', firebaseError);
+        showToast('Échec Firebase : la configuration du produit n’a pas été enregistrée.', '❌');
+        return false;
       }
+      // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
+      cacheSet('products', products);
     }
   }
+
+  showToast('Produit enregistré !');
+  return true;
 };
 
 // Patch editProduct to load engraving fields
@@ -10373,18 +10587,34 @@ function renderStockNotifAdmin() {
   }
 }
 
-function adjustProductStock(id) {
+async function adjustProductStock(id) {
   const val = parseInt(document.getElementById('stock-adj-'+id)?.value);
-  if (isNaN(val) || val < 0) return;
+  if (isNaN(val) || val < 0) return false;
   const idx = products.findIndex(p => p.id === id);
-  if (idx > -1) {
-    products[idx].stock = val;
-    DB.set('products', products);
-    renderStockNotifAdmin();
-    renderAdminDashboard();
-    checkStockAlerts(false);
-    showToast(`Stock mis à jour: ${val} unité(s)`, '📦');
+  if (idx === -1) return false;
+  const previousProducts = products;
+  const nextProducts = products.map((product, productIndex) =>
+    productIndex === idx ? {...product, stock: val} : product
+  );
+  try {
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+      throw new Error('Firebase Realtime Database indisponible.');
+    }
+    await firebaseDb.ref('storedData/products/' + idx).update({ stock: val });
+    products = nextProducts;
+    cacheSet('products', products);
+  } catch (error) {
+    console.error('[Stock] Échec de synchronisation Firebase :', error);
+    products = previousProducts;
+    showToast('Stock non enregistré : erreur de synchronisation Firebase.', '❌');
+    return false;
   }
+  renderStockNotifAdmin();
+  renderAdminDashboard();
+  checkStockAlerts(false);
+  renderAdminProducts();
+  showToast(`Stock mis à jour: ${val} unité(s)`, '📦');
+  return true;
 }
 
 function runStockCheck(force) {
