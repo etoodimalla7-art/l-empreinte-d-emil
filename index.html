@@ -9,27 +9,33 @@
 
 <!-- Informations Générales & Référencement (SEO) -->
 <title>L'EMPREINTE D'EMIL — Signez votre passage, imposez votre style</title>
+<!-- SEO -->
 <meta name="description" content="Découvrez L'Empreinte D'Emil, votre boutique en ligne de luxe à Douala. Parfums de créateurs, articles haut de gamme et pièces d'exception. Signez votre passage, imposez votre style.">
-<meta name="keywords" content="L'Empreinte d'Emil, boutique luxe Douala, parfums de luxe Cameroun, mode haut de gamme, créateur, élégance, sneakers de luxe, casquettes premium">
+
 <meta name="author" content="L'Atelier D'EMIL">
 <meta name="robots" content="index, follow">
-<meta name="language" content="French">
+<meta name="language" content="fr">
+
 <link rel="canonical" href="https://lempreinte-demil.onrender.com/">
+
+<!-- Favicon -->
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
 
-
-<!-- Balises Open Graph (Pour WhatsApp, Facebook, Instagram) -->
+<!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://lempreinte-demil.onrender.com/">
 <meta property="og:site_name" content="L'Empreinte D'Emil">
 <meta property="og:locale" content="fr_FR">
+
 <meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
-<meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta property="og:image:width" content="630">
-<meta property="og:image:height" content="1200">
 
-<!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
+<meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="L'Empreinte D'Emil — Boutique de Luxe à Douala">
+
+<!-- Twitter / X -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta name="twitter:description" content="Signez votre passage, imposez votre style. Parfums et articles haut de gamme à Douala.">
@@ -6820,88 +6826,64 @@ function toggleBundleSection() {
 async function saveProduct() {
   const nameFR = document.getElementById('p-name-fr').value.trim();
   const price = parseInt(document.getElementById('p-price').value)||0;
-  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return false; }
+  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return; }
 
-  const data = {
-    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
-    catId: document.getElementById('p-cat').value,
-    type: document.getElementById('p-type').value,
-    price, stock: parseInt(document.getElementById('p-stock').value)||0,
-    descFR: document.getElementById('p-desc-fr').value.trim(),
-    descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
-    isEssential: document.getElementById('p-is-essential').checked,
-    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
-    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
-    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
-      const parts = s.split(':');
-      if (parts.length < 2) return null;
-      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
-    }).filter(Boolean),
-  };
-
-  // Firebase est la source distante principale : on refuse de confirmer
-  // l'enregistrement si la base n'est pas initialisée ou si l'écriture échoue.
-  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-    const error = new Error('Firebase Realtime Database non disponible.');
-    console.error('[saveProduct] Firebase indisponible :', error);
-    showToast('Échec Firebase : impossible d’enregistrer le produit.', '❌');
-    return false;
-  }
-
-  let idx = -1;
-  let previousProduct = null;
-  let productToSave;
-  let isNewProduct = false;
+	  const data = {
+	    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
+	    catId: document.getElementById('p-cat').value,
+	    type: document.getElementById('p-type').value,
+	    price, stock: parseInt(document.getElementById('p-stock').value)||0,
+	    descFR: document.getElementById('p-desc-fr').value.trim(),
+	    descEN: document.getElementById('p-desc-en').value.trim(),
+	    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+	    isEssential: document.getElementById('p-is-essential').checked,
+	    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+	    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+	    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
+	      const parts = s.split(':');
+	      if (parts.length < 2) return null;
+	      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
+	    }).filter(Boolean),
+	  };
 
   if (editingProductId) {
-    idx = products.findIndex(p => p.id === editingProductId);
-    if (idx === -1) {
-      console.error('[saveProduct] Produit à modifier introuvable :', editingProductId);
-      showToast('Produit introuvable.', '❌');
-      return false;
+        const idx = products.findIndex(p=>p.id===editingProductId);
+    if (idx>-1) {
+      products[idx] = {...products[idx], ...data};
+      if (currentImgs.length) products[idx].imgs = currentImgs;
+      if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+        // Mise à jour granulaire pour éviter "Write too large"
+        firebaseDb.ref('storedData/products/' + idx).update(products[idx]);
+      }
     }
-    previousProduct = products[idx];
-    productToSave = {...previousProduct, ...data};
-    if (currentImgs.length) productToSave.imgs = currentImgs;
+    editingProductId = null;
+    document.getElementById('edit-banner').style.display = 'none';
   } else {
-    isNewProduct = true;
-    idx = products.length;
-    productToSave = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
-  }
-
-  try {
-    // Écriture explicite et ciblée dans Realtime Database. L'appel await
-    // garantit que le succès n'est annoncé qu'après résolution de Firebase.
-    await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
-  } catch (firebaseError) {
-    console.error('[saveProduct] Échec de l’écriture Firebase pour le produit ' + productToSave.id + ':', firebaseError);
-    if (isNewProduct) {
-      products.splice(idx, 0);
-    } else if (previousProduct) {
-      products[idx] = previousProduct;
+        const newProd = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
+    const nextIndex = products.length;
+    products.push(newProd);
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      // Ajout granulaire au nœud spécifique
+      firebaseDb.ref('storedData/products/' + nextIndex).set(newProd);
     }
-    showToast('Échec Firebase : produit non enregistré. Vérifiez les règles d’accès ou la connexion.', '❌');
-    return false;
   }
 
-  if (isNewProduct) products.push(productToSave);
-  else products[idx] = productToSave;
-
-  editingProductId = null;
-  document.getElementById('edit-banner').style.display = 'none';
-
-  // Le cache LocalStorage est facultatif et ne doit jamais bloquer Firebase.
+  // Le cache LocalStorage est facultatif : une saturation du quota ne doit
+  // jamais empêcher l’enregistrement direct déjà envoyé à Firebase ci-dessus.
   try {
     localStorage.setItem('lemil_products', JSON.stringify(products));
   } catch (cacheError) {
-    console.warn('[saveProduct] Cache LocalStorage ignoré après succès Firebase :', cacheError);
+    if (cacheError && (cacheError.name === 'QuotaExceededError' || cacheError.code === 22)) {
+      console.warn('[saveProduct] Quota LocalStorage dépassé : cache ignoré.', cacheError);
+    } else {
+      console.warn('[saveProduct] Échec du cache LocalStorage : cache ignoré.', cacheError);
+    }
   }
-
+  showToast('Produit enregistré !');
   resetProductForm();
   renderAdminProducts();
   renderAdminDashboard();
-  return true;
+  // syncPush handled via direct set or DB.set patch
 }
 
 function editProduct(id) {
@@ -10064,42 +10046,35 @@ function editProductGo(id) {
 // Patch saveProduct to save engraving config
 const _origSaveProduct = saveProduct;
 saveProduct = async function() {
-  // Conserver l'identifiant avant que la fonction principale ne réinitialise
-  // editingProductId, afin de mettre à jour le bon produit en mode édition.
-  const productIdBeingEdited = editingProductId;
-  const saved = await _origSaveProduct();
-  if (!saved) return false;
-
+  // Call original which handles Firebase direct set and products array update
+  await _origSaveProduct();
+  
+  // After save, check if engraving fields exist and update last saved product
   const enabled = document.getElementById('p-engraving-enabled')?.checked || false;
-  const targetId = productIdBeingEdited || products[products.length - 1]?.id;
-  if (targetId) {
-    const idx = products.findIndex(p => p.id === targetId);
-    if (idx > -1) {
-      products[idx].engraving = {
-        enabled,
-        price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
-        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
-        labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
-        labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
-      };
-      try {
-        // Cette seconde écriture est attendue avant la confirmation finale.
-        await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
-      } catch (firebaseError) {
-        console.error('[saveProduct] Échec Firebase pour la configuration de gravure :', firebaseError);
-        showToast('Échec Firebase : la configuration du produit n’a pas été enregistrée.', '❌');
-        return false;
-      }
-      try {
-        localStorage.setItem('lemil_products', JSON.stringify(products));
-      } catch (cacheError) {
-        console.warn('[saveProduct] Cache LocalStorage ignoré après succès Firebase :', cacheError);
+  if (products.length > 0) {
+    const targetId = editingProductId || products[products.length - 1]?.id;
+    if (targetId) {
+      const idx = products.findIndex(p => p.id === targetId);
+      if (idx > -1) {
+        products[idx].engraving = {
+          enabled,
+          price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
+          maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
+          labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
+          labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
+        };
+        // Update Firebase directly for the engraving part too
+        if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+          firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+        }
+        // Save locally without triggering global syncPush again
+        const _oldSync = SYNC_CONFIG.enabled;
+        SYNC_CONFIG.enabled = false;
+        DB.set('products', products);
+        SYNC_CONFIG.enabled = _oldSync;
       }
     }
   }
-
-  showToast('Produit enregistré !');
-  return true;
 };
 
 // Patch editProduct to load engraving fields
