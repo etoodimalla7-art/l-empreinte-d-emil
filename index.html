@@ -13206,7 +13206,7 @@ window.addEventListener('load', () => setTimeout(() => {
   // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
   // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
   const NOTCHPAY_CONFIG = {
-    publicKey: 'pk_test.SlRXSbceYylAHTcgXtBsHvbBBbnVchla3mDBHRSDXJXhOKUsOFCDtJzRSAMddJd8rbi9T3BKGfaZ05Hsfyr3Y9EBlZYRBYPtIAu7cK8ozKgctezjV1feVnMdEnH1v',              // ex. pk_test.... (clé publique uniquement)
+    publicKey: 'pk_test.szD962UrXvy7AvNHB5eGTmH7jmRlECad4rKMpAsJB7bzw3hdpbpthHCVldW6JNQ9LK1HyauBKz44fsAUUOw4yPTuQrSsqNkNMo81Q0WRgsZ1AAayET56CBQvDPavk',              // ex. pk_test.... (clé publique uniquement)
     createPaymentEndpoint: '', // ex. https://votre-domaine.tld/notchpay/create
     callbackUrl: '',            // ex. https://votre-domaine.tld/payment/callback
     verifyPaymentEndpoint: '',  // ex. https://votre-domaine.tld/notchpay/verify
@@ -13217,6 +13217,17 @@ window.addEventListener('load', () => setTimeout(() => {
   function initNotchPayClient(){ if(notchpayClient||!NOTCHPAY_CONFIG.publicKey||typeof window.NotchPay!=='function') return notchpayClient; try{notchpayClient=new window.NotchPay(NOTCHPAY_CONFIG.publicKey);}catch(e){console.warn('[Notch Pay] SDK init failed',e);} return notchpayClient; }
 
   const toast = (message, icon='ℹ️') => window.showToast ? window.showToast(message, icon) : window.alert(message);
+  // Exposé globalement: le bouton HTML et le gestionnaire final partagent la même référence.
+  window.openClientSideNotchPay = function(amount, currency, customer, reference){
+    if(!NOTCHPAY_CONFIG.publicKey) throw new Error('Ajoutez votre clé publique Notch Pay dans NOTCHPAY_CONFIG.publicKey.');
+    if(typeof window.NotchPay!=='function') throw new Error('Le SDK Notch Pay n’est pas chargé. Déployez le site en HTTPS puis réessayez.');
+    let client; try{ client=new window.NotchPay(NOTCHPAY_CONFIG.publicKey); }catch(e){ throw new Error('Initialisation du SDK Notch Pay impossible.'); }
+    let host=q('#notchpay-client-button'); if(!host){host=document.createElement('div');host.id='notchpay-client-button';host.style.cssText='position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:hidden;';document.body.appendChild(host);} host.innerHTML='';
+    if(typeof client.createButton!=='function') throw new Error('La version chargée du SDK Notch Pay ne fournit pas createButton.');
+    client.createButton({amount:Math.round(Number(amount||0)),currency:currency||'XAF',customer:customer||{},reference:reference||('EMIL-'+Date.now()),container:'#notchpay-client-button',text:'Payer avec Notch Pay'});
+    setTimeout(()=>{const button=host.querySelector('button,a,[role="button"]');if(button)button.click();},100);
+    return true;
+  };
 
   function compressReviewImage(file){
     return new Promise((resolve,reject)=>{
@@ -13288,7 +13299,7 @@ window.addEventListener('load', () => setTimeout(() => {
       const order={...data,id:data.reference,status:'En attente',date:new Date().toISOString(),items:[...(typeof cart!=='undefined'?cart:(window.cart||[]))],paymentProvider:'notchpay',paymentStatus:'pending'};
       if(!NOTCHPAY_CONFIG.createPaymentEndpoint){
         if(!NOTCHPAY_CONFIG.publicKey) throw new Error('Ajoutez votre clé publique Notch Pay dans NOTCHPAY_CONFIG.publicKey pour ouvrir le paiement client-side.');
-        orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order; openClientSideNotchPay(data); return;
+        orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order; window.openClientSideNotchPay(data.total,'XAF',{name:data.name,phone:data.phone},data.reference); return;
       }
       const response=await fetch(NOTCHPAY_CONFIG.createPaymentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,callbackUrl:NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname})});
       const result=await response.json().catch(()=>({}));
