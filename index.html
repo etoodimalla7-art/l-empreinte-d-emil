@@ -36,8 +36,7 @@
 <meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
 
 <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script><script>
 
 /* FINAL FUNCTIONAL FIXES: resilient offline checkout, country switch, detailed fallback and push diagnostics */
 (function(){
@@ -67,6 +66,14 @@
     return {name,phone,city,address,notes:$('#c-msg')?.value.trim()||'',subtotal:Number(totals.subtotal||0),deliveryFee:delivery,total:Number(totals.subtotal||0)+delivery+gift,method,reference:'EMIL-'+Date.now(),promoCode:$('#promo-code')?.value.trim()||undefined,...cardData()};
   }
   async function safePayment(){ throw new Error('Le paiement réel doit être initialisé par le backend Notch Pay configuré.'); }
+  function openClientSideNotchPay(data){
+    const client=initNotchPayClient();
+    if(!client||typeof client.createButton!=='function') throw new Error('SDK Notch Pay indisponible. Vérifiez la clé publique et le chargement HTTPS du SDK.');
+    let host=q('#notchpay-client-button'); if(!host){host=document.createElement('div');host.id='notchpay-client-button';host.style.cssText='position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;overflow:hidden;';document.body.appendChild(host);}
+    host.innerHTML='';
+    client.createButton({amount:Math.round(Number(data.total||0)),currency:'XAF',customer:{name:data.name,phone:data.phone},reference:data.reference,container:'#notchpay-client-button',text:'Payer avec Notch Pay'});
+    setTimeout(()=>{const btn=host.querySelector('button,a,[role="button"]');if(btn)btn.click();else throw new Error('Le bouton Notch Pay n’a pas pu être initialisé.');},80);
+  }
   window.proceedSecurePayment=async function(){
     try{ensureCardForm();payload();}catch(e){if(window.showToast)window.showToast(e.message,'⚠️');return;}
     if(window.showToast)window.showToast('Le paiement réel doit être initialisé par le backend Notch Pay configuré.','⚠️');
@@ -13199,7 +13206,7 @@ window.addEventListener('load', () => setTimeout(() => {
   // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
   // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
   const NOTCHPAY_CONFIG = {
-    publicKey: 'pk_test.Bop5q6OrQFMRohuTfqPfGCTeZSWGhyjW4WwL6GNxW7XH72VYHR3sFb4eu90MGiXTXi3S4rv3I17X2LvMhHdSzISbv6z2eAR86zK55IsTqUqPFHxofSTunKYIqHEpv',              // ex. pk_test.... (clé publique uniquement)
+    publicKey: 'pk_test.SlRXSbceYylAHTcgXtBsHvbBBbnVchla3mDBHRSDXJXhOKUsOFCDtJzRSAMddJd8rbi9T3BKGfaZ05Hsfyr3Y9EBlZYRBYPtIAu7cK8ozKgctezjV1feVnMdEnH1v',              // ex. pk_test.... (clé publique uniquement)
     createPaymentEndpoint: '', // ex. https://votre-domaine.tld/notchpay/create
     callbackUrl: '',            // ex. https://votre-domaine.tld/payment/callback
     verifyPaymentEndpoint: '',  // ex. https://votre-domaine.tld/notchpay/verify
@@ -13277,9 +13284,12 @@ window.addEventListener('load', () => setTimeout(() => {
     let data; try{data=getCheckoutData();}catch(e){return toast(e.message,'⚠️');}
     const button=q('.btn-secure-payment'); if(button){button.disabled=true;button.querySelector('span:last-child').textContent='Connexion sécurisée…';}
     try{
-      if(!NOTCHPAY_CONFIG.createPaymentEndpoint) throw new Error('Le paiement réel n’est pas encore configuré. Ajoutez l’URL HTTPS de création Notch Pay côté serveur.');
       if(data.promoCode){ const consumed=await consumePromoCode(data.promoCode); if(!consumed.ok) throw new Error('Ce code de réduction est invalide ou déjà utilisé.'); }
-      const order={...data,id:data.reference,status:'En attente',date:new Date().toISOString(),items:[...(window.cart||[])],paymentProvider:'notchpay',paymentStatus:'pending'};
+      const order={...data,id:data.reference,status:'En attente',date:new Date().toISOString(),items:[...(typeof cart!=='undefined'?cart:(window.cart||[]))],paymentProvider:'notchpay',paymentStatus:'pending'};
+      if(!NOTCHPAY_CONFIG.createPaymentEndpoint){
+        if(!NOTCHPAY_CONFIG.publicKey) throw new Error('Ajoutez votre clé publique Notch Pay dans NOTCHPAY_CONFIG.publicKey pour ouvrir le paiement client-side.');
+        orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order; openClientSideNotchPay(data); return;
+      }
       const response=await fetch(NOTCHPAY_CONFIG.createPaymentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,callbackUrl:NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname})});
       const result=await response.json().catch(()=>({}));
       if(!response.ok||(!result.checkoutUrl&&!result.paymentId&&!result.payment?.transaction?.id)) throw new Error(result.message||'Impossible d’initialiser le paiement sécurisé.');
@@ -13291,10 +13301,21 @@ window.addEventListener('load', () => setTimeout(() => {
     finally{ if(button){button.disabled=false;button.querySelector('span:last-child').textContent='Procéder au paiement sécurisé';} }
   };
   async function handleNotchPayReturn(){ const params=new URLSearchParams(location.search); const reference=params.get('reference')||params.get('trxref'); if(!reference||!NOTCHPAY_CONFIG.verifyPaymentEndpoint)return; try{ const response=await fetch(NOTCHPAY_CONFIG.verifyPaymentEndpoint+'?reference='+encodeURIComponent(reference),{headers:{'Accept':'application/json'}}); const result=await response.json().catch(()=>({})); if(!response.ok||result.status!=='complete') return toast('Paiement non confirmé. Aucun reçu ne sera validé.','⚠️'); const rows=monitoringOrders(); const found=rows.find(o=>o.id===reference||o.reference===reference); if(found){found.status='Validé';found.paymentStatus='complete';DB.set('orders',rows);window.currentOrder=found;lastOrderData=found;if(typeof openReceiptModal==='function')openReceiptModal(found);} toast('Paiement confirmé.','✅'); }catch(e){ console.warn('[Notch Pay] Vérification impossible',e); toast('Vérification du paiement indisponible.','⚠️'); } }
+  function whatsappProductFor(item){ const list=Array.isArray(products)?products:[]; return list.find(p=>String(p.id)===String(item?.id))||null; }
+  function whatsappVariantLines(item,product){
+    const variants=[]; const push=(label,value)=>{if(value!==undefined&&value!==null&&String(value).trim()!=='')variants.push(`${label} : ${String(value).trim()}`);};
+    push('Taille',item?.size); push('Couleur',item?.color); push('Pointure',item?.pointure??item?.shoeSize??item?.shoe_size); push('Contenance',item?.volume); if(item?.variant&&typeof item.variant==='string')push('Variante',item.variant);
+    const extra=item?.variants&&typeof item.variants==='object'?item.variants:{}; push('Taille',extra.size??extra.taille); push('Couleur',extra.color??extra.couleur); push('Pointure',extra.pointure??extra.shoeSize); push('Contenance',extra.volume??extra.contenance);
+    if(product?.variant&&typeof product.variant==='string'&&!variants.length)push('Variante',product.variant); return variants.length?variants.join(' / '):'Standard';
+  }
   window.openWhatsAppFallback=function(){
-    const data=getCheckoutData(); const wa=(typeof settings!=='undefined'&&settings.waNumber)||'237694092202';
-    const lines=[`Bonjour L’Empreinte d’Emil, je souhaite commander.`,`Nom : ${data.name}`,`Téléphone : ${data.phone}`,`Adresse : ${data.address}, ${data.city}`,`Total estimé : ${data.total} FCFA`];
-    window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(lines.join('\n')),'_blank','noopener');
+    const name=q('#c-name')?.value.trim()||''; const phone=(typeof window.getFullPhone==='function'?window.getFullPhone():q('#c-phone')?.value||'').replace(/\s/g,''); const city=q('#c-city')?.value||''; const address=q('#c-address')?.value.trim()||''; if(!name||!phone||!address)return toast('Veuillez renseigner votre nom, votre téléphone et votre adresse.','⚠️');
+    const items=typeof cart!=='undefined'&&Array.isArray(cart)?cart:(Array.isArray(window.cart)?window.cart:[]); if(!items.length)return toast('Votre panier est vide.','⚠️');
+    const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0}; const delivery=Number((q('#co-delivery')?.textContent||'').replace(/\D/g,''))||0; const promo=typeof renderCheckoutPromo==='function'?renderCheckoutPromo():{discount:0}; const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0; const subtotal=Number(totals.subtotal||0); const discount=Number(promo.discount||0); const total=Math.max(0,subtotal-discount+delivery+gift); const amount=v=>Math.round(Number(v||0)).toLocaleString('fr-FR');
+    const lines=[`Bonjour L'Empreinte d'Emil, je souhaite passer une commande :`,'',`📋 INFORMATIONS CLIENT :`,'',`- Nom : ${name}`,`- Téléphone : ${phone}`,`- Adresse de livraison : ${address}${city?', '+city:''}`,'',`🛍️ PRODUITS SÉLECTIONNÉS :`,''];
+    items.forEach((item,i)=>{ const product=whatsappProductFor(item); const label=product?(typeof prodName==='function'?prodName(product):(product.nameFR||product.name||product.nameEN||'Produit')):(item.name||item.nameFR||item.nameEN||`Produit ${item.id||''}`); const qty=Math.max(1,Number(item.qty||1)); const unit=Number(item.price??product?.price??0); const variant=whatsappVariantLines(item,product); lines.push(`${i+1}. ${label} (${variant}) - ${qty} x ${amount(unit)} FCFA = ${amount(unit*qty)} FCFA`); });
+    lines.push('',`💰 RÉCAPITULATIF FINANCIER :`,'',`- Sous-total : ${amount(subtotal)} FCFA`,`- Frais de livraison : ${amount(delivery)} FCFA`,`- Réduction / Promo : ${discount?'- '+amount(discount)+' FCFA':'Aucun'}`,`- GRAND TOTAL : ${amount(total)} FCFA`,'',`Merci de confirmer ma commande.`);
+    const wa=(typeof settings!=='undefined'&&settings.waNumber)||'237694092202'; const target='https://wa.me/'+String(wa).replace(/\D/g,'')+'?text='+encodeURIComponent(lines.join('\n')); window.open(target,'_blank','noopener');
   };
   window.sendWhatsApp=window.openWhatsAppFallback;
 
