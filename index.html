@@ -2119,6 +2119,65 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 
 </style>
 <script id="notchpay-sdk" src="https://cdn.jsdelivr.net/npm/notchpay.js@1.0.1/dist/notchpay-sdk.min.js" defer></script>
+
+<style id="emil-luxe-mobile-overrides">
+/* Luxury UI / mobile fit overrides */
+html,body{max-width:100%;overflow-x:hidden}
+*,*::before,*::after{box-sizing:border-box}
+img,svg,video,iframe{max-width:100%}
+
+/* Cart drawer: the list scrolls, the summary always stays accessible. */
+#cart-drawer{height:100dvh;max-height:100dvh;min-height:0;overflow:hidden}
+.cart-header{flex:0 0 auto}
+.cart-items{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding-bottom:28px}
+.cart-footer{flex:0 0 auto;min-height:max-content;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));position:relative;z-index:2;box-shadow:0 -10px 24px rgba(0,0,0,.2)}
+.cart-footer .btn-checkout{min-height:48px}
+
+/* Restrained inline SVG system, aligned with the gold accent. */
+.luxury-svg-icon{width:20px;height:20px;display:block;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.45;stroke-linecap:round;stroke-linejoin:round}
+.contact-item-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--gold);flex:0 0 24px;margin-top:0}
+.contact-item-icon .luxury-svg-icon{width:19px;height:19px}
+.quick-action-icon{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.18);border-radius:50%;flex:0 0 34px}
+.quick-action-icon .luxury-svg-icon{width:18px;height:18px}
+.btn-whatsapp{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:48px;padding:13px 18px;background:linear-gradient(135deg,#17140d,#0d0d0d);color:var(--gold-light);border:1px solid rgba(201,168,76,.62);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-family:var(--font-body);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;transition:background .25s ease,border-color .25s ease,transform .25s ease,box-shadow .25s ease}
+.btn-whatsapp .luxury-svg-icon{width:18px;height:18px}
+.btn-whatsapp:hover,.btn-whatsapp:focus-visible{background:linear-gradient(135deg,#2b2413,#14120d);border-color:var(--gold-light);color:#fff;transform:translateY(-1px);box-shadow:0 10px 28px rgba(201,168,76,.18);outline:none}
+
+/* Internal toast: works independently of native browser notifications. */
+#toast{left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));max-width:min(440px,calc(100vw - 28px));width:max-content;min-height:44px;padding:11px 16px;border-color:rgba(201,168,76,.48);background:rgba(19,18,14,.97);box-shadow:0 12px 34px rgba(0,0,0,.34);white-space:normal;text-align:left;line-height:1.4;opacity:0;pointer-events:none}
+#toast.show{opacity:1;pointer-events:auto}
+#toast .toast-icon{color:var(--gold);font-size:17px;line-height:1}
+
+/* Reviews: more assured cards, stable stars, no overflow on narrow screens. */
+.reviews-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));align-items:stretch}
+.review-card{display:flex;flex-direction:column;min-width:0;border-color:rgba(201,168,76,.22);box-shadow:0 10px 26px rgba(0,0,0,.14)}
+.review-stars{align-items:center;min-height:20px;gap:4px}
+.review-stars .star{display:inline-flex;align-items:center;justify-content:center;font-size:16px;line-height:1}
+.review-text{overflow-wrap:anywhere}
+.review-author{margin-top:auto}
+
+@media(max-width:600px){
+  .container{padding-left:14px;padding-right:14px}
+  #cart-drawer{right:-100vw;width:100vw;border-left:0}
+  #cart-drawer.open{right:0}
+  .cart-header{padding:16px 16px}
+  .cart-items{padding:12px 16px 26px}
+  .cart-footer{padding:14px 16px calc(22px + env(safe-area-inset-bottom,0px))}
+  .cart-total-amount{font-size:20px}
+  .contact-card{padding:20px}
+  .reviews-section{padding:52px 0}
+  .reviews-stats{padding:22px 18px}
+  .reviews-avg-num{font-size:54px}
+  .review-card{padding:18px}
+}
+@media(max-width:380px){
+  .cart-item{gap:8px}
+  .cart-item-img{width:58px;height:58px}
+  .cart-item-name{font-size:14px}
+  .cart-footer{padding-left:13px;padding-right:13px}
+  .btn-whatsapp{font-size:10px;letter-spacing:.1em}
+}
+</style>
 </head>
 <body>
 <!-- LUXE SPLASH SCREEN -->
@@ -3866,12 +3925,12 @@ Action: Immediate restocking required.</textarea></div>
         <div class="contact-grid">
           <div class="contact-card">
             <h3 data-i18n="contact_h3">Informations</h3>
-            <div class="contact-item"><div class="contact-item-icon">📍</div><p><strong data-i18n="address">Adresse</strong><span id="contact-address">Douala, Cameroun</span></p></div>
-            <div class="contact-item"><div class="contact-item-icon">💬</div><p><strong>WhatsApp</strong><span id="contact-wa">+237 6XX XXX XXX</span></p></div>
-            <div class="contact-item"><div class="contact-item-icon">📧</div><p><strong>Email</strong><span id="contact-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c7a4a8a9b3a6a4b387aba2aaaeabe9a4aa">[email&#160;protected]</a></span></p></div>
-            <div class="contact-item"><div class="contact-item-icon">🕐</div><p><strong data-i18n="hours">Horaires</strong><span data-i18n="hours_val">Lun-Sam: 8h - 20h</span></p></div>
+            <div class="contact-item"><div class="contact-item-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/></svg></div><p><strong data-i18n="address">Adresse</strong><span id="contact-address">Douala, Cameroun</span></p></div>
+            <div class="contact-item"><div class="contact-item-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.7 8.7 0 0 1-3.5-.7L4 20l1.4-3.7A7.2 7.2 0 0 1 4.5 12 7.5 7.5 0 0 1 12 4.5a7.5 7.5 0 0 1 8 7Z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg></div><p><strong>WhatsApp</strong><span id="contact-wa">+237 6XX XXX XXX</span></p></div>
+            <div class="contact-item"><div class="contact-item-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="m4.5 7 7.5 6 7.5-6"/></svg></div><p><strong>Email</strong><span id="contact-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c7a4a8a9b3a6a4b387aba2aaaeabe9a4aa">[email&#160;protected]</a></span></p></div>
+            <div class="contact-item"><div class="contact-item-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></svg></div><p><strong data-i18n="hours">Horaires</strong><span data-i18n="hours_val">Lun-Sam: 8h - 20h</span></p></div>
             <div style="margin-top:18px">
-              <button class="btn-whatsapp" onclick="openWhatsAppDirect()"><span>💬</span><span data-i18n="open_wa">Ouvrir WhatsApp</span></button>
+              <button class="btn-whatsapp" onclick="openWhatsAppDirect()"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.7 8.7 0 0 1-3.5-.7L4 20l1.4-3.7A7.2 7.2 0 0 1 4.5 12 7.5 7.5 0 0 1 12 4.5a7.5 7.5 0 0 1 8 7Z"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01"/></svg><span data-i18n="open_wa">Ouvrir WhatsApp</span></button>
             </div>
           </div>
           <div class="contact-card">
@@ -3879,14 +3938,14 @@ Action: Immediate restocking required.</textarea></div>
             <p style="font-size:12px;color:var(--muted);margin-bottom:18px" data-i18n="contact_sub">Envoyez-nous un message directement sur WhatsApp pour toute question.</p>
             <div style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;gap:12px;align-items:center;background:var(--dark-3);border-radius:8px;padding:14px">
-                <span style="font-size:28px">📱</span>
+                <span class="quick-action-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3.5" width="10" height="17" rx="2"/><path d="M10 6h4M11 17.5h2"/></svg></span>
                 <div>
                   <div style="font-size:11px;color:var(--muted)" data-i18n="cash_delivery">Cash à la livraison (Douala)</div>
                   <div style="font-size:12px;font-weight:500">Mobile Money accepté</div>
                 </div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;background:var(--dark-3);border-radius:8px;padding:14px">
-                <span style="font-size:28px">📦</span>
+                <span class="quick-action-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 8 8-4 8 4-8 4-8-4Z"/><path d="M4 8v8l8 4 8-4V8M12 12v8"/></svg></span>
                 <div>
                   <div style="font-size:11px;color:var(--muted)" data-i18n="express_delivery">Livraison express</div>
                   <div style="font-size:12px;font-weight:500" data-i18n="delivery_24h">Douala &lt; 24h · Cameroun 48–72h</div>
@@ -4298,8 +4357,21 @@ Action: Immediate restocking required.</textarea></div>
 </div>
 
 
-<div id="toast"><span class="toast-icon">✅</span><span id="toast-msg"></span></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"><span class="toast-icon" aria-hidden="true">✦</span><span id="toast-msg"></span></div>
 
+
+<script>
+(function(){
+  const nativeShowToast=window.showToast;
+  window.showToast=function(message,icon='✦'){
+    const el=document.getElementById('toast'),msg=document.getElementById('toast-msg'),ico=el?.querySelector('.toast-icon');
+    if(!el||!msg){ if(typeof nativeShowToast==='function') return nativeShowToast(message,icon); return; }
+    msg.textContent=String(message??''); if(ico)ico.textContent=icon;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    clearTimeout(window.__emilToastTimer); window.__emilToastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+  };
+})();
+</script>
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
 
@@ -7129,7 +7201,7 @@ async function saveProduct() {
     return false;
   }
 
-  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; }
+  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; if (typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(productToSave); }
   else products[idx] = productToSave;
 
   editingProductId = null;
@@ -13206,7 +13278,7 @@ window.addEventListener('load', () => setTimeout(() => {
   // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
   // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
   const NOTCHPAY_CONFIG = {
-    publicKey: 'pk_test.HeJESh99jb340R3UMokHRlvulONEU5e1Y0LCxlFAPdJrOq5r5HRd9t1X4nEO6KaCgScwPKErDqhE4GJk8N74aUE7mbtnP8GZ8QABSTZ0Zz4H0EkrkuvoYRd10VJxa',              // ex. pk_test.... (clé publique uniquement)
+    publicKey: 'pk_test.BBoq24yZ87sAdgN4L8CCTCR5HGTJRAHn0poLpKPKk0FtJHJIZ4fkWGXLFuSP70WYXO6bSqtCyFPXVHYFTx8JX0y7yMj3oXsr9RL22uKE4ot7nAEF3OmATMF6Mr1hv',              // ex. pk_test.... (clé publique uniquement)
     createPaymentEndpoint: '', // ex. https://votre-domaine.tld/notchpay/create
     callbackUrl: '',            // ex. https://votre-domaine.tld/payment/callback
     verifyPaymentEndpoint: '',  // ex. https://votre-domaine.tld/notchpay/verify
@@ -13410,6 +13482,71 @@ window.addEventListener('load', () => setTimeout(() => {
   document.addEventListener('click',e=>{if(e.target.closest('#admin-panel'))setTimeout(()=>{renderLiveAdminOps();renderOtpPromosAdmin();},250);});
 })();
 
+</script>
+
+<script id="emil-smart-notifications">
+(function(){
+  'use strict';
+  const PRODUCT_EVENT_KEY='emil:last-published-product';
+  const CART_MARK_KEY='emil:cart-last-active';
+  const SEEN_KEY='emil:seen-product-events';
+  const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('emil-shop-events'):null;
+  const safeJson=(value,fallback)=>{try{return JSON.parse(value)}catch(_){return fallback}};
+  const productTitle=p=>String(p?.nameFR||p?.name||p?.nameEN||'Nouvelle pièce');
+  const productImage=p=>p?.imgs?.[0]||p?.image||p?.img||'https://i.postimg.cc/HLdg7Tb5/logo.png';
+  const show=(message,icon='✦')=>{if(typeof window.showToast==='function')window.showToast(message,icon);};
+  function browserNotice(title,body,image,tag){
+    if(!('Notification' in window)||Notification.permission!=='granted')return false;
+    try{new Notification(title,{body,icon:image,badge:image,tag});return true}catch(_){return false}
+  }
+  function eventId(p){return String(p?.id||'')+'|'+String(p?.updatedAt||p?.createdAt||'');}
+  function announceProduct(p,remote){
+    if(!p||!p.id)return;
+    const id=eventId(p),seen=safeJson(localStorage.getItem(SEEN_KEY)||'[]',[]);
+    if(seen.includes(id))return;
+    seen.push(id);localStorage.setItem(SEEN_KEY,JSON.stringify(seen.slice(-30)));
+    const title=productTitle(p),body='L’Empreinte d’Emil : Nouveau produit disponible ! Venez découvrir '+title+'.';
+    show(title+' est maintenant disponible.','✦');
+    browserNotice('L’Empreinte d’Emil',body,productImage(p),'emil-product-'+p.id);
+  }
+  window.emilPublishNewProduct=function(product){
+    const event={type:'new-product',product,at:Date.now()};
+    try{localStorage.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
+    if(channel)try{channel.postMessage(event)}catch(_){ }
+    announceProduct(product,false);
+  };
+  function onEvent(event){if(event?.type==='new-product')announceProduct(event.product,true)}
+  if(channel)channel.addEventListener('message',e=>onEvent(e.data));
+  window.addEventListener('storage',e=>{if(e.key===PRODUCT_EVENT_KEY&&e.newValue)onEvent(safeJson(e.newValue,null))});
+
+  function cartCount(){return Array.isArray(window.cart)?window.cart.reduce((sum,item)=>sum+Math.max(0,Number(item?.qty)||0),0):0}
+  function markCart(){const count=cartCount();if(count){localStorage.setItem(CART_MARK_KEY,JSON.stringify({count,at:Date.now()}))}else{localStorage.removeItem(CART_MARK_KEY)}}
+  function remindCart(){
+    const data=safeJson(localStorage.getItem(CART_MARK_KEY)||'null',null);if(!data||!data.count)return;
+    const age=Date.now()-Number(data.at||0),day=86400000;
+    if(age<45*60*1000||age>7*day)return;
+    const key='emil:cart-reminded:'+new Date().toISOString().slice(0,10);if(localStorage.getItem(key))return;
+    localStorage.setItem(key,'1');show('Votre sélection vous attend dans le panier.','🛍');
+    browserNotice('Votre sélection vous attend','Finalisez votre commande quand vous êtes prêt(e).','https://i.postimg.cc/HLdg7Tb5/logo.png','emil-cart-reminder');
+  }
+  function peakCollectionReminder(){
+    const h=new Date().getHours();if(![12,18,20].includes(h))return;
+    const key='emil:collection-reminder:'+new Date().toISOString().slice(0,13);if(localStorage.getItem(key))return;
+    localStorage.setItem(key,'1');show('Découvrez nos pièces signature.','✦');
+  }
+  function wire(){
+    if(typeof window.saveCart==='function'&&!window.saveCart.__emilWrapped){
+      const original=window.saveCart;
+      const wrapped=function(){const result=original.apply(this,arguments);markCart();return result};
+      wrapped.__emilWrapped=true;window.saveCart=wrapped;
+    }
+    markCart();remindCart();peakCollectionReminder();
+    setInterval(()=>{markCart();remindCart();peakCollectionReminder()},5*60*1000);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(wire,100));else setTimeout(wire,100);
+  // Optional enhancement: use a deployed same-origin Service Worker when one exists.
+  if('serviceWorker' in navigator&&window.isSecureContext){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+})();
 </script>
 </body>
 </html>
