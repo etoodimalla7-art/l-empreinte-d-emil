@@ -26,8 +26,8 @@
 <meta property="og:title" content="L'EMPREINTE D'EMIL — Boutique de Luxe">
 <meta property="og:description" content="Signez votre passage, imposez votre style. Découvrez notre collection exclusive de parfums et d'articles haut de gamme à Douala.">
 <meta property="og:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:width" content="630">
+<meta property="og:image:height" content="1200">
 
 <!-- Balises Twitter Card (Pour la visibilité sur X/Twitter) -->
 <meta name="twitter:card" content="summary_large_image">
@@ -37,6 +37,54 @@
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script>
+
+/* FINAL FUNCTIONAL FIXES: resilient offline checkout, country switch, detailed fallback and push diagnostics */
+(function(){
+  'use strict';
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc2=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isCameroon=()=>{const raw=(typeof window.getFullPhone==='function'?window.getFullPhone():$('#c-phone')?.value||'').replace(/\s/g,'');return raw.startsWith('+237')||(!raw.startsWith('+')&&raw.startsWith('237'));};
+  function money(n){return typeof window.fmt==='function'?window.fmt(Number(n)||0):(Number(n)||0).toLocaleString('fr-FR')+' FCFA';}
+  function ensureCardForm(){
+    const phone=$('#c-phone'); if(!phone)return;
+    let box=$('#emil-payment-options'); if(!box){box=document.createElement('div');box.id='emil-payment-options';phone.closest('.form-group')?.after(box);}
+    let card=$('#emil-card-form'); if(!card){card=document.createElement('div');card.id='emil-card-form';card.style.cssText='margin:12px 0;padding:14px;background:var(--dark-2);border:1px solid rgba(201,168,76,.18);border-radius:6px';card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--gold);margin-bottom:10px">Paiement international sécurisé par carte <span id="emil-card-brand" style="font-weight:700;letter-spacing:.08em;color:var(--light)"></span></div><div class="form-group"><label class="form-label">Numéro de carte *</label><input class="form-input" id="emil-card-number" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="19"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="form-group"><label class="form-label">Date d’expiration *</label><input class="form-input" id="emil-card-expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5"></div><div class="form-group"><label class="form-label">CVV *</label><input class="form-input" id="emil-card-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div><div class="form-group"><label class="form-label">Nom du titulaire *</label><input class="form-input" id="emil-card-holder" autocomplete="cc-name" placeholder="Nom figurant sur la carte"></div>';phone.closest('.form-group')?.after(card);}
+    const cam=isCameroon();
+    box.innerHTML=cam?'<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Paiement localisé — Cameroun (+237)</div><label><input type="radio" name="emil-pay" value="mtn_momo" checked> MTN MoMo</label><label style="margin-left:14px"><input type="radio" name="emil-pay" value="orange_money"> Orange Money</label>':'<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Paiement international</div><label><input type="radio" name="emil-pay" value="card" checked> Carte bancaire</label>';
+    card.style.display=cam?'none':'block';
+  }
+  function cardData(){
+    if(isCameroon())return {};
+    const number=($('#emil-card-number')?.value||'').replace(/\s/g,'');const expiry=$('#emil-card-expiry')?.value.trim()||'';const cvv=$('#emil-card-cvv')?.value.trim()||'';const holder=$('#emil-card-holder')?.value.trim()||'';
+    if(!/^\d{13,19}$/.test(number)||!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)||!/^\d{3,4}$/.test(cvv)||!holder)throw new Error('Renseignez les champs obligatoires de la carte bancaire.');
+    return {cardLast4:number.slice(-4),cardExpiry:expiry,cardHolder:holder};
+  }
+  function payload(){
+    const name=$('#c-name')?.value.trim()||'',phone=(typeof window.getFullPhone==='function'?window.getFullPhone():$('#c-phone')?.value||'').replace(/\s/g,''),city=$('#c-city')?.value||'',address=$('#c-address')?.value.trim()||'';
+    if(!name||!phone||!address)throw new Error('Veuillez renseigner votre nom, votre téléphone et votre adresse.');
+    const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0};const delivery=Number(($('#co-delivery')?.textContent||'').replace(/\D/g,''))||0;const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0;const method=isCameroon()?($('#emil-payment-options input:checked')?.value||'mtn_momo'):'card';
+    return {name,phone,city,address,notes:$('#c-msg')?.value.trim()||'',subtotal:Number(totals.subtotal||0),deliveryFee:delivery,total:Number(totals.subtotal||0)+delivery+gift,method,reference:'EMIL-'+Date.now(),promoCode:$('#promo-code')?.value.trim()||undefined,...cardData()};
+  }
+  async function safePayment(){ throw new Error('Le paiement réel doit être initialisé par le backend Notch Pay configuré.'); }
+  window.proceedSecurePayment=async function(){
+    try{ensureCardForm();payload();}catch(e){if(window.showToast)window.showToast(e.message,'⚠️');return;}
+    if(window.showToast)window.showToast('Le paiement réel doit être initialisé par le backend Notch Pay configuré.','⚠️');
+  };
+  window.openWhatsAppFallback=function(){
+    let data;try{ensureCardForm();data=payload();}catch(e){if(window.showToast)window.showToast(e.message,'⚠️');return;}
+    const items=typeof cart!=='undefined'&&Array.isArray(cart)?cart:[];let msg='Bonjour L’Empreinte d’Emil, voici ma commande détaillée.\n\n';
+    items.forEach((item,i)=>{const p=typeof getProd==='function'?getProd(item.id):null;const unit=Number(item.price??p?.price??0);const variants=[item.size&&`Taille : ${item.size}`,item.color&&`Couleur : ${item.color}`,item.volume&&`Contenance : ${item.volume}`].filter(Boolean);msg+=`${i+1}. ${p?(typeof prodName==='function'?prodName(p):p.name||'Produit'):'Produit'}\n   Quantité : ${item.qty}\n   Prix unitaire : ${money(unit)}\n`;if(variants.length)msg+=`   Variantes : ${variants.join(' · ')}\n`;msg+=`   Sous-total article : ${money(unit*Number(item.qty||0))}\n\n`;});
+    msg+=`Sous-total produits : ${money(data.subtotal)}\nFrais de livraison : ${money(data.deliveryFee)}\nTotal général : ${money(data.total)}\n\nNom : ${data.name}\nTéléphone : ${data.phone}\nAdresse : ${data.address}, ${data.city}`;if(data.notes)msg+=`\nNotes : ${data.notes}`;
+    const wa=(typeof settings!=='undefined'&&settings.waNumber)||'237694092202';window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(msg),'_blank','noopener');
+  };
+  function smartSchedule(){
+    if(!('Notification'in window)||Notification.permission!=='granted'||window.__emilSmartSchedule)return;window.__emilSmartSchedule=1;const key='emil-smart-push-'+new Date().toISOString().slice(0,10);const sent=JSON.parse(localStorage.getItem(key)||'{}');const texts={morning:['Une nouvelle signature vous attend.','Commencez la journée avec une pièce d’exception.'],noon:['Votre pause mérite une touche d’élégance.','Découvrez la sélection qui fait la différence.'],afternoon:['Un détail peut tout changer.','Les nouveautés Emil sont à découvrir.'],evening:['Ce soir, choisissez votre prochaine signature.','L’élégance vous attend avant la fin de la journée.']};let last=localStorage.getItem('emil-last-push-text')||'';const send=(kind,h)=>{const now=new Date(),target=new Date(now);target.setHours(h,0,0,0);if(target<=now)target.setDate(target.getDate()+1);const id=kind+'-'+h;if(sent[id])return;setTimeout(()=>{let choices=texts[kind].filter(t=>t!==last);const text=choices[Math.floor(Math.random()*choices.length)]||texts[kind][0];last=text;localStorage.setItem('emil-last-push-text',last);new Notification('L’Empreinte d’Emil',{body:text,icon:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-'+id});sent[id]=1;localStorage.setItem(key,JSON.stringify(sent));},Math.min(2147483647,Math.max(1000,target-now)));};[['morning',9],['noon',12],['afternoon',15],['evening',18],['evening',21]].forEach(x=>send(x[0],x[1]));setTimeout(()=>{if(!document.hidden)new Notification('L’Empreinte d’Emil',{body:'Vous nous manquez. Revenez découvrir votre sélection.',icon:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-idle'});},30*60*1000);}
+  window.emilPushDiagnostics=()=>({permission:'Notification'in window?Notification.permission:'unsupported',scheduled:!!window.__emilSmartSchedule,productImageHook:typeof window.emilNotifyProduct==='function',mode:'autonomous while page is open; true background push requires a deployed service worker and server endpoint'});
+  window.addEventListener('load',()=>setTimeout(()=>{const phone=$('#c-phone'),country=$('#c-phone-country');phone?.addEventListener('input',ensureCardForm);country?.addEventListener('change',ensureCardForm);ensureCardForm();if('Notification'in window&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')smartSchedule();});else smartSchedule();},950));
+})();
+
+</script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
@@ -368,8 +416,10 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 .checkout-total{display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,168,76,.2)}
 .checkout-total span:last-child{font-family:var(--font-display);font-size:19px;color:var(--gold)}
 .delivery-note{background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:4px;padding:10px 14px;font-size:12px;color:var(--gold);margin-bottom:16px}
-.btn-whatsapp{width:100%;background:#25D366;color:#fff;border:none;padding:15px;font-family:var(--font-body);font-size:13px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:10px}
-.btn-whatsapp:hover{background:#1ebc5a;transform:translateY(-1px);box-shadow:0 4px 20px rgba(37,211,102,.3)}
+.btn-secure-payment{width:100%;background:linear-gradient(135deg,var(--gold-light),var(--gold));color:var(--noir);border:none;padding:16px;font-family:var(--font-body);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:var(--shadow-gold)}
+.btn-secure-payment:hover{background:var(--gold-light);transform:translateY(-1px);box-shadow:0 6px 28px rgba(201,168,76,.42)}
+.checkout-whatsapp-fallback{display:block;text-align:center;margin-top:12px;color:var(--muted);font-size:11px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;transition:var(--transition)}
+.checkout-whatsapp-fallback:hover{color:var(--gold)}
 .btn-receipt{width:100%;background:var(--dark-3);color:var(--gold);border:1px solid rgba(201,168,76,.3);padding:12px;font-family:var(--font-body);font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px}
 .btn-receipt:hover{background:rgba(201,168,76,.1)}
 
@@ -2049,7 +2099,19 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   transition:opacity .5s ease;min-height:100%;
 }
 #hero{position:relative;overflow:hidden}
+
+/* FINAL LUXE REVIEW UPLOAD + LIVE ADMIN */
+.emil-review-dropzone{border:1px solid rgba(201,168,76,.32);border-radius:12px;background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(17,17,17,.72));padding:18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:.25s ease;min-height:96px}
+.emil-review-dropzone:hover,.emil-review-dropzone.dragover{border-color:var(--gold);box-shadow:var(--shadow-gold);transform:translateY(-1px)}
+.emil-review-dropzone-icon{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(201,168,76,.16);color:var(--gold);font-size:22px;flex-shrink:0}
+.emil-review-dropzone-copy strong{display:block;color:var(--gold);font-family:var(--font-display);font-size:17px;font-weight:400}
+.emil-review-dropzone-copy span{display:block;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.5}
+.emil-review-preview{display:none;margin-top:10px;position:relative;width:88px;height:88px;border-radius:8px;overflow:hidden;border:1px solid rgba(201,168,76,.35)}
+.emil-review-preview.show{display:block}.emil-review-preview img{width:100%;height:100%;object-fit:cover}.emil-review-preview button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(10,10,10,.8);color:#fff;cursor:pointer}
+.emil-live-ops{background:var(--dark-2);border:1px solid rgba(201,168,76,.14);border-radius:10px;padding:18px;margin:0 0 24px}.emil-live-ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}.emil-live-chip{background:var(--dark-3);border:1px solid rgba(201,168,76,.12);border-radius:7px;padding:12px}.emil-live-chip b{display:block;color:var(--gold);font-family:var(--font-display);font-size:22px}.emil-live-chip span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.emil-live-ops-actions{display:flex;gap:8px;flex-wrap:wrap}.emil-live-ops-actions button{background:transparent;border:1px solid rgba(201,168,76,.3);border-radius:4px;color:var(--gold);padding:7px 10px;font-size:11px;cursor:pointer}
+
 </style>
+<script src="https://cdn.jsdelivr.net/npm/notchpay-js@latest/dist/notchpay.min.js"></script>
 </head>
 <body>
 <!-- LUXE SPLASH SCREEN -->
@@ -2263,16 +2325,35 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     <div class="modal-body" id="checkout-body">
       <div class="checkout-summary" id="checkout-summary"></div>
       <div class="delivery-note" id="delivery-note">📍 Livraison à Douala dès 500 FCFA selon votre quartier · Autres villes à partir de 1500 FCFA</div>
+      <!-- PAYMENT SCOPE — interrupteur exclusif, placé en tête du parcours -->
+      <div class="form-group" id="payment-scope-group">
+        <label class="form-label">Mode de paiement *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button type="button" id="payment-scope-local-label" data-payment-scope="local" aria-pressed="true" style="display:flex;align-items:center;gap:8px;text-align:left;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.25);border-radius:5px;cursor:pointer;color:var(--light);font:inherit">
+            <span><strong style="display:block;color:var(--gold)">Paiement local (+237)</strong><small style="color:var(--muted)">MTN Mobile Money ou Orange Money</small></span>
+          </button>
+          <button type="button" id="payment-scope-international-label" data-payment-scope="international" aria-pressed="false" style="display:flex;align-items:center;gap:8px;text-align:left;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.12);border-radius:5px;cursor:pointer;color:var(--light);font:inherit">
+            <span><strong style="display:block;color:var(--gold)">Paiement international</strong><small style="color:var(--muted)">Carte bancaire</small></span>
+          </button>
+        </div>
+        <div id="payment-scope-hint" style="font-size:11px;color:var(--muted);margin-top:7px">Sélectionnez votre opérateur mobile money ci-dessous.</div>
+      </div>
+      <div id="emil-local-payment-fields">
+        <div class="form-group">
+          <label class="form-label" data-i18n="label_phone">Téléphone *</label>
+          <div class="phone-field-wrap">
+            <select class="country-code-select" id="c-phone-country" onchange="updatePhonePlaceholder()"></select>
+            <input class="form-input phone-number-input" id="c-phone" placeholder="6XX XXX XXX" type="tel">
+          </div>
+        </div>
+        <div id="emil-payment-options" style="margin:12px 0;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:6px"></div>
+      </div>
+      <div id="emil-international-payment-fields" style="display:none">
+        <div id="emil-card-form" style="margin:12px 0;padding:14px;background:var(--dark-2);border:1px solid rgba(201,168,76,.18);border-radius:6px"><div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--gold);margin-bottom:10px">Paiement international sécurisé par carte <span id="emil-card-brand" style="font-weight:700;letter-spacing:.08em;color:var(--light)"></span></div><div class="form-group"><label class="form-label">Numéro de carte *</label><input class="form-input" id="emil-card-number" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="19"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="form-group"><label class="form-label">Date d’expiration *</label><input class="form-input" id="emil-card-expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5"></div><div class="form-group"><label class="form-label">CVV *</label><input class="form-input" id="emil-card-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div><div class="form-group"><label class="form-label">Nom du titulaire *</label><input class="form-input" id="emil-card-holder" autocomplete="cc-name" placeholder="Nom figurant sur la carte"></div></div>
+      </div>
       <div class="form-group">
         <label class="form-label" data-i18n="label_name">Nom complet *</label>
         <input class="form-input" id="c-name" placeholder="Votre nom complet" type="text">
-      </div>
-      <div class="form-group">
-        <label class="form-label" data-i18n="label_phone">Téléphone *</label>
-        <div class="phone-field-wrap">
-          <select class="country-code-select" id="c-phone-country" onchange="updatePhonePlaceholder()"></select>
-          <input class="form-input phone-number-input" id="c-phone" placeholder="6XX XXX XXX" type="tel">
-        </div>
       </div>
       <!-- CITY SELECTOR -->
       <div class="form-group">
@@ -2292,6 +2373,15 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
       <div class="form-group">
         <label class="form-label" data-i18n="label_msg">Notes (optionnel)</label>
         <textarea class="form-textarea" id="c-msg" placeholder="Instructions spéciales..."></textarea>
+      </div>
+      <!-- PROMO CODE -->
+      <div class="form-group" id="checkout-promo-group">
+        <label class="form-label">Code de réduction / Parrainage</label>
+        <div style="display:flex;gap:8px">
+          <input class="form-input" id="promo-code" type="text" autocomplete="off" placeholder="Ex. EMIL-AB12CD" style="text-transform:uppercase">
+          <button type="button" class="admin-btn" id="apply-promo-code" style="white-space:nowrap" onclick="applyCheckoutPromo()">Appliquer</button>
+        </div>
+        <div id="promo-feedback" style="font-size:11px;margin-top:6px;min-height:15px"></div>
       </div>
       <!-- TOTAL BOX -->
       <div id="checkout-total-box" style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:6px;padding:14px;margin-bottom:16px">
@@ -2321,9 +2411,10 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
         </div>
       </div>
 
-      <button class="btn-whatsapp" onclick="sendWhatsApp()">
-        <span>💬</span><span data-i18n="send_order">Envoyer la commande sur WhatsApp</span>
+      <button class="btn-secure-payment" onclick="proceedSecurePayment()">
+        <span>◈</span><span>Procéder au paiement sécurisé</span>
       </button>
+      <a class="checkout-whatsapp-fallback" href="#" onclick="event.preventDefault();openWhatsAppFallback()">Préférer commander via WhatsApp</a>
     </div>
   </div>
 </div>
@@ -3442,6 +3533,11 @@ Action: Immediate restocking required.</textarea></div>
         <div style="max-width:760px">
           <div class="admin-toolbar"><h3>Promotions actives</h3><button class="admin-btn" onclick="showPromoForm()">+ Créer promo</button></div>
           <div id="promos-list"></div>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid rgba(201,168,76,.15)">
+            <div class="admin-toolbar"><h3>Codes de réduction à usage unique</h3><button class="admin-btn" type="button" onclick="generatePromoCode()">+ Générer un code</button></div>
+            <p style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:10px">Chaque code accorde automatiquement 10% de réduction et devient invalide dès qu’une commande l’a consommé.</p>
+            <div id="otp-promos-list"></div>
+          </div>
           <div id="promo-form" style="display:none;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:18px;margin-top:14px">
             <div class="admin-form-grid">
               <div><label class="admin-label">Texte bannière (FR) *</label><input class="admin-input" id="pf-text-fr" placeholder="🎉 PROMO -10% sur tout !"></div>
@@ -4280,7 +4376,7 @@ const SHARED_KEYS = [
   'categories','products','settings','colors','reviews',
   'deliveryFees','deliveryRules','quartiers',
   'pillars','whyItems','lookProducts','aboutTagline',
-  'promos','quizQuestions','bundleRelations',
+  'promos','promoCodes','quizQuestions','bundleRelations',
   'loyaltyRules','loyaltyCustomers',
   'showcasePhotos','countdowns','orderStatuses','statusLabels',
   'faqItems','giftSettings',
@@ -4875,7 +4971,7 @@ const TR = {
     checkout:'Commander →', checkout_title:'Finaliser la commande',
     label_name:'Nom complet *', label_phone:'Téléphone *', label_city:'Ville de livraison *',
     label_address:'Adresse *', label_msg:'Notes (optionnel)',
-    send_order:'Envoyer la commande sur WhatsApp', download_receipt:'Télécharger le reçu',
+    send_order:'Procéder au paiement sécurisé', download_receipt:'Télécharger le reçu',
     hero_eyebrow:'Douala, Cameroun', slogan:'Signez votre passage, imposez votre style',
     discover:'Découvrir la boutique', delivery_info:'Infos livraison',
     cats_label:'Collections', featured_label:'Sélection', new_label:'Nouveautés',
@@ -5989,6 +6085,7 @@ function sanitizeData() {
 // ============================================================
 let coDelivery = 500;
 let lastOrderData = null; // stores the last completed order for receipt
+window.currentOrder = null;
 
 function getQuartiers() {
   return DB.get('quartiers', DEFAULT_QUARTIERS);
@@ -6105,7 +6202,7 @@ function openCheckout() {
   document.getElementById('checkout-modal').classList.add('open');
 }
 
-function sendWhatsApp() {
+function legacyWhatsAppFlow() {
   const name    = document.getElementById('c-name').value.trim();
   const phone   = document.getElementById('c-phone').value.trim();
   const city    = document.getElementById('c-city').value;
@@ -6189,7 +6286,7 @@ function sendWhatsApp() {
   };
   orders.unshift(order);
   DB.set('orders', orders);
-  lastOrderData = order;
+  lastOrderData = order; window.currentOrder = order;
 
   // ── Award loyalty points ──
   if (typeof awardLoyaltyPoints === 'function') {
@@ -6257,6 +6354,8 @@ function sanitizeData() {
 
 // ============================================================
 function openReceiptModal(order) {
+  if (!order || typeof order !== 'object') { showToast(lang==='fr'?'Commande introuvable':'Order not found','⚠️'); return; }
+  lastOrderData = order; window.currentOrder = order;
   document.getElementById('receipt-modal-title').textContent = lang==='fr' ? 'Commande envoyée !' : 'Order sent!';
   document.getElementById('receipt-modal-msg').textContent = lang==='fr'
     ? `Votre commande ${order.id} a été envoyée sur WhatsApp. N'oubliez pas d'envoyer une capture d'écran pour confirmer.`
@@ -6272,12 +6371,13 @@ function openReceiptModal(order) {
 }
 
 function downloadReceiptPDF() {
-  if (!lastOrderData) { showToast(lang==='fr'?'Aucune commande trouvée':'No order found','⚠️'); return; }
-  const order = lastOrderData;
-  buildAndOpenReceipt(order.name, order.phone, order.city, order.address, order.items, order.subtotal, order.delivery, order.total, order.id);
+  const order = window.currentOrder || lastOrderData;
+  if (!order || typeof order !== 'object') { showToast(lang==='fr'?'Aucune commande trouvée':'No order found','⚠️'); return; }
+  lastOrderData = order; window.currentOrder = order; window.currentOrder = order;
+  buildAndOpenReceipt(order.name, order.phone, order.city, order.address, order.items || [], order.subtotal || 0, order.delivery ?? order.deliveryFee ?? 0, order.total || 0, order.id || order.reference || '—', order.promoSavings ?? order.promoDiscount ?? 0);
 }
 
-function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, total, orderId) {
+function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, total, orderId, promoSavings = 0) {
   const dateStr = new Date().toLocaleDateString(lang==='fr'?'fr-FR':'en-US', {year:'numeric',month:'long',day:'numeric'});
   const timeStr = new Date().toLocaleTimeString(lang==='fr'?'fr-FR':'en-US', {hour:'2-digit',minute:'2-digit'});
   const slogan = lang==='fr' ? (settings.sloganFR||'Signez votre passage, imposez votre style') : (settings.sloganEN||'Make your mark, define your style');
@@ -6376,10 +6476,10 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
       <tbody>${itemsHTML}</tbody>
     </table>
 	    <div style="margin-top:12px">
-	      ${(order.promoSavings > 0) ? `
+	      ${(Number(promoSavings) > 0) ? `
 	      <div class="fee-row" style="color:#C0392B;font-weight:600">
 	        <span>✨ ${lang==='fr'?'Offre Spéciale':'Special Offer'}</span>
-	        <span>-${fmt(order.promoSavings)}</span>
+	        <span>-${fmt(Number(promoSavings))}</span>
 	      </div>` : ''}
 	      <div class="fee-row">
 	        <span>${lang==='fr'?'Sous-total produits':'Products subtotal'}</span>
@@ -7022,7 +7122,7 @@ async function saveProduct() {
     return false;
   }
 
-  if (isNewProduct) products.push(productToSave);
+  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; }
   else products[idx] = productToSave;
 
   editingProductId = null;
@@ -7440,7 +7540,7 @@ function changePwd() {
 
 function clearAllData() {
   if (!confirm('ATTENTION: Supprimer TOUTES les données ?')) return;
-  ['cart','categories','products','orders','settings','colors','lang','deliveryFees','deliveryRules','admin_pwd','reviews','quartiers','pillars','whyItems','lookProducts','aboutTagline','pendingReviews','promos','quizQuestions','bundleRelations','loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns','orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig','stockNotifications','stockAlertCooldowns','lookbook'].forEach(k=>localStorage.removeItem('lemil_'+k));
+  ['cart','categories','products','orders','settings','colors','lang','deliveryFees','deliveryRules','admin_pwd','reviews','quartiers','pillars','whyItems','lookProducts','aboutTagline','pendingReviews','promos','promoCodes','quizQuestions','bundleRelations','loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns','orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig','stockNotifications','stockAlertCooldowns','lookbook'].forEach(k=>localStorage.removeItem('lemil_'+k));
   location.reload();
 }
 
@@ -8791,6 +8891,7 @@ function applyAllFeatures() {
 // 1. FLASH PROMO MANAGER
 // ════════════════════════════════════════════════════════════════
 let promos = DB.get('promos', []);
+let promoCodes = DB.get('promoCodes', []);
 
 function savePromo() {
   const textFR = document.getElementById('pf-text-fr').value.trim();
@@ -8825,6 +8926,43 @@ function togglePromoActive(id) {
   if (p) { p.active = !p.active; DB.set('promos', promos); renderPromosAdmin(); applyPromos(); }
 }
 
+function normalizePromoCode(value) { return String(value || '').trim().toUpperCase().replace(/\s+/g, ''); }
+function renderOtpPromosAdmin() {
+  const el = document.getElementById('otp-promos-list'); if (!el) return;
+  const rows = Array.isArray(promoCodes) ? promoCodes : [];
+  el.innerHTML = rows.length ? rows.map(c => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:6px;padding:10px;margin-bottom:7px"><div><strong style="letter-spacing:.12em;color:var(--gold)">${String(c.code).replace(/[&<>"']/g,'')}</strong><div style="font-size:10px;color:var(--muted);margin-top:3px">-10% · Créé le ${new Date(c.createdAt||Date.now()).toLocaleDateString('fr-FR')}</div></div><span style="font-size:11px;color:${c.used?'var(--danger)':'var(--success)'}">${c.used?'Déjà utilisé':'Disponible'}</span></div>`).join('') : '<div style="font-size:12px;color:var(--muted);padding:8px 0">Aucun code généré.</div>';
+}
+function generatePromoCode() {
+  const bytes = new Uint8Array(6); (window.crypto || crypto).getRandomValues(bytes);
+  const code = 'EMIL-' + Array.from(bytes, b => b.toString(16).padStart(2,'0')).join('').slice(0,8).toUpperCase();
+  promoCodes = [{code, discount:10, used:false, createdAt:new Date().toISOString()}, ...(Array.isArray(promoCodes)?promoCodes:[])];
+  DB.set('promoCodes', promoCodes); renderOtpPromosAdmin();
+  if (typeof showToast === 'function') showToast('Code généré : '+code, '✅');
+}
+function getPromoCodeRecord(code) { const n=normalizePromoCode(code); return (Array.isArray(promoCodes)?promoCodes:[]).find(c=>normalizePromoCode(c.code)===n); }
+function promoDiscountFor(code, subtotal) { const r=getPromoCodeRecord(code); return r && !r.used ? Math.round(Number(subtotal||0)*0.10) : 0; }
+function renderCheckoutPromo() {
+  const input=document.getElementById('promo-code'), feedback=document.getElementById('promo-feedback'); if(!input) return;
+  const code=normalizePromoCode(input.value), totals=typeof calcCartTotals==='function'?calcCartTotals(document.getElementById('c-city')?.value||'Douala'):{subtotal:0};
+  const discount=promoDiscountFor(code, totals.subtotal); const fee=Number((document.getElementById('co-delivery')?.textContent||'').replace(/\D/g,''))||0; const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0;
+  const total=Math.max(0,Number(totals.subtotal||0)-discount+fee+gift); const totalEl=document.getElementById('co-total'); if(totalEl) totalEl.textContent=fmt(total);
+  if(feedback) { feedback.textContent=code?(discount?'Code valide : -10% appliqués.':'Code invalide, déjà utilisé ou introuvable.') : ''; feedback.style.color=discount?'var(--success)':'var(--danger)'; }
+  return {code,discount,total};
+}
+function applyCheckoutPromo(){ renderCheckoutPromo(); }
+async function consumePromoCode(code) {
+  const n=normalizePromoCode(code); if(!n) return {ok:true,discount:0};
+  if (typeof initFirebase==='function' && initFirebase() && firebaseDb) {
+    try {
+      const ref=firebaseDb.ref('storedData/promoCodes'); let result={ok:false,discount:0};
+      await ref.transaction(current => { const list=Array.isArray(current)?current:(current?Object.values(current):[]); const i=list.findIndex(c=>normalizePromoCode(c.code)===n); if(i<0||list[i].used){result={ok:false,discount:0};return current;} list[i]={...list[i],used:true,usedAt:new Date().toISOString()}; result={ok:true,discount:10}; return list; });
+      if(result.ok){ promoCodes=promoCodes.map(c=>normalizePromoCode(c.code)===n?{...c,used:true,usedAt:new Date().toISOString()}:c); DB.set('promoCodes',promoCodes); return result; }
+      return result;
+    } catch(e) { console.warn('[Promo] Transaction Firebase indisponible, fallback local.',e); }
+  }
+  const local=getPromoCodeRecord(n); if(!local||local.used)return {ok:false,discount:0}; local.used=true; local.usedAt=new Date().toISOString(); DB.set('promoCodes',promoCodes); return {ok:true,discount:10};
+}
+
 function applyPromos() {
   const now = Date.now();
   const active = promos.find(p => {
@@ -8853,6 +8991,7 @@ function closePromoBar() {
 function showPromoForm() { document.getElementById('promo-form').style.display='block'; }
 
 function renderPromosAdmin() {
+  renderOtpPromosAdmin();
   const el = document.getElementById('promos-list'); if (!el) return;
   // Populate product select
   const psel = document.getElementById('pf-product');
@@ -10040,7 +10179,7 @@ addToCart = function(id, qty=1) {
   showBundleSuggestion(id);
 };
 
-// sendWhatsApp preserved — loyalty + gift handled inside the function directly
+// legacyWhatsAppFlow preserved — loyalty + gift handled inside the function directly
 
 // Patch openCheckout to show gift option
 const _origOpenCheckout = openCheckout;
@@ -10193,8 +10332,8 @@ addFromModal = function(id) {
   _origAddFromModal(id);
 };
 
-// Patch sendWhatsApp to include engravings
-const _origSendWABase = sendWhatsApp;
+// Patch legacyWhatsAppFlow to include engravings
+const _origSendWABase = legacyWhatsAppFlow;
 // We override the WA message building to add engraving
 // We add it at the order save level
 function getEngravingForCart() {
@@ -10647,7 +10786,7 @@ document.head.appendChild(bilingualStyle);
 // ════════════════════════════════════════════════════════════════
 // D. ENHANCED SENDWHATSAPP — engraving + gift in message
 // ════════════════════════════════════════════════════════════════
-// sendWhatsApp engraving handled inline via window._engravings
+// legacyWhatsAppFlow engraving handled inline via window._engravings
 
 // Override addToCart to track engraving
 const _origAddToCartFinal = addToCart;
@@ -11127,7 +11266,7 @@ clearAllData = function() {
   if (!confirm('ATTENTION: Supprimer TOUTES les données ?')) return;
   const allKeys = ['cart','categories','products','orders','settings','colors','lang',
     'deliveryFees','deliveryRules','admin_pwd','reviews','quartiers','pillars','whyItems',
-    'lookProducts','aboutTagline','pendingReviews','promos','quizQuestions','bundleRelations',
+    'lookProducts','aboutTagline','pendingReviews','promos','promoCodes','quizQuestions','bundleRelations',
     'loyaltyRules','loyaltyCustomers','loyalty_phone','showcasePhotos','countdowns',
     'orderStatuses','statusLabels','faqItems','giftSettings','stockNotifConfig',
     'stockNotifications','stockAlertCooldowns','videoLibrary','lookbook'];
@@ -11429,12 +11568,12 @@ openCheckout = function() {
   updatePhonePlaceholder();
 };
 
-// Patch sendWhatsApp to use full phone with country code
+// Patch legacyWhatsAppFlow to use full phone with country code
 // We modify the phone read to use getFullPhone()
-// The existing sendWhatsApp already reads c-phone - we add this helper
-// Since sendWhatsApp is already defined, we patch the phone field on submit
-const _origSendWAPhone = sendWhatsApp;
-sendWhatsApp = function() {
+// The existing legacyWhatsAppFlow already reads c-phone - we add this helper
+// Since legacyWhatsAppFlow is already defined, we patch the phone field on submit
+const _origSendWAPhone = legacyWhatsAppFlow;
+legacyWhatsAppFlow = function() {
   // Temporarily set the c-phone value to include country code
   const inp = document.getElementById('c-phone');
   const originalVal = inp ? inp.value : '';
@@ -13025,6 +13164,180 @@ window.addEventListener('load', function() {
     }
   }, 200);
 });
+
+</script>
+<script>
+(() => {
+  const compress = file => new Promise((resolve, reject) => { const img = new Image(); const reader = new FileReader(); reader.onload = () => { img.onload = () => { const max = 1400, ratio = Math.min(1, max / Math.max(img.width, img.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(img.width * ratio)); canvas.height = Math.max(1, Math.round(img.height * ratio)); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve({ base64: canvas.toDataURL('image/jpeg', .78), mime: 'image/jpeg' }); }; img.onerror = reject; img.src = reader.result; }; reader.onerror = reject; reader.readAsDataURL(file); });
+  const base64ToBytes = value => { const padding = '='.repeat((4 - value.length % 4) % 4); const raw = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...raw].map(char => char.charCodeAt(0))); };
+  async function submitReview(productId, prefix) { const name = document.getElementById(prefix + '-name')?.value.trim(); const comment = document.getElementById(prefix + '-text')?.value.trim(); const rating = Number(document.getElementById(prefix + '-stars')?.value || 0); const file = document.getElementById(prefix + '-photo')?.files?.[0]; if (!name || !comment || !rating) { if (window.showToast) window.showToast('Nom, note et commentaire requis', '⚠️'); return; } const pending = Array.isArray(window.pendingReviews)?window.pendingReviews:[]; pending.unshift({id:'rv'+Date.now(),productId,name,authorName:name,rating,comment,status:'pending',date:new Date().toISOString(),photoData:null}); window.pendingReviews=pending; if(typeof DB!=='undefined') DB.set('pendingReviews',pending); if (window.showToast) window.showToast('Avis soumis pour modération', '✅'); }
+  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && (r.status==='approved'||r.approved===true)); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div><div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
+  function injectProductReview(productId) { const body = document.getElementById('pm-body'); if (!body || body.querySelector('.emil-product-review')) return; const box = document.createElement('section'); box.className = 'emil-product-review public-review-form'; box.innerHTML = `<h3>Votre expérience</h3><p>Partagez votre avis sur ce produit. Il sera publié après modération.</p><div class="pub-star-picker" id="product-rv-picker"><span class="pub-star" data-v="1">★</span><span class="pub-star" data-v="2">★</span><span class="pub-star" data-v="3">★</span><span class="pub-star" data-v="4">★</span><span class="pub-star" data-v="5">★</span></div><input type="hidden" id="product-rv-stars" value="0"><input class="form-input" id="product-rv-name" placeholder="Votre nom" style="margin-bottom:8px"><textarea class="form-textarea" id="product-rv-text" placeholder="Votre avis" style="margin-bottom:8px"></textarea><input class="form-input" id="product-rv-photo" type="file" accept="image/jpeg,image/png,image/webp" style="margin-bottom:8px"><button class="btn-primary" id="product-rv-submit">Soumettre mon avis</button><div class="emil-product-approved-reviews"></div>`; body.appendChild(box); box.querySelectorAll('.pub-star').forEach(star => star.addEventListener('click', () => { const n = Number(star.dataset.v); document.getElementById('product-rv-stars').value = n; box.querySelectorAll('.pub-star').forEach(s => s.classList.toggle('active', Number(s.dataset.v) <= n)); })); box.querySelector('#product-rv-submit').addEventListener('click', () => submitReview(productId, 'product-rv')); renderProductReviews(productId, box.querySelector('.emil-product-approved-reviews')); }
+  function addPhotoField() { if (document.getElementById('pub-rv-photo')) return; const text = document.getElementById('pub-rv-text'); if (!text) return; const wrap = document.createElement('div'); wrap.style.cssText = 'margin-bottom:14px'; wrap.innerHTML = '<label class="form-label">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp"><div style="font-size:11px;color:var(--muted);margin-top:5px">La photo sera compressée avant envoi et restera en attente de modération.</div>'; text.parentElement.after(wrap); }
+  function installHooks() { addPhotoField(); const oldSubmit = window.submitPublicReview; window.submitPublicReview = async function() { const productId = document.getElementById('pub-rv-product')?.value || 'general'; try { await submitReview(productId, 'pub-rv'); document.getElementById('pub-rv-sent')?.classList.add('show'); } catch (e) { if (window.showToast) window.showToast(e.message, '❌'); } return false; }; const originalOpen = window.openProduct; if (typeof originalOpen === 'function') window.openProduct = function(id) { originalOpen(id); setTimeout(() => injectProductReview(id), 250); }; }
+  window.addEventListener('load', () => setTimeout(installHooks, 500));
+  let idle; const reset = () => { clearTimeout(idle); idle = setTimeout(() => window.parent.postMessage({ type: 'legacy-inactive' }, window.location.origin), 30 * 60 * 1000); }; ['click','keydown','mousemove','scroll','touchstart'].forEach(e => window.addEventListener(e, reset, { passive: true })); reset();
+})();
+
+
+window.addEventListener('load', () => setTimeout(() => {
+  const originalSaveProduct = window.saveProduct;
+  if (typeof originalSaveProduct !== 'function') return;
+  window.saveProduct = async function() {
+    const wasNew = window.isNewProduct !== false;
+    const result = await originalSaveProduct.apply(this, arguments);
+    if (wasNew && result !== false && window.__lastSavedProductId) { const product = Array.isArray(window.products) ? window.products.find(p => String(p.id) === String(window.__lastSavedProductId)) : null; if (typeof window.emilNotifyProduct === 'function') window.emilNotifyProduct(product); }
+    return result;
+  };
+}, 900));
+
+
+/* FINAL SPECIFICATIONS OVERRIDE — single-file deployment */
+(function(){
+  'use strict';
+  const q = (s, r=document) => r.querySelector(s);
+  // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
+  // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
+  const NOTCHPAY_CONFIG = {
+    publicKey: 'pk_test.Bop5q6OrQFMRohuTfqPfGCTeZSWGhyjW4WwL6GNxW7XH72VYHR3sFb4eu90MGiXTXi3S4rv3I17X2LvMhHdSzISbv6z2eAR86zK55IsTqUqPFHxofSTunKYIqHEpv',              // ex. pk_test.... (clé publique uniquement)
+    createPaymentEndpoint: '', // ex. https://votre-domaine.tld/notchpay/create
+    callbackUrl: '',            // ex. https://votre-domaine.tld/payment/callback
+    verifyPaymentEndpoint: '',  // ex. https://votre-domaine.tld/notchpay/verify
+    provider: 'notchpay'
+  };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  let notchpayClient = null;
+  function initNotchPayClient(){ if(notchpayClient||!NOTCHPAY_CONFIG.publicKey||typeof window.NotchPay!=='function') return notchpayClient; try{notchpayClient=new window.NotchPay(NOTCHPAY_CONFIG.publicKey);}catch(e){console.warn('[Notch Pay] SDK init failed',e);} return notchpayClient; }
+
+  const toast = (message, icon='ℹ️') => window.showToast ? window.showToast(message, icon) : window.alert(message);
+
+  function compressReviewImage(file){
+    return new Promise((resolve,reject)=>{
+      if(!file) return resolve(null);
+      const img = new Image(), reader = new FileReader();
+      reader.onload = () => { img.onload = () => { const scale=Math.min(1,1200/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale); c.getContext('2d').drawImage(img,0,0,c.width,c.height); c.toBlob(b=>b?resolve(new File([b],'avis.jpg',{type:'image/jpeg'})):reject(new Error('compression failed')),'image/jpeg',.82); }; img.onerror=reject; img.src=reader.result; };
+      reader.onerror=reject; reader.readAsDataURL(file);
+    });
+  }
+  async function installLuxuryReviewUpload(){
+    const input=q('#pub-rv-photo'); if(!input || input.dataset.luxeReady) return;
+    input.dataset.luxeReady='1';
+    const host=input.parentElement; input.style.display='none';
+    const zone=document.createElement('div'); zone.className='emil-review-dropzone'; zone.innerHTML='<div class="emil-review-dropzone-icon">✦</div><div class="emil-review-dropzone-copy"><strong>Ajouter une photo</strong><span>Glissez votre image ici ou cliquez pour la sélectionner · JPG, PNG ou WebP</span></div>';
+    const preview=document.createElement('div'); preview.className='emil-review-preview'; preview.innerHTML='<img alt="Aperçu de votre photo"><button type="button" aria-label="Retirer la photo">×</button>';
+    host.insertBefore(zone,input); host.appendChild(preview);
+    const accept=async file=>{ if(!file || !file.type.startsWith('image/')) return toast('Sélectionnez une image valide','⚠️'); try { const compressed=await compressReviewImage(file); const dt=new DataTransfer(); dt.items.add(compressed); input.files=dt.files; preview.querySelector('img').src=URL.createObjectURL(compressed); preview.classList.add('show'); zone.querySelector('strong').textContent='Photo prête à envoyer'; } catch(e){ toast('Impossible de préparer cette image','❌'); } };
+    zone.addEventListener('click',()=>input.click()); zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')}); zone.addEventListener('dragleave',()=>zone.classList.remove('dragover')); zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');accept(e.dataTransfer.files[0])}); input.addEventListener('change',()=>accept(input.files[0])); preview.querySelector('button').addEventListener('click',e=>{e.stopPropagation();input.value='';preview.classList.remove('show');zone.querySelector('strong').textContent='Ajouter une photo';});
+  }
+
+  function formatCardNumberInput(input){ const digits=(input.value||'').replace(/\D/g,'').slice(0,19); input.value=digits.replace(/(.{4})/g,'$1 ').trim(); }
+  function detectCardBrand(value){ const d=String(value||'').replace(/\D/g,''); if(/^4/.test(d)) return 'VISA'; if(/^(5[1-5]|2(2[2-9][1-9]|2[3-6]\d{2}|27[0-1]\d|2720))/.test(d)) return 'MASTERCARD'; return ''; }
+  function bindCardNumberUX(){ const input=q('#emil-card-number'), badge=q('#emil-card-brand'); if(!input||input.dataset.cardUxBound) return; input.dataset.cardUxBound='1'; input.addEventListener('input',()=>{formatCardNumberInput(input); if(badge) badge.textContent=detectCardBrand(input.value);}); input.addEventListener('paste',()=>setTimeout(()=>{formatCardNumberInput(input);if(badge)badge.textContent=detectCardBrand(input.value);},0)); }
+  function setPaymentScopeVisual(scope){
+    const local=scope==='local'; const ll=q('#payment-scope-local-label'), il=q('#payment-scope-international-label'), hint=q('#payment-scope-hint');
+    const localBox=q('#emil-local-payment-fields'), intlBox=q('#emil-international-payment-fields');
+    if(ll) { ll.style.borderColor=local?'var(--gold)':'rgba(201,168,76,.12)'; ll.setAttribute('aria-pressed',String(local)); }
+    if(il) { il.style.borderColor=!local?'var(--gold)':'rgba(201,168,76,.12)'; il.setAttribute('aria-pressed',String(!local)); }
+    if(hint) hint.textContent=local?'Choisissez votre opérateur Mobile Money pour continuer.':'Renseignez les informations obligatoires de votre carte bancaire.';
+    if(localBox) localBox.style.display=local?'block':'none'; if(intlBox) intlBox.style.display=local?'none':'block';
+    [q('#c-phone-country'),q('#c-phone'),...Array.from(document.querySelectorAll('#emil-payment-options input'))].forEach(el=>{if(el) el.disabled=!local;});
+    [q('#emil-card-number'),q('#emil-card-expiry'),q('#emil-card-cvv'),q('#emil-card-holder')].forEach(el=>{if(el) el.disabled=local;});
+  }
+  function updatePaymentScope(scope){
+    const country=q('#c-phone-country');
+    if(scope==='local'){
+      if(country){ country.value='+237'; if(typeof updatePhonePlaceholder==='function') updatePhonePlaceholder(); }
+    } else if(country && country.value==='+237'){
+      const alternative=Array.from(country.options||[]).find(o=>o.value!=='+237'); if(alternative) country.value=alternative.value;
+      if(typeof updatePhonePlaceholder==='function') updatePhonePlaceholder();
+    }
+    if(typeof ensureCardForm==='function') ensureCardForm(); setPaymentScopeVisual(scope); renderCheckoutPromo();
+  }
+  function syncPaymentScopeFromCountry(){
+    const country=q('#c-phone-country')?.value||'+237'; const radio=q(`input[name="emil-payment-scope"][value="${country==='+237'?'local':'international'}"]`); if(radio) radio.checked=true;
+    setPaymentScopeVisual(country==='+237'?'local':'international'); if(typeof ensureCardForm==='function') ensureCardForm();
+  }
+  function checkoutPaymentState(){
+    const scope=q('input[name="emil-payment-scope"]:checked')?.value||'local'; const country=q('#c-phone-country')?.value||'+237'; const isCameroon=scope==='local' && country==='+237';
+    if(scope==='local' && country!=='+237') throw new Error('Le paiement local nécessite le pays Cameroun (+237).');
+    if(scope==='international' && country==='+237') throw new Error('Sélectionnez un pays international pour continuer.');
+    const method=q('input[name="emil-pay"]:checked')?.value||(isCameroon?'mtn_momo':'card');
+    if(isCameroon&&!['mtn_momo','orange_money'].includes(method)) throw new Error('Pour le paiement local, choisissez MTN Mobile Money ou Orange Money.');
+    if(!isCameroon&&method!=='card') throw new Error('Les clients internationaux utilisent la carte bancaire.');
+    if(!isCameroon){ const number=(q('#emil-card-number')?.value||'').replace(/\s/g,''); const expiry=q('#emil-card-expiry')?.value.trim()||''; const cvv=q('#emil-card-cvv')?.value.trim()||''; const holder=q('#emil-card-holder')?.value.trim()||''; if(!/^\d{13,19}$/.test(number)||!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)||!/^\d{3,4}$/.test(cvv)||!holder) throw new Error('Renseignez le nom du titulaire, le numéro, la date d’expiration et le CVV.'); return {method,cardLast4:number.slice(-4),cardExpiry:expiry,cardHolder:holder}; }
+    return {method};
+  }
+  function getCheckoutData(){
+    const name=q('#c-name')?.value.trim(), phone=(typeof window.getFullPhone==='function'?window.getFullPhone():q('#c-phone')?.value||'').replace(/\s/g,''); const city=q('#c-city')?.value||''; const address=q('#c-address')?.value.trim(); const notes=q('#c-msg')?.value.trim()||'';
+    const selectedScope=q('input[name="emil-payment-scope"]:checked')?.value||'local'; if(!name||!address||(selectedScope==='local'&&!phone)) throw new Error(selectedScope==='local'?'Veuillez renseigner votre nom, votre téléphone et votre adresse.':'Veuillez renseigner votre nom et votre adresse.');
+    const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0}; const fee=Number((q('#co-delivery')?.textContent||'').replace(/\D/g,''))||0; const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0; const promo=renderCheckoutPromo(); const payment=checkoutPaymentState();
+    return {name,phone,city,address,notes,subtotal:Number(totals.subtotal||0),promoCode:promo.code||null,promoDiscount:Number(promo.discount||0),deliveryFee:fee,giftFee:gift,total:Math.max(0,Number(totals.subtotal||0)-Number(promo.discount||0)+fee+gift),reference:'EMIL-'+Date.now(),...payment};
+  }
+  window.proceedSecurePayment=async function(){
+    let data; try{data=getCheckoutData();}catch(e){return toast(e.message,'⚠️');}
+    const button=q('.btn-secure-payment'); if(button){button.disabled=true;button.querySelector('span:last-child').textContent='Connexion sécurisée…';}
+    try{
+      if(!NOTCHPAY_CONFIG.createPaymentEndpoint) throw new Error('Le paiement réel n’est pas encore configuré. Ajoutez l’URL HTTPS de création Notch Pay côté serveur.');
+      if(data.promoCode){ const consumed=await consumePromoCode(data.promoCode); if(!consumed.ok) throw new Error('Ce code de réduction est invalide ou déjà utilisé.'); }
+      const order={...data,id:data.reference,status:'En attente',date:new Date().toISOString(),items:[...(window.cart||[])],paymentProvider:'notchpay',paymentStatus:'pending'};
+      const response=await fetch(NOTCHPAY_CONFIG.createPaymentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,callbackUrl:NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname})});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok||(!result.checkoutUrl&&!result.paymentId&&!result.payment?.transaction?.id)) throw new Error(result.message||'Impossible d’initialiser le paiement sécurisé.');
+      orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order;
+      const paymentId=result.paymentId||result.payment?.transaction?.id; const client=initNotchPayClient();
+      if(client&&paymentId){ client.checkout({paymentId,onSuccess:tx=>{window.location.href=(NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname)+'?reference='+encodeURIComponent(tx.reference||order.id)},onError:err=>toast(err?.message||'Paiement refusé','❌'),onClose:()=>toast('Checkout Notch Pay fermé.','ℹ️')}); }
+      else if(result.checkoutUrl) location.href=result.checkoutUrl; else throw new Error('SDK Notch Pay indisponible ou clé publique absente.');
+    }catch(e){ toast(e.message||'Paiement indisponible','❌'); }
+    finally{ if(button){button.disabled=false;button.querySelector('span:last-child').textContent='Procéder au paiement sécurisé';} }
+  };
+  async function handleNotchPayReturn(){ const params=new URLSearchParams(location.search); const reference=params.get('reference')||params.get('trxref'); if(!reference||!NOTCHPAY_CONFIG.verifyPaymentEndpoint)return; try{ const response=await fetch(NOTCHPAY_CONFIG.verifyPaymentEndpoint+'?reference='+encodeURIComponent(reference),{headers:{'Accept':'application/json'}}); const result=await response.json().catch(()=>({})); if(!response.ok||result.status!=='complete') return toast('Paiement non confirmé. Aucun reçu ne sera validé.','⚠️'); const rows=monitoringOrders(); const found=rows.find(o=>o.id===reference||o.reference===reference); if(found){found.status='Validé';found.paymentStatus='complete';DB.set('orders',rows);window.currentOrder=found;lastOrderData=found;if(typeof openReceiptModal==='function')openReceiptModal(found);} toast('Paiement confirmé.','✅'); }catch(e){ console.warn('[Notch Pay] Vérification impossible',e); toast('Vérification du paiement indisponible.','⚠️'); } }
+  window.openWhatsAppFallback=function(){
+    const data=getCheckoutData(); const wa=(typeof settings!=='undefined'&&settings.waNumber)||'237694092202';
+    const lines=[`Bonjour L’Empreinte d’Emil, je souhaite commander.`,`Nom : ${data.name}`,`Téléphone : ${data.phone}`,`Adresse : ${data.address}, ${data.city}`,`Total estimé : ${data.total} FCFA`];
+    window.open('https://wa.me/'+wa+'?text='+encodeURIComponent(lines.join('\n')),'_blank','noopener');
+  };
+  window.sendWhatsApp=window.openWhatsAppFallback;
+
+  const notifTexts={morning:['Une nouvelle signature vous attend. Découvrez les pièces qui donnent du caractère à votre journée.','Le style commence maintenant. Une sélection rare vous attend.'],noon:['Votre pause mérite une touche d’exception. Découvrez nos nouveautés.','Une envie de nouveauté ? Votre prochaine pièce signature est ici.'],afternoon:['L’élégance n’attend pas. Profitez de notre sélection du moment.','Un détail peut tout changer. Explorez les arrivages d’Emil.'],evening:['Ce soir, choisissez la pièce que l’on remarquera demain.','Votre style mérite mieux que l’ordinaire.'],idle:['Vous nous manquez. Revenez découvrir votre sélection personnelle.','Votre prochaine signature est peut-être déjà dans votre panier.']};
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  function notifyLocal(kind='idle', product){ if(!('Notification' in window)||Notification.permission!=='granted') return; const title='L’Empreinte d’Emil'; const body=product?`${product.name||'Nouveauté'} — découvrez-la maintenant.`:pick(notifTexts[kind]||notifTexts.idle); const n=new Notification(title,{body,icon:product?.image||'https://i.postimg.cc/HLdg7Tb5/logo.png',badge:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-'+kind}); n.onclick=()=>{window.focus();n.close();}; }
+  window.emilNotifyProduct = product => notifyLocal('afternoon', product);
+  function scheduleLocalNotifications(){ const now=new Date(), key=now.toISOString().slice(0,10), sent=JSON.parse(localStorage.getItem('emil-notif-day')||'{}'); [['morning',9],['noon',12],['afternoon',15],['evening',18],['evening',21]].forEach(([kind,h],i)=>{const t=new Date(now);t.setHours(h,0,0,0);if(t<=now)t.setDate(t.getDate()+1);const id=key+'-'+h;if(!sent[id])setTimeout(()=>{notifyLocal(kind);sent[id]=1;localStorage.setItem('emil-notif-day',JSON.stringify(sent));},Math.min(2147483647,Math.max(1000,t-now)));}); setTimeout(()=>notifyLocal('idle'),30*60*1000); }
+  async function enableSmartPush(){ if(!('Notification' in window)) return; try{const permission=await Notification.requestPermission(); if(permission==='granted') scheduleLocalNotifications(); renderLiveAdminOps();}catch(e){console.warn('[Push]',e);} }
+  window.enableSmartPush=enableSmartPush;
+  function base64UrlToBytes(v){const pad='='.repeat((4-v.length%4)%4);const raw=atob((v+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(Array.from(raw).map(c=>c.charCodeAt(0)));}
+  function monitoringOrders(){ return Array.isArray(window.orders)?window.orders:(typeof orders!=='undefined'&&Array.isArray(orders)?orders:[]); }
+  function monitoringMethod(o){ if(o.method==='mtn_momo') return 'MTN Mobile Money'; if(o.method==='orange_money') return 'Orange Money'; if(o.method==='card') return 'Carte bancaire'+(o.cardLast4?' •••• '+String(o.cardLast4).slice(-4):''); return o.method||'—'; }
+  function refreshMonitoringTables(){ const rows=monitoringOrders(); const host=q('#emil-admin-details'); if(host){const body=host.querySelector('tbody'); if(body) body.innerHTML=rows.slice(0,12).map(o=>'<tr><td>'+esc(o.id||o.reference)+'</td><td>'+esc(o.name)+'</td><td>'+esc(monitoringMethod(o))+'</td><td><span class="badge badge-success">'+esc(o.status||'En attente')+'</span></td><td>'+Number(o.total||0).toLocaleString('fr-FR')+' F</td><td>'+new Date(o.date||Date.now()).toLocaleString('fr-FR')+'</td></tr>').join('');} }
+  window.renderLiveAdminOps=renderLiveAdminOps;
+  window.clearTransactionHistory=function(){ if(!confirm('Effacer définitivement tout l’historique des transactions et commandes ? Les produits, avis et descriptions seront conservés.')) return; if(typeof orders!=='undefined') orders=[]; window.orders=[]; lastOrderData=null; window.currentOrder=null; DB.set('orders',[]); if(typeof syncPush==='function') syncPush(); renderLiveAdminOps(); refreshMonitoringTables(); toast('Historique des transactions effacé.','✅'); };
+  function renderLiveAdminOps(){ const dash=q('#admin-dashboard'); if(!dash)return; const existing=q('#emil-live-ops'); const rows=monitoringOrders(); if(existing){ const a=q('#emil-pay-count'),b=q('#emil-transfer-total'),c=q('#emil-review-count'); if(a)a.textContent=rows.length; if(b)b.textContent=rows.reduce((sum,o)=>sum+Number(o.total||0),0).toLocaleString('fr-FR')+' F'; if(c)c.textContent=(Array.isArray(window.pendingReviews)?window.pendingReviews.length:0); refreshMonitoringTables(); return; } const box=document.createElement('div'); box.id='emil-live-ops'; box.className='emil-live-ops'; box.innerHTML='<div style="font-family:var(--font-display);font-size:20px;color:var(--gold)">Suivi temps réel</div><div class="emil-live-ops-grid"><div class="emil-live-chip"><b id="emil-pay-count">0</b><span>Paiements / commandes</span></div><div class="emil-live-chip"><b id="emil-transfer-total">0</b><span>Montants reçus</span></div><div class="emil-live-chip"><b id="emil-review-count">0</b><span>Avis à modérer</span></div><div class="emil-live-chip"><b id="emil-push-state">Actif</b><span>Push navigateur</span></div></div><div class="emil-live-ops-actions"><button type="button" onclick="enableSmartPush()">Activer / tester les notifications</button><button type="button" onclick="renderLiveAdminOps()">Actualiser</button><button type="button" onclick="clearTransactionHistory()" style="color:#E57373;border-color:rgba(229,115,115,.45)">Tout effacer</button></div>'; const stats=q('#stats-grid'); stats?.after(box); const a=q('#emil-pay-count'),b=q('#emil-transfer-total'),c=q('#emil-review-count'); if(a)a.textContent=rows.length; if(b)b.textContent=rows.reduce((sum,o)=>sum+Number(o.total||0),0).toLocaleString('fr-FR')+' F'; if(c)c.textContent=(Array.isArray(window.pendingReviews)?window.pendingReviews.length:0); q('#emil-push-state').textContent='Actif'; q('#emil-push-state').title=('Notification' in window?'Permission navigateur : '+Notification.permission:'Notifications non supportées'); }
+  window.renderLiveAdminOps=renderLiveAdminOps;
+  function renderAdminDetails(){const host=q('#emil-live-ops');if(!host||q('#emil-admin-details'))return;const rows=monitoringOrders();const messages=JSON.parse(localStorage.getItem('emil-notif-messages')||JSON.stringify(notifTexts));const panel=document.createElement('div');panel.id='emil-admin-details';panel.style.marginTop='16px';panel.innerHTML='<div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:10px">Opérations & notifications</div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Référence</th><th>Client</th><th>Méthode</th><th>Statut</th><th>Total</th><th>Date</th></tr></thead><tbody>'+rows.slice(0,12).map(o=>'<tr><td>'+esc(o.id)+'</td><td>'+esc(o.name)+'</td><td>'+esc(monitoringMethod(o))+'</td><td><span class="badge badge-success">'+esc(o.status||'reçu')+'</span></td><td>'+Number(o.total||0).toLocaleString('fr-FR')+' F</td><td>'+new Date(o.date||Date.now()).toLocaleDateString('fr-FR')+'</td></tr>').join('')+'</tbody></table></div><div style="margin-top:14px"><label class="admin-label">Messages push personnalisables (JSON)</label><textarea class="admin-textarea" id="emil-notif-editor" rows="5">'+esc(JSON.stringify(messages,null,2))+'</textarea><button class="admin-btn" style="margin-top:8px" type="button" id="emil-save-notif">Enregistrer les messages</button></div>';host.appendChild(panel);q('#emil-save-notif').onclick=()=>{try{const value=JSON.parse(q('#emil-notif-editor').value);localStorage.setItem('emil-notif-messages',JSON.stringify(value));Object.assign(notifTexts,value);toast('Messages push enregistrés','✅');}catch(e){toast('JSON invalide','❌');}};}
+  function renderAdminDetailedViews(){
+    const host=q('#emil-admin-details');
+    if(!host||q('#emil-admin-detailed-views')) return;
+    const rows=monitoringOrders();
+    const root=document.createElement('div'); root.id='emil-admin-detailed-views';
+    const make=(title,headers,mapper)=>{
+      const section=document.createElement('section'); section.style.marginTop='16px';
+      const heading=document.createElement('div'); heading.textContent=title; heading.style.cssText='font-family:var(--font-display);font-size:17px;color:var(--gold);margin-bottom:8px'; section.appendChild(heading);
+      const wrap=document.createElement('div'); wrap.className='admin-table-wrap';
+      const table=document.createElement('table'); table.className='admin-table';
+      table.innerHTML='<thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead>';
+      const tbody=document.createElement('tbody'); rows.forEach(row=>{ const tr=document.createElement('tr'); tr.innerHTML=mapper(row); tbody.appendChild(tr); });
+      table.appendChild(tbody); wrap.appendChild(table); section.appendChild(wrap); return section;
+    };
+    root.appendChild(make('Transactions',['Référence','Client','Total','Date'],o=>'<td>'+esc(o.id)+'</td><td>'+esc(o.name)+'</td><td>'+Number(o.total||0).toLocaleString('fr-FR')+' F</td><td>'+new Date(o.date||Date.now()).toLocaleString('fr-FR')+'</td>'));
+    root.appendChild(make('Paiements',['Référence','Méthode','Statut','Montant'],o=>'<td>'+esc(o.id)+'</td><td>'+esc(monitoringMethod(o))+'</td><td><span class="badge badge-success">'+esc(o.status||'en attente')+'</span></td><td>'+Number(o.total||0).toLocaleString('fr-FR')+' F</td>'));
+    root.appendChild(make('Transferts reçus',['Client','Téléphone','Canal','Montant'],o=>'<td>'+esc(o.name)+'</td><td>'+esc(o.phone)+'</td><td>'+esc(o.method||'—')+'</td><td>'+Number(o.total||0).toLocaleString('fr-FR')+' F</td>'));
+    host.appendChild(root);
+  }
+  window.addEventListener('load',()=>{setTimeout(()=>{handleNotchPayReturn();installLuxuryReviewUpload();renderLiveAdminOps();renderAdminDetails();renderAdminDetailedViews();if('Notification' in window&&Notification.permission==='default')enableSmartPush();else if('Notification' in window&&Notification.permission==='granted')scheduleLocalNotifications();},900);});
+  function bindPaymentScopeButtons(){ document.querySelectorAll('[data-payment-scope]').forEach(button=>{ if(button.dataset.clickBound) return; button.dataset.clickBound='1'; button.addEventListener('click',()=>updatePaymentScope(button.dataset.paymentScope)); }); }
+  const _openCheckoutFinal=openCheckout; openCheckout=function(){_openCheckoutFinal(); setTimeout(()=>{bindPaymentScopeButtons(); const i=q('#promo-code'); if(i&&!i.dataset.bound){i.dataset.bound='1'; i.addEventListener('input',renderCheckoutPromo); i.addEventListener('blur',()=>{i.value=normalizePromoCode(i.value);renderCheckoutPromo();});} const country=q('#c-phone-country'); if(country&&!country.dataset.scopeBound){country.dataset.scopeBound='1'; country.addEventListener('change',syncPaymentScopeFromCountry);} updatePaymentScope('local'); bindCardNumberUX();},0);};
+  document.addEventListener('click',e=>{if(e.target.closest('#admin-panel'))setTimeout(()=>{renderLiveAdminOps();renderOtpPromosAdmin();},250);});
+})();
 
 </script>
 </body>
