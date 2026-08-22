@@ -13206,7 +13206,7 @@ window.addEventListener('load', () => setTimeout(() => {
   // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
   // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
   const NOTCHPAY_CONFIG = {
-    publicKey: 'pk_test.U5CsyKRKWzLiuJPo1Aqu4MwKHbZCff6x2cizppwGyvDiRoVCqMdmwc0usyWxhOn1zrPMWlihhAMpI2GIAnuuacTuZcZLG6cOW3VojeOwdqaDVpQWL5aS5njAoCy6F',              // ex. pk_test.... (clé publique uniquement)
+    publicKey: 'pk_test.HeJESh99jb340R3UMokHRlvulONEU5e1Y0LCxlFAPdJrOq5r5HRd9t1X4nEO6KaCgScwPKErDqhE4GJk8N74aUE7mbtnP8GZ8QABSTZ0Zz4H0EkrkuvoYRd10VJxa',              // ex. pk_test.... (clé publique uniquement)
     createPaymentEndpoint: '', // ex. https://votre-domaine.tld/notchpay/create
     callbackUrl: '',            // ex. https://votre-domaine.tld/payment/callback
     verifyPaymentEndpoint: '',  // ex. https://votre-domaine.tld/notchpay/verify
@@ -13238,6 +13238,15 @@ window.addEventListener('load', () => setTimeout(() => {
 
   const toast = (message, icon='ℹ️') => window.showToast ? window.showToast(message, icon) : window.alert(message);
   // Exposé globalement: le bouton HTML et le gestionnaire final partagent la même référence.
+  function findNotchPayCheckoutUrl(value,depth=0,seen=new Set()){
+    if(!value||depth>6)return '';
+    if(typeof value==='string'){const candidate=value.trim();return /^https:\/\//i.test(candidate)?candidate:'';}
+    if(typeof value!=='object'||seen.has(value))return ''; seen.add(value);
+    const preferred=['authorization','authorization_url','authorizationUrl','checkout_url','checkoutUrl','payment_url','paymentUrl','redirect_url','redirectUrl','url','link'];
+    for(const key of preferred){const found=findNotchPayCheckoutUrl(value[key],depth+1,seen);if(found)return found;}
+    for(const key of Object.keys(value)){const found=findNotchPayCheckoutUrl(value[key],depth+1,seen);if(found)return found;}
+    return '';
+  }
   window.openClientSideNotchPay = async function(amount, currency, customer, reference){
     try{
       if(!NOTCHPAY_CONFIG.publicKey){ toast('Ajoutez votre clé publique Notch Pay dans NOTCHPAY_CONFIG.publicKey.','⚠️'); return false; }
@@ -13249,14 +13258,14 @@ window.addEventListener('load', () => setTimeout(() => {
         client.createButton({...payload,container:'#notchpay-client-button',text:'Payer avec Notch Pay'}); setTimeout(()=>{const button=host.querySelector('button,a,[role="button"]');if(button)button.click();},100); return true;
       }
       if(client.payments&&typeof client.payments.initializePayment==='function'){
-        const result=await client.payments.initializePayment({...payload,email:customer?.email||'',name:customer?.name||'',phone:customer?.phone||''}); const transaction=result?.transaction||result?.data?.transaction||result?.payment?.transaction||result?.data?.payment?.transaction||{}; const checkoutUrl=result?.checkoutUrl||result?.checkout_url||result?.data?.checkoutUrl||result?.data?.checkout_url||result?.payment?.checkoutUrl||result?.payment?.checkout_url;
+        const result=await client.payments.initializePayment({...payload,email:customer?.email||'',name:customer?.name||'',phone:customer?.phone||''});
+        const checkoutUrl=findNotchPayCheckoutUrl(result);
         if(checkoutUrl){location.href=checkoutUrl;return true;}
-        if(NOTCHPAY_CONFIG.hostedCheckoutBaseUrl&&transaction.reference){location.href=NOTCHPAY_CONFIG.hostedCheckoutBaseUrl.replace(/\/$/,'')+'/'+encodeURIComponent(transaction.reference);return true;}
-        toast('Paiement initialisé, mais Notch Pay n’a fourni aucune URL de checkout. Configurez hostedCheckoutBaseUrl avec l’URL officielle de votre compte.','⚠️'); return false;
+        toast('Paiement initialisé, mais aucune URL de redirection n’a été renvoyée par Notch Pay.','⚠️'); return false;
       }
       if(typeof client.checkout==='function'&&payload.paymentId){client.checkout({paymentId:payload.paymentId});return true;}
       toast('Le SDK Notch Pay chargé ne fournit aucun mode de checkout compatible.','⚠️'); return false;
-    }catch(error){ console.warn('[Notch Pay] client-side checkout unavailable',error); toast('Le paiement Notch Pay ne peut pas être ouvert avec cette configuration.','⚠️'); return false; }
+    }catch(error){ console.warn('[Notch Pay] client-side checkout unavailable',error); toast('Le paiement Notch Pay ne peut pas être ouvert avec cette réponse.','⚠️'); return false; }
   };
 
   function compressReviewImage(file){
