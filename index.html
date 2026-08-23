@@ -4932,7 +4932,7 @@ const DEFAULT_DELIVERY_RULES = [
 const DEFAULT_SETTINGS = {
   storeFR:"L'Empreinte D'Emil", storeEN:"L'Empreinte D'Emil",
   sloganFR:"Signez votre passage, imposez votre style", sloganEN:"Make your mark, define your style",
-  address:"Douala, Cameroun", email:"contact@lemil.cm", waNumber:"237694092202",
+  address:"Douala, Cameroun", email:"lempreintedemil.contact@gmail.com", waNumber:"237694092202",
   bannerTitleFR:"Imposez votre style", bannerTitleEN:"Define your style",
 };
 
@@ -6743,7 +6743,7 @@ function renderContactPage() {
   const wa = settings.waNumber||'237694092202';
   document.getElementById('contact-wa').textContent = '+'+wa;
   document.getElementById('contact-address').textContent = settings.address||'Douala, Cameroun';
-  document.getElementById('contact-email').textContent = settings.email||'contact@lemil.cm';
+  document.getElementById('contact-email').textContent = settings.email||'lempreintedemil.contact@gmail.com';
   document.getElementById('maps-link2').href = `https://maps.google.com/?q=${encodeURIComponent(settings.address||'Douala Cameroun')}`;
 }
 
