@@ -2178,6 +2178,17 @@ img,svg,video,iframe{max-width:100%}
   .btn-whatsapp{font-size:10px;letter-spacing:.1em}
 }
 </style>
+
+<!-- OneSignal Web SDK v16 -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script id="onesignal-v16-init">
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "cccbad22-afa2-422e-965e-f678ae3314b8",
+    });
+  });
+</script>
 </head>
 <body>
 <!-- LUXE SPLASH SCREEN -->
