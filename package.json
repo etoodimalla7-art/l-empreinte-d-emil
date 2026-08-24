@@ -1,0 +1,14 @@
+{
+  "name": "lempreinte-emil-render",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Serveur Express Render pour L'Empreinte d'Emil et ses notifications OneSignal",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.0"
+  }
+}
