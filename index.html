@@ -47,22 +47,15 @@
   function money(n){return typeof window.fmt==='function'?window.fmt(Number(n)||0):(Number(n)||0).toLocaleString('fr-FR')+' FCFA';}
   function ensureCardForm(){
     const phone=$('#c-phone'); if(!phone)return;
-    let box=$('#emil-payment-options'); if(!box){box=document.createElement('div');box.id='emil-payment-options';phone.closest('.form-group')?.after(box);}
-    let card=$('#emil-card-form'); if(!card){card=document.createElement('div');card.id='emil-card-form';card.style.cssText='margin:12px 0;padding:14px;background:var(--dark-2);border:1px solid rgba(201,168,76,.18);border-radius:6px';card.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--gold);margin-bottom:10px">Paiement international sécurisé par carte <span id="emil-card-brand" style="font-weight:700;letter-spacing:.08em;color:var(--light)"></span></div><div class="form-group"><label class="form-label">Numéro de carte *</label><input class="form-input" id="emil-card-number" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="19"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="form-group"><label class="form-label">Date d’expiration *</label><input class="form-input" id="emil-card-expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5"></div><div class="form-group"><label class="form-label">CVV *</label><input class="form-input" id="emil-card-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div><div class="form-group"><label class="form-label">Nom du titulaire *</label><input class="form-input" id="emil-card-holder" autocomplete="cc-name" placeholder="Nom figurant sur la carte"></div>';phone.closest('.form-group')?.after(card);}
-    const cam=isCameroon();
-    box.innerHTML=cam?'<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Paiement localisé — Cameroun (+237)</div><label><input type="radio" name="emil-pay" value="mtn_momo" checked> MTN MoMo</label><label style="margin-left:14px"><input type="radio" name="emil-pay" value="orange_money"> Orange Money</label>':'<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Paiement international</div><label><input type="radio" name="emil-pay" value="card" checked> Carte bancaire</label>';
-    card.style.display=cam?'none':'block';
+    let box=$('#emil-payment-options');
+    if(!box){box=document.createElement('div');box.id='emil-payment-options';phone.closest('.form-group')?.after(box);}
+    box.innerHTML='<div style="font-size:11px;color:var(--gold);margin-bottom:8px">Paiement localisé — Cameroun (+237)</div><label><input type="radio" name="emil-pay" value="mtn_momo" checked> MTN Mobile Money</label><label style="margin-left:14px"><input type="radio" name="emil-pay" value="orange_money"> Orange Money</label>';
   }
-  function cardData(){
-    if(isCameroon())return {};
-    const number=($('#emil-card-number')?.value||'').replace(/\s/g,'');const expiry=$('#emil-card-expiry')?.value.trim()||'';const cvv=$('#emil-card-cvv')?.value.trim()||'';const holder=$('#emil-card-holder')?.value.trim()||'';
-    if(!/^\d{13,19}$/.test(number)||!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)||!/^\d{3,4}$/.test(cvv)||!holder)throw new Error('Renseignez les champs obligatoires de la carte bancaire.');
-    return {cardLast4:number.slice(-4),cardExpiry:expiry,cardHolder:holder};
-  }
+  function cardData(){ return {}; }
   function payload(){
     const name=$('#c-name')?.value.trim()||'',phone=(typeof window.getFullPhone==='function'?window.getFullPhone():$('#c-phone')?.value||'').replace(/\s/g,''),city=$('#c-city')?.value||'',address=$('#c-address')?.value.trim()||'';
     if(!name||!phone||!address)throw new Error('Veuillez renseigner votre nom, votre téléphone et votre adresse.');
-    const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0};const delivery=Number(($('#co-delivery')?.textContent||'').replace(/\D/g,''))||0;const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0;const method=isCameroon()?($('#emil-payment-options input:checked')?.value||'mtn_momo'):'card';
+    const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0};const delivery=Number(($('#co-delivery')?.textContent||'').replace(/\D/g,''))||0;const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0;const method=$('#emil-payment-options input:checked')?.value||'mtn_momo';
     return {name,phone,city,address,notes:$('#c-msg')?.value.trim()||'',subtotal:Number(totals.subtotal||0),deliveryFee:delivery,total:Number(totals.subtotal||0)+delivery+gift,method,reference:'EMIL-'+Date.now(),promoCode:$('#promo-code')?.value.trim()||undefined,...cardData()};
   }
   async function safePayment(){ throw new Error('Le paiement réel doit être initialisé par le backend Notch Pay configuré.'); }
@@ -93,7 +86,16 @@
 
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+window.EMIL_ONESIGNAL_APP_ID = window.EMIL_ONESIGNAL_APP_ID || 'REPLACE_WITH_ONESIGNAL_APP_ID';
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+window.OneSignalDeferred.push(async function(OneSignal) {
+  if (window.EMIL_ONESIGNAL_APP_ID.startsWith('REPLACE_')) return;
+  await OneSignal.init({ appId: window.EMIL_ONESIGNAL_APP_ID, notifyButton: { enable: false } });
+});
+</script>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -616,12 +618,12 @@ footer{background:var(--dark-2);border-top:1px solid rgba(201,168,76,.1);padding
 .about-pillar{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:10px;padding:26px;position:relative;overflow:hidden;transition:var(--transition)}
 .about-pillar::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold-dark),var(--gold))}
 .about-pillar:hover{border-color:rgba(201,168,76,.3);transform:translateY(-3px);box-shadow:var(--shadow-gold)}
-.about-pillar-icon{font-size:32px;margin-bottom:12px}
+.about-pillar-icon{margin-bottom:12px;color:var(--gold)} .about-pillar-icon .luxury-svg-icon{width:32px;height:32px}
 .about-pillar-title{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px;color:var(--gold)}
 .about-pillar-text{font-size:13px;color:var(--muted);line-height:1.7}
 .about-why-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:56px}
 .about-why-item{background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;padding:20px;display:flex;gap:14px;align-items:flex-start}
-.about-why-icon{font-size:22px;flex-shrink:0;margin-top:2px}
+.about-why-icon{color:var(--gold);flex-shrink:0;margin-top:2px} .about-why-icon .luxury-svg-icon{width:22px;height:22px}
 .about-why-title{font-size:13px;font-weight:600;margin-bottom:4px;color:var(--light)}
 .about-why-text{font-size:12px;color:var(--muted);line-height:1.6}
 .about-tagline{background:linear-gradient(135deg,rgba(201,168,76,.08),rgba(201,168,76,.03));border:1px solid rgba(201,168,76,.2);border-radius:10px;padding:36px;text-align:center;margin-bottom:56px}
@@ -1044,7 +1046,7 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 .real-map-container{height:360px;border-radius:10px;overflow:hidden;border:1px solid rgba(201,168,76,.2);margin-top:20px;position:relative}
 .real-map-container iframe{width:100%;height:100%;border:none;display:block}
 .map-info-bar{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:8px;padding:14px 18px;margin-bottom:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.map-info-bar .map-info-icon{font-size:22px;flex-shrink:0}
+.map-info-bar .map-info-icon{color:var(--gold);flex-shrink:0} .map-info-icon .luxury-svg-icon{width:22px;height:22px}
 .map-info-bar .map-info-text h4{font-size:13px;font-weight:600;margin-bottom:2px}
 .map-info-bar .map-info-text p{font-size:12px;color:var(--muted)}
 .map-action-btns{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
@@ -2409,9 +2411,6 @@ img,svg,video,iframe{max-width:100%}
           <button type="button" id="payment-scope-local-label" data-payment-scope="local" aria-pressed="true" style="display:flex;align-items:center;gap:8px;text-align:left;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.25);border-radius:5px;cursor:pointer;color:var(--light);font:inherit">
             <span><strong style="display:block;color:var(--gold)">Paiement local (+237)</strong><small style="color:var(--muted)">MTN Mobile Money ou Orange Money</small></span>
           </button>
-          <button type="button" id="payment-scope-international-label" data-payment-scope="international" aria-pressed="false" style="display:flex;align-items:center;gap:8px;text-align:left;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.12);border-radius:5px;cursor:pointer;color:var(--light);font:inherit">
-            <span><strong style="display:block;color:var(--gold)">Paiement international</strong><small style="color:var(--muted)">Carte bancaire</small></span>
-          </button>
         </div>
         <div id="payment-scope-hint" style="font-size:11px;color:var(--muted);margin-top:7px">Sélectionnez votre opérateur mobile money ci-dessous.</div>
       </div>
@@ -2424,9 +2423,6 @@ img,svg,video,iframe{max-width:100%}
           </div>
         </div>
         <div id="emil-payment-options" style="margin:12px 0;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:6px"></div>
-      </div>
-      <div id="emil-international-payment-fields" style="display:none">
-        <div id="emil-card-form" style="margin:12px 0;padding:14px;background:var(--dark-2);border:1px solid rgba(201,168,76,.18);border-radius:6px"><div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--gold);margin-bottom:10px">Paiement international sécurisé par carte <span id="emil-card-brand" style="font-weight:700;letter-spacing:.08em;color:var(--light)"></span></div><div class="form-group"><label class="form-label">Numéro de carte *</label><input class="form-input" id="emil-card-number" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="19"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="form-group"><label class="form-label">Date d’expiration *</label><input class="form-input" id="emil-card-expiry" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/AA" maxlength="5"></div><div class="form-group"><label class="form-label">CVV *</label><input class="form-input" id="emil-card-cvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div><div class="form-group"><label class="form-label">Nom du titulaire *</label><input class="form-input" id="emil-card-holder" autocomplete="cc-name" placeholder="Nom figurant sur la carte"></div></div>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="label_name">Nom complet *</label>
@@ -2719,6 +2715,7 @@ img,svg,video,iframe{max-width:100%}
       <div class="admin-nav-item" data-section="engraving-admin" onclick="adminNav(this)"><span class="icon">💍</span> Gravure</div>
       <div class="admin-nav-group">Alertes</div>
       <div class="admin-nav-item" data-section="stock-notif-admin" onclick="adminNav(this)"><span class="icon">🔔</span> Alertes Stock</div>
+      <div class="admin-nav-item" data-section="push-notif-admin" onclick="adminNav(this)"><span class="icon">📣</span> Notifications Push</div>
       <div class="admin-nav-group">Nova AI</div>
       <div class="admin-nav-item" data-section="nova-admin" onclick="adminNav(this)"><span class="icon">💬</span> Emil Conversations</div>
       <div class="admin-nav-group">Analytics & Promos</div>
@@ -3039,6 +3036,26 @@ img,svg,video,iframe{max-width:100%}
             <input class="admin-search" id="rv-search" placeholder="Rechercher..." oninput="renderAdminReviews()">
           </div>
           <div id="admin-reviews-list"></div>
+        </div>
+      </div>
+
+      <!-- PUSH NOTIFICATIONS ADMIN -->
+      <div class="admin-section" id="admin-push-notif-admin">
+        <div class="admin-section-title">Notifications Push OneSignal</div>
+        <div style="max-width:900px">
+          <div class="admin-about-section">
+            <div class="admin-about-section-title">Nouveau message automatique</div>
+            <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">Les messages actifs sont utilisés aléatoirement par les envois programmés de 10h00, 16h00 et 20h00. La clé API OneSignal reste uniquement dans le backend.</p>
+            <input type="hidden" id="push-message-id">
+            <div class="admin-form-grid">
+              <div><label class="admin-label">Titre</label><input class="admin-input" id="push-message-title" placeholder="L’Empreinte d’Emil"></div>
+              <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="push-message-url" type="url" placeholder="https://lempreinte-demil.onrender.com/"></div>
+            </div>
+            <div style="margin-top:12px"><label class="admin-label">Texte de notification *</label><textarea class="admin-textarea" id="push-message-text" maxlength="240" placeholder="Une nouvelle signature vous attend..."></textarea></div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px"><label style="font-size:12px;color:var(--light)"><input type="checkbox" id="push-message-enabled" checked> Utiliser dans les envois aléatoires</label><button class="admin-btn" onclick="savePushNotificationMessage()">Enregistrer</button><button class="admin-btn admin-btn-ghost" onclick="resetPushNotificationForm()">Annuler</button></div>
+          </div>
+          <div class="admin-toolbar"><h3>Messages enregistrés</h3><button class="admin-btn admin-btn-ghost admin-btn-sm" onclick="loadPushNotificationMessages()">Rafraîchir</button></div>
+          <div id="push-notification-list"></div>
         </div>
       </div>
 
@@ -3893,7 +3910,7 @@ Action: Immediate restocking required.</textarea></div>
         <!-- REAL INTERACTIVE MAP - PK12 Douala -->
         <div style="margin-top:20px">
           <div class="map-info-bar">
-            <div class="map-info-icon">📍</div>
+            <div class="map-info-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Localisation" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg></div>
             <div class="map-info-text">
               <h4 id="map-store-name">L'Empreinte D'Emil</h4>
               <p id="map-store-addr">PK12, Douala, Cameroun · Ouvert Lun–Sam 8h–20h</p>
@@ -3909,13 +3926,13 @@ Action: Immediate restocking required.</textarea></div>
           </div>
           <div class="map-action-btns">
             <a class="map-action-btn primary" href="https://www.openstreetmap.org/?mlat=4.0511&amp;mlon=9.7679#map=16/4.0511/9.7679" target="_blank" rel="noopener">
-              🗺️ <span id="map-open-btn-about">Ouvrir la carte</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Ouvrir la carte" focusable="false"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15M15 6v15"></path></svg><span id="map-open-btn-about">Ouvrir la carte</span>
             </a>
             <a class="map-action-btn" href="https://www.google.com/maps/dir/?api=1&destination=4.0511,9.7679" target="_blank" rel="noopener">
-              🚗 <span id="map-itinerary-btn-about">Itinéraire</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Itinéraire" focusable="false"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h1"></path></svg><span id="map-itinerary-btn-about">Itinéraire</span>
             </a>
             <a class="map-action-btn" href="https://maps.google.com/?q=PK12+Douala+Cameroon" target="_blank" rel="noopener">
-              📱 <span id="map-gmaps-btn-about">Google Maps</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Google Maps" focusable="false"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15M15 6v15"></path></svg><span id="map-gmaps-btn-about">Google Maps</span>
             </a>
           </div>
         </div>
@@ -4017,7 +4034,7 @@ Action: Immediate restocking required.</textarea></div>
         <!-- REAL INTERACTIVE MAP - PK12 Douala -->
         <div style="margin-top:20px">
           <div class="map-info-bar">
-            <div class="map-info-icon">📍</div>
+            <div class="map-info-icon"><svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Localisation" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"></path><circle cx="12" cy="9" r="2.4"></circle></svg></div>
             <div class="map-info-text">
               <h4 id="map-store-name">L'Empreinte D'Emil</h4>
               <p id="map-store-addr">PK12, Douala, Cameroun · Ouvert Lun–Sam 8h–20h</p>
@@ -4033,13 +4050,13 @@ Action: Immediate restocking required.</textarea></div>
           </div>
           <div class="map-action-btns">
             <a class="map-action-btn primary" href="https://www.openstreetmap.org/?mlat=4.0511&amp;mlon=9.7679#map=16/4.0511/9.7679" target="_blank" rel="noopener">
-              🗺️ <span id="map-open-btn-contact">Ouvrir la carte</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Ouvrir la carte" focusable="false"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15M15 6v15"></path></svg><span id="map-open-btn-contact">Ouvrir la carte</span>
             </a>
             <a class="map-action-btn" href="https://www.google.com/maps/dir/?api=1&destination=4.0511,9.7679" target="_blank" rel="noopener">
-              🚗 <span id="map-itinerary-btn-contact">Itinéraire</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Itinéraire" focusable="false"><circle cx="6" cy="18" r="2"></circle><circle cx="18" cy="6" r="2"></circle><path d="M8 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h1"></path></svg><span id="map-itinerary-btn-contact">Itinéraire</span>
             </a>
             <a class="map-action-btn" href="https://maps.google.com/?q=PK12+Douala+Cameroon" target="_blank" rel="noopener">
-              📱 <span id="map-gmaps-btn-contact">Google Maps</span>
+              <svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="Google Maps" focusable="false"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path><path d="M9 3v15M15 6v15"></path></svg><span id="map-gmaps-btn-contact">Google Maps</span>
             </a>
           </div>
         </div>
@@ -6933,6 +6950,7 @@ function adminNav(el) {
   const section = el.getAttribute('data-section');
   document.querySelectorAll('.admin-section').forEach(s=>s.classList.remove('active'));
   document.getElementById('admin-'+section).classList.add('active');
+  if (section === 'push-notif-admin') setTimeout(loadPushNotificationMessages, 0);
   // Close sidebar on mobile after nav
   if (window.innerWidth <= 900) closeSidebar();
 }
@@ -7789,10 +7807,10 @@ function renderReviewCard(r) {
 
 // ---- Home reviews (show best 6) ----
 function renderHomeReviews() {
-  const top = [...reviews].sort((a,b)=>b.stars-a.stars).slice(0,6);
+  const top = [...reviews].filter(r=>r.approved===true).sort((a,b)=>(b.stars||b.rating||0)-(a.stars||a.rating||0)).slice(0,6);
   const statsEl = document.getElementById('home-reviews-stats');
   const gridEl = document.getElementById('home-reviews-grid');
-  if (statsEl) statsEl.innerHTML = renderStatsBlock(reviews);
+  if (statsEl) statsEl.innerHTML = renderStatsBlock(reviews.filter(r=>r.approved===true));
   if (gridEl) gridEl.innerHTML = top.length
     ? top.map(renderReviewCard).join('')
     : `<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">${t('reviews_empty')}</div>`;
@@ -7812,7 +7830,7 @@ function renderReviewsPage() {
   const catF = document.getElementById('reviews-cat-filter')?.value || '';
   const starsF = parseInt(document.getElementById('reviews-stars-filter')?.value||'0');
 
-  let filtered = [...reviews];
+  let filtered = reviews.filter(r=>r.approved===true).map(r=>({...r, stars:r.stars||r.rating||0}));
   if (catF) filtered = filtered.filter(r => r.productId === catF);
   if (starsF) filtered = filtered.filter(r => r.stars >= starsF);
   filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -8081,6 +8099,24 @@ async function savePendingRvs() {
 }
 
 // ── About page render ─────────────────────────────────────────
+
+function luxuryIcon(name, label='') {
+  const paths={sparkles:'<path d="m12 3 1.4 5.6L19 10l-5.6 1.4L12 17l-1.4-5.6L5 10l5.6-1.4L12 3Z"/><path d="m19 16 .6 2.4L22 19l-2.4.6L19 22l-.6-2.4L16 19l2.4-.6L19 16Z"/>',
+  bag:'<path d="M5 8.5h14l-1 11H6l-1-11Z"/><path d="M8.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5"/>',
+  accessory:'<path d="M4 9.5 12 5l8 4.5-8 4.5-8-4.5Z"/><path d="M4 9.5V16l8 4 8-4V9.5M12 14v6"/>',
+  trophy:'<path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 12v4M8 20h8M9 16h6"/>',
+  flower:'<circle cx="12" cy="12" r="2.2"/><path d="M12 9c-4-5 3-7 3-2 5-3 6 4 1 5 5 4-2 7-4 2-4 5-7-2-2-4-5-2-2-7 2-2Z"/>',
+  hourglass:'<path d="M7 3h10M7 21h10M8 4c0 4 4 4 4 8s-4 4-4 8M16 4c0 4-4 4-4 8s4 4 4 8"/>',
+  delivery:'<path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>',
+  pin:'<path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/>',
+  map:'<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15M15 6v15"/>',
+  route:'<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h1"/>',
+  phone:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10 6h4M11 18h2"/>'};
+  const key=String(name||'').toLowerCase(); const body=paths[key]||paths.sparkles;
+  return `<svg class="luxury-svg-icon" viewBox="0 0 24 24" role="img" aria-label="${String(label).replace(/[<>]/g,'')}" focusable="false">${body}</svg>`;
+}
+function iconForValue(value, fallback='sparkles'){ const v=String(value||'').toLowerCase(); if(/[bag|sac|chauss|👝|👜]/.test(v)) return 'bag'; if(/[access|casquette|🧢]/.test(v)) return 'accessory'; if(/[qual|troph|🏆]/.test(v)) return 'trophy'; if(/[olfact|rose|🌹]/.test(v)) return 'flower'; if(/[temp|heure|⌛]/.test(v)) return 'hourglass'; if(/[livr|🚚]/.test(v)) return 'delivery'; return fallback; }
+
 function renderAboutPage() {
   const addr = settings.address || 'Douala, Cameroun';
   const mapsUrl = 'https://maps.google.com/?q=' + encodeURIComponent(addr);
@@ -8097,7 +8133,7 @@ function renderAboutPage() {
   const pg = document.getElementById('about-pillars-grid');
   if (pg) pg.innerHTML = pillars.map(p => `
     <div class="about-pillar">
-      <div class="about-pillar-icon">${p.icon}</div>
+      <div class="about-pillar-icon">${luxuryIcon(iconForValue(p.icon), p.titleFR)}</div>
       <div class="about-pillar-title">${lang==='fr'?p.titleFR:p.titleEN}</div>
       <div class="about-pillar-text">${lang==='fr'?p.textFR:p.textEN}</div>
     </div>`).join('');
@@ -8106,7 +8142,7 @@ function renderAboutPage() {
   const wg = document.getElementById('about-why-grid');
   if (wg) wg.innerHTML = whyItems.map(w => `
     <div class="about-why-item">
-      <div class="about-why-icon">${w.icon}</div>
+      <div class="about-why-icon">${luxuryIcon(iconForValue(w.icon, 'trophy'), w.titleFR)}</div>
       <div>
         <div class="about-why-title">${lang==='fr'?w.titleFR:w.titleEN}</div>
         <div class="about-why-text">${lang==='fr'?w.textFR:w.textEN}</div>
@@ -8587,7 +8623,7 @@ function switchReviewTab(el, tab) {
 
 async function approveReview(id) {
   const idx = pendingReviews.findIndex(r => r.id===id); if (idx<0) return false;
-  const rv = {...pendingReviews[idx], pending:false, verified:false};
+  const rv = {...pendingReviews[idx], pending:false, verified:false, approved:true};
   const nextPendingReviews = pendingReviews.filter(r => r.id !== id);
   const nextReviews = [rv, ...reviews];
   try {
@@ -13072,6 +13108,35 @@ function sanitizeData() {
 }
 
 // ============================================================
+async function getPushNotificationFirestore() {
+  if (typeof firebase === 'undefined' || !initFirebase()) throw new Error('Firebase indisponible.');
+  return firebase.firestore(firebaseApp);
+}
+function escPush(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function resetPushNotificationForm(){
+  ['push-message-id','push-message-title','push-message-url','push-message-text'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const enabled=document.getElementById('push-message-enabled');if(enabled)enabled.checked=true;
+}
+async function loadPushNotificationMessages(){
+  const list=document.getElementById('push-notification-list');if(!list)return;
+  list.innerHTML='<div style="color:var(--muted);font-size:12px">Chargement…</div>';
+  try{
+    const snap=await (await getPushNotificationFirestore()).collection('adminNotificationMessages').orderBy('updatedAt','desc').get();
+    if(snap.empty){list.innerHTML='<div style="color:var(--muted);font-size:12px">Aucun message enregistré.</div>';return;}
+    list.innerHTML=snap.docs.map(doc=>{const m=doc.data();return `<div class="review-admin-card" style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong style="color:var(--gold)">${escPush(m.title||'L’Empreinte d’Emil')}</strong><div style="font-size:13px;margin-top:6px">${escPush(m.text)}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">${m.enabled?'Actif':'Désactivé'}${m.url?' · '+escPush(m.url):''}</div></div><div style="display:flex;gap:7px"><button class="admin-btn admin-btn-sm" onclick="editPushNotificationMessage('${doc.id}')">Modifier</button><button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePushNotificationMessage('${doc.id}')">Supprimer</button></div></div>`;}).join('');
+  }catch(e){console.error('[Push admin]',e);list.innerHTML='<div style="color:var(--danger);font-size:12px">Impossible de charger les messages. Vérifiez la connexion et les droits admin.</div>';}
+}
+async function editPushNotificationMessage(id){
+  try{const doc=await (await getPushNotificationFirestore()).collection('adminNotificationMessages').doc(id).get();const m=doc.data()||{};document.getElementById('push-message-id').value=id;document.getElementById('push-message-title').value=m.title||'';document.getElementById('push-message-url').value=m.url||'';document.getElementById('push-message-text').value=m.text||'';document.getElementById('push-message-enabled').checked=m.enabled!==false;}
+  catch(e){showToast('Message introuvable','❌');}
+}
+async function savePushNotificationMessage(){
+  const id=document.getElementById('push-message-id')?.value;const text=document.getElementById('push-message-text')?.value.trim();if(!text){showToast('Le texte de notification est requis','⚠️');return;}
+  const data={title:document.getElementById('push-message-title')?.value.trim()||'L’Empreinte d’Emil',text,url:document.getElementById('push-message-url')?.value.trim()||'',enabled:document.getElementById('push-message-enabled')?.checked!==false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
+  try{const col=(await getPushNotificationFirestore()).collection('adminNotificationMessages');if(id)await col.doc(id).update(data);else await col.add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});resetPushNotificationForm();await loadPushNotificationMessages();showToast('Message enregistré','✅');}catch(e){console.error('[Push admin]',e);showToast('Enregistrement refusé : droits admin ou Firebase indisponible','❌');}
+}
+async function deletePushNotificationMessage(id){if(!confirm('Supprimer ce message ?'))return;try{await (await getPushNotificationFirestore()).collection('adminNotificationMessages').doc(id).delete();await loadPushNotificationMessages();showToast('Message supprimé','✅');}catch(e){showToast('Suppression refusée','❌');}}
+
 function renderAll() {
   try {
     sanitizeData();
@@ -13092,46 +13157,13 @@ function renderAll() {
     console.error('[Render] renderAll failed', e);
   }
 
-  // ── FERMETURE AUTOMATIQUE DU SPLASH AVEC ATTENTE DES PRODUITS ET DES IMAGES ──
+  // ── PRÉCHARGEMENT SYNCHRONE DU CATALOGUE AVANT LA FIN DU SPLASH ──
   (async function() {
-    const validProducts = getValidProducts();
-    const hasProducts = validProducts.length > 0;
-    
-    // CONDITION DE SÉCURITÉ : Interdiction d'ouvrir si 0 produits
-    if (!hasProducts) {
-      console.log('[Luxe] 0 products found, keeping curtain closed...');
-      return; 
-    }
-
-    // On capture toutes les images injectées dans les grilles principales
-    const containers = ['featured-grid', 'new-grid', 'home-cats'];
-    let images = [];
-    containers.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) images = [...images, ...el.querySelectorAll('img')];
-    });
-
-    if (images.length > 0) {
-      console.log(`[Luxe] Waiting for ${images.length} images to load...`);
-      const imagePromises = images.map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve; // On résout quand même en cas d'erreur pour ne pas bloquer indéfiniment
-        });
-      });
-      
-      // On attend que toutes les images soient chargées
-      await Promise.all(imagePromises);
-      console.log('[Luxe] All images loaded, opening curtain.');
-    }
-
-    // Petit délai de confort pour le rendu final du navigateur
-    setTimeout(() => {
-      if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-      // Alias demandé par l'utilisateur si jamais utilisé ailleurs
-      if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
-    }, 400);
+    const validProducts=getValidProducts();
+    const urls=[...new Set(validProducts.flatMap(p=>Array.isArray(p.imgs)?p.imgs:[p.image,p.img,p.imgUrl]).filter(u=>typeof u==='string'&&u.trim()))];
+    if(!urls.length){ if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash(); return; }
+    await Promise.all(urls.map(src=>new Promise(resolve=>{const img=new Image();img.decoding='async';img.onload=img.onerror=()=>resolve();img.src=src;})));
+    requestAnimationFrame(()=>{ if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash(); if(typeof window.closeSplash==='undefined')window.closeSplash=window.closeLuxeSplash; });
   })();
 }
 
@@ -13260,8 +13292,37 @@ window.addEventListener('load', function() {
 (() => {
   const compress = file => new Promise((resolve, reject) => { const img = new Image(); const reader = new FileReader(); reader.onload = () => { img.onload = () => { const max = 1400, ratio = Math.min(1, max / Math.max(img.width, img.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(img.width * ratio)); canvas.height = Math.max(1, Math.round(img.height * ratio)); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve({ base64: canvas.toDataURL('image/jpeg', .78), mime: 'image/jpeg' }); }; img.onerror = reject; img.src = reader.result; }; reader.onerror = reject; reader.readAsDataURL(file); });
   const base64ToBytes = value => { const padding = '='.repeat((4 - value.length % 4) % 4); const raw = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...raw].map(char => char.charCodeAt(0))); };
-  async function submitReview(productId, prefix) { const name = document.getElementById(prefix + '-name')?.value.trim(); const comment = document.getElementById(prefix + '-text')?.value.trim(); const rating = Number(document.getElementById(prefix + '-stars')?.value || 0); const file = document.getElementById(prefix + '-photo')?.files?.[0]; if (!name || !comment || !rating) { if (window.showToast) window.showToast('Nom, note et commentaire requis', '⚠️'); return; } const pending = Array.isArray(window.pendingReviews)?window.pendingReviews:[]; pending.unshift({id:'rv'+Date.now(),productId,name,authorName:name,rating,comment,status:'pending',date:new Date().toISOString(),photoData:null}); window.pendingReviews=pending; if(typeof DB!=='undefined') DB.set('pendingReviews',pending); if (window.showToast) window.showToast('Avis soumis pour modération', '✅'); }
-  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && (r.status==='approved'||r.approved===true)); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div><div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
+  async function submitReview(productId, prefix) {
+    const name=document.getElementById(prefix+'-name')?.value.trim();
+    const comment=document.getElementById(prefix+'-text')?.value.trim();
+    const rating=Number(document.getElementById(prefix+'-stars')?.value||0);
+    const file=document.getElementById(prefix+'-photo')?.files?.[0];
+    if(!name||!comment||!rating){ if(window.showToast)window.showToast('Nom, note et commentaire requis','⚠️'); return false; }
+    if(file && (!file.type.startsWith('image/') || file.size>8*1024*1024)){ if(window.showToast)window.showToast('La photo doit être une image de 8 Mo maximum.','⚠️'); return false; }
+    try {
+      if(typeof firebase==='undefined' || !firebase.apps.length || typeof firebase.firestore!=='function') throw new Error('Firestore indisponible.');
+      const app=firebase.app(); const storage=firebase.storage(app); const firestore=firebase.firestore(app);
+      let imageUrl=null;
+      if(file){
+        const safeName=file.name.replace(/[^a-z0-9._-]/gi,'-');
+        const ref=storage.ref().child(`reviews/${productId||'general'}/${Date.now()}-${safeName}`);
+        const snap=await ref.put(file,{contentType:file.type,cacheControl:'public,max-age=31536000'});
+        imageUrl=await snap.ref.getDownloadURL();
+      }
+      const review={name,authorName:name,productId:productId||'general',rating,stars:rating,comment,textFR:comment,textEN:'',imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false};
+      await firestore.collection('reviews').add(review);
+      const pending=Array.isArray(window.pendingReviews)?window.pendingReviews:[];
+      pending.unshift({...review,id:'rv'+Date.now()}); window.pendingReviews=pending;
+      if(typeof DB!=='undefined')DB.set('pendingReviews',pending);
+      if(window.showToast)window.showToast('Avis soumis pour modération','✅');
+      return true;
+    } catch(e) {
+      console.error('[Reviews] Firebase upload error:',e);
+      if(window.showToast)window.showToast('Avis non envoyé : vérifiez la configuration Firebase Storage/Firestore.','❌');
+      return false;
+    }
+  }
+  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && r.approved===true); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div>${r.imageUrl||r.photoUrl?`<img src="${String(r.imageUrl||r.photoUrl).replace(/[<>]/g,'')}" alt="Photo jointe à l’avis" loading="lazy" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)">`:''}<div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
 function injectProductReview(productId) { const body = document.getElementById('pm-body'); if (!body || body.querySelector('.emil-product-review')) return; const box = document.createElement('section'); box.className = 'emil-product-review public-review-form'; box.innerHTML = `<h3>Votre expérience</h3><p>Partagez votre avis sur ce produit. Il sera publié après modération.</p><div class="pub-star-picker" id="product-rv-picker"><span class="pub-star" data-v="1">★</span><span class="pub-star" data-v="2">★</span><span class="pub-star" data-v="3">★</span><span class="pub-star" data-v="4">★</span><span class="pub-star" data-v="5">★</span></div><input type="hidden" id="product-rv-stars" value="0"><input class="form-input" id="product-rv-name" placeholder="Votre nom" style="margin-bottom:8px;width:100%;box-sizing:border-box;"><textarea class="form-textarea" id="product-rv-text" placeholder="Votre avis" style="margin-bottom:8px;width:100%;box-sizing:border-box;"></textarea><label for="product-rv-photo" id="product-rv-photo-label" style="display:flex;align-items:center;gap:clamp(12px,3vw,18px);width:100%;min-height:100px;margin-bottom:12px;padding:clamp(15px,4vw,24px);background:#1f1f1f;border:1px solid rgba(201,163,75,.45);border-radius:12px;cursor:pointer;transition:all .3s ease;box-sizing:border-box;overflow:hidden;"><div style="width:clamp(48px,12vw,58px);height:clamp(48px,12vw,58px);min-width:clamp(48px,12vw,58px);border-radius:50%;background:rgba(201,163,75,.12);display:flex;align-items:center;justify-content:center;color:#d5ad4e;font-size:clamp(24px,6vw,30px);flex-shrink:0;">✦</div><div style="display:flex;flex-direction:column;gap:5px;min-width:0;flex:1;"><span id="product-rv-photo-title" style="font-family:Georgia,serif;font-size:clamp(17px,4vw,20px);color:#d5ad4e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ajouter une photo</span><span id="product-rv-photo-info" style="font-size:clamp(12px,3.5vw,14px);color:#9ca3af;line-height:1.5;">Cliquez pour sélectionner · JPG, PNG ou WebP</span></div></label><input id="product-rv-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none"><button class="btn-primary" id="product-rv-submit" style="max-width:100%;box-sizing:border-box;">Soumettre mon avis</button><div class="emil-product-approved-reviews"></div>`; body.appendChild(box); const photoInput = box.querySelector('#product-rv-photo'); const photoLabel = box.querySelector('#product-rv-photo-label'); photoInput.addEventListener('change', () => { if (photoInput.files && photoInput.files[0]) { box.querySelector('#product-rv-photo-title').textContent = photoInput.files[0].name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); photoLabel.addEventListener('dragover', e => { e.preventDefault(); photoLabel.style.borderColor = '#d5ad4e'; photoLabel.style.background = 'rgba(201,163,75,.08)'; }); photoLabel.addEventListener('dragleave', () => { photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; }); photoLabel.addEventListener('drop', e => { e.preventDefault(); photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; const file = e.dataTransfer.files[0]; if (file && ['image/jpeg','image/png','image/webp'].includes(file.type)) { const dt = new DataTransfer(); dt.items.add(file); photoInput.files = dt.files; box.querySelector('#product-rv-photo-title').textContent = file.name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); box.querySelectorAll('.pub-star').forEach(star => star.addEventListener('click', () => { const n = Number(star.dataset.v); document.getElementById('product-rv-stars').value = n; box.querySelectorAll('.pub-star').forEach(s => s.classList.toggle('active', Number(s.dataset.v) <= n)); })); box.querySelector('#product-rv-submit').addEventListener('click', () => submitReview(productId, 'product-rv')); renderProductReviews(productId, box.querySelector('.emil-product-approved-reviews')); }  function addPhotoField() { if (document.getElementById('pub-rv-photo')) return; const text = document.getElementById('pub-rv-text'); if (!text) return; const wrap = document.createElement('div'); wrap.style.cssText = 'margin-bottom:14px'; wrap.innerHTML = '<label class="form-label">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">'; text.parentElement.after(wrap); }
   function installHooks() { addPhotoField(); const oldSubmit = window.submitPublicReview; window.submitPublicReview = async function() { const productId = document.getElementById('pub-rv-product')?.value || 'general'; try { await submitReview(productId, 'pub-rv'); document.getElementById('pub-rv-sent')?.classList.add('show'); } catch (e) { if (window.showToast) window.showToast(e.message, '❌'); } return false; }; const originalOpen = window.openProduct; if (typeof originalOpen === 'function') window.openProduct = function(id) { originalOpen(id); setTimeout(() => injectProductReview(id), 250); }; }
   window.addEventListener('load', () => setTimeout(installHooks, 500));
@@ -13369,46 +13430,29 @@ window.addEventListener('load', () => setTimeout(() => {
     zone.addEventListener('click',()=>input.click()); zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover')}); zone.addEventListener('dragleave',()=>zone.classList.remove('dragover')); zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');accept(e.dataTransfer.files[0])}); input.addEventListener('change',()=>accept(input.files[0])); preview.querySelector('button').addEventListener('click',e=>{e.stopPropagation();input.value='';preview.classList.remove('show');zone.querySelector('strong').textContent='Ajouter une photo';});
   }
 
-  function formatCardNumberInput(input){ const digits=(input.value||'').replace(/\D/g,'').slice(0,19); input.value=digits.replace(/(.{4})/g,'$1 ').trim(); }
-  function detectCardBrand(value){ const d=String(value||'').replace(/\D/g,''); if(/^4/.test(d)) return 'VISA'; if(/^(5[1-5]|2(2[2-9][1-9]|2[3-6]\d{2}|27[0-1]\d|2720))/.test(d)) return 'MASTERCARD'; return ''; }
-  function bindCardNumberUX(){ const input=q('#emil-card-number'), badge=q('#emil-card-brand'); if(!input||input.dataset.cardUxBound) return; input.dataset.cardUxBound='1'; input.addEventListener('input',()=>{formatCardNumberInput(input); if(badge) badge.textContent=detectCardBrand(input.value);}); input.addEventListener('paste',()=>setTimeout(()=>{formatCardNumberInput(input);if(badge)badge.textContent=detectCardBrand(input.value);},0)); }
   function setPaymentScopeVisual(scope){
-    const local=scope==='local'; const ll=q('#payment-scope-local-label'), il=q('#payment-scope-international-label'), hint=q('#payment-scope-hint');
-    const localBox=q('#emil-local-payment-fields'), intlBox=q('#emil-international-payment-fields');
-    if(ll) { ll.style.borderColor=local?'var(--gold)':'rgba(201,168,76,.12)'; ll.setAttribute('aria-pressed',String(local)); }
-    if(il) { il.style.borderColor=!local?'var(--gold)':'rgba(201,168,76,.12)'; il.setAttribute('aria-pressed',String(!local)); }
-    if(hint) hint.textContent=local?'Choisissez votre opérateur Mobile Money pour continuer.':'Renseignez les informations obligatoires de votre carte bancaire.';
-    if(localBox) localBox.style.display=local?'block':'none'; if(intlBox) intlBox.style.display=local?'none':'block';
-    [q('#c-phone-country'),q('#c-phone'),...Array.from(document.querySelectorAll('#emil-payment-options input'))].forEach(el=>{if(el) el.disabled=!local;});
-    [q('#emil-card-number'),q('#emil-card-expiry'),q('#emil-card-cvv'),q('#emil-card-holder')].forEach(el=>{if(el) el.disabled=local;});
+    const ll=q('#payment-scope-local-label'),hint=q('#payment-scope-hint'),localBox=q('#emil-local-payment-fields');
+    if(ll){ll.style.borderColor='var(--gold)';ll.setAttribute('aria-pressed','true');}
+    if(hint)hint.textContent='Choisissez votre opérateur Mobile Money pour continuer.';
+    if(localBox)localBox.style.display='block';
+    [q('#c-phone-country'),q('#c-phone'),...Array.from(document.querySelectorAll('#emil-payment-options input'))].forEach(el=>{if(el)el.disabled=false;});
   }
   function updatePaymentScope(scope){
-    const country=q('#c-phone-country');
-    if(scope==='local'){
-      if(country){ country.value='+237'; if(typeof updatePhonePlaceholder==='function') updatePhonePlaceholder(); }
-    } else if(country && country.value==='+237'){
-      const alternative=Array.from(country.options||[]).find(o=>o.value!=='+237'); if(alternative) country.value=alternative.value;
-      if(typeof updatePhonePlaceholder==='function') updatePhonePlaceholder();
-    }
-    if(typeof ensureCardForm==='function') ensureCardForm(); setPaymentScopeVisual(scope); renderCheckoutPromo();
+    const country=q('#c-phone-country'); if(country){country.value='+237'; if(typeof updatePhonePlaceholder==='function')updatePhonePlaceholder();}
+    if(typeof ensureCardForm==='function')ensureCardForm(); setPaymentScopeVisual('local'); renderCheckoutPromo();
   }
   function syncPaymentScopeFromCountry(){
-    const country=q('#c-phone-country')?.value||'+237'; const radio=q(`input[name="emil-payment-scope"][value="${country==='+237'?'local':'international'}"]`); if(radio) radio.checked=true;
-    setPaymentScopeVisual(country==='+237'?'local':'international'); if(typeof ensureCardForm==='function') ensureCardForm();
+    const country=q('#c-phone-country'); if(country)country.value='+237'; setPaymentScopeVisual('local'); if(typeof ensureCardForm==='function')ensureCardForm();
   }
   function checkoutPaymentState(){
-    const scope=q('input[name="emil-payment-scope"]:checked')?.value||'local'; const country=q('#c-phone-country')?.value||'+237'; const isCameroon=scope==='local' && country==='+237';
-    if(scope==='local' && country!=='+237') throw new Error('Le paiement local nécessite le pays Cameroun (+237).');
-    if(scope==='international' && country==='+237') throw new Error('Sélectionnez un pays international pour continuer.');
-    const method=q('input[name="emil-pay"]:checked')?.value||(isCameroon?'mtn_momo':'card');
-    if(isCameroon&&!['mtn_momo','orange_money'].includes(method)) throw new Error('Pour le paiement local, choisissez MTN Mobile Money ou Orange Money.');
-    if(!isCameroon&&method!=='card') throw new Error('Les clients internationaux utilisent la carte bancaire.');
-    if(!isCameroon){ const number=(q('#emil-card-number')?.value||'').replace(/\s/g,''); const expiry=q('#emil-card-expiry')?.value.trim()||''; const cvv=q('#emil-card-cvv')?.value.trim()||''; const holder=q('#emil-card-holder')?.value.trim()||''; if(!/^\d{13,19}$/.test(number)||!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)||!/^\d{3,4}$/.test(cvv)||!holder) throw new Error('Renseignez le nom du titulaire, le numéro, la date d’expiration et le CVV.'); return {method,cardLast4:number.slice(-4),cardExpiry:expiry,cardHolder:holder}; }
+    const country=q('#c-phone-country')?.value||'+237'; if(country!=='+237')throw new Error('Le paiement local nécessite le pays Cameroun (+237).');
+    const method=q('input[name="emil-pay"]:checked')?.value||'mtn_momo';
+    if(!['mtn_momo','orange_money'].includes(method))throw new Error('Pour le paiement local, choisissez MTN Mobile Money ou Orange Money.');
     return {method};
   }
   function getCheckoutData(){
     const name=q('#c-name')?.value.trim(), phone=(typeof window.getFullPhone==='function'?window.getFullPhone():q('#c-phone')?.value||'').replace(/\s/g,''); const city=q('#c-city')?.value||''; const address=q('#c-address')?.value.trim(); const notes=q('#c-msg')?.value.trim()||'';
-    const selectedScope=q('input[name="emil-payment-scope"]:checked')?.value||'local'; if(!name||!address||(selectedScope==='local'&&!phone)) throw new Error(selectedScope==='local'?'Veuillez renseigner votre nom, votre téléphone et votre adresse.':'Veuillez renseigner votre nom et votre adresse.');
+    if(!name||!address||!phone) throw new Error('Veuillez renseigner votre nom, votre téléphone et votre adresse.');
     const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0}; const fee=Number((q('#co-delivery')?.textContent||'').replace(/\D/g,''))||0; const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0; const promo=renderCheckoutPromo(); const payment=checkoutPaymentState();
     return {name,phone,city,address,notes,subtotal:Number(totals.subtotal||0),promoCode:promo.code||null,promoDiscount:Number(promo.discount||0),deliveryFee:fee,giftFee:gift,total:Math.max(0,Number(totals.subtotal||0)-Number(promo.discount||0)+fee+gift),reference:'EMIL-'+Date.now(),...payment};
   }
