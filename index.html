@@ -4505,10 +4505,28 @@ const SHARED_KEYS = [
 // Le SDK compat chargé par cette page expose l’équivalent de ref(db, 'reviews')
 // sous la forme firebaseDb.ref('reviews').
 function reviewRows(value) {
-  const source = Array.isArray(value) ? value : Object.values(value || {});
+  const source = Array.isArray(value) ? value.filter(Boolean) : (value ? Object.values(value) : []);
   return source
     .filter(review => review && typeof review === 'object')
     .map((review, index) => ({ ...review, id: review.id || String(index) }));
+}
+
+function reviewStatus(review) {
+  return String(review?.status ?? review?.state ?? review?.moderationStatus ?? '').trim().toLowerCase();
+}
+
+function reviewIsPending(review) {
+  if (!review || typeof review !== 'object') return false;
+  const status = reviewStatus(review);
+  return review.approved === false || review.pending === true ||
+    ['pending','waiting','en attente','en_attente','awaiting','rejected','refused','draft'].includes(status);
+}
+
+function reviewIsPublic(review) {
+  if (!review || typeof review !== 'object' || reviewIsPending(review)) return false;
+  const status = reviewStatus(review);
+  // Un statut absent ou inconnu ne doit jamais masquer un ancien avis.
+  return !status || ['approved','published','public','visible','valide','validé','approved_and_published'].includes(status) || review.approved === true;
 }
 
 const LOCAL_ONLY_KEYS = ['cart','lang','loyalty_phone','adminSession','admin_pwd','stockAlertCooldowns'];
@@ -4648,9 +4666,7 @@ function initFirebase() {
       const reviewsRef = firebase.database().ref('reviews');
       reviewsRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        const reviewsArray = data && typeof data === 'object'
-          ? Object.keys(data).map(key => ({ id: key, ...(data[key] || {}) }))
-          : [];
+        const reviewsArray = Array.isArray(data) ? data.filter(Boolean) : (data ? Object.values(data) : []);
         handleKeyUpdate('reviews', reviewsArray);
         if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('reviews');
       }, error => {
@@ -4682,7 +4698,7 @@ function handleKeyUpdate(key, value) {
   else if (key === 'settings') settings = value;
   else if (key === 'reviews') {
     reviews = reviewRows(value);
-    pendingReviews = reviews.filter(review => review.approved === false || review.pending === true);
+    pendingReviews = reviews.filter(reviewIsPending);
     window.reviews = reviews;
     window.pendingReviews = pendingReviews;
   }
@@ -7879,8 +7895,7 @@ function renderReviewCard(r) {
 
 // ---- Home reviews ----
 function renderHomeReviews() {
-  const approvedReviews = (Array.isArray(reviews) ? reviews : Object.values(reviews || {}))
-    .filter(r=>r && r.approved!==false && r.pending!==true)
+  const approvedReviews = reviewRows(reviews).filter(reviewIsPublic)
     .sort((a,b)=>(b.stars||b.rating||0)-(a.stars||a.rating||0));
   const statsEl = document.getElementById('home-reviews-stats');
   const gridEl = document.getElementById('reviews-container') || document.getElementById('home-reviews-grid');
@@ -7904,7 +7919,7 @@ function renderReviewsPage() {
   const catF = document.getElementById('reviews-cat-filter')?.value || '';
   const starsF = parseInt(document.getElementById('reviews-stars-filter')?.value||'0');
 
-  let filtered = reviews.filter(r=>r.approved===true).map(r=>({...r, stars:r.stars||r.rating||0}));
+  let filtered = reviewRows(reviews).filter(reviewIsPublic).map(r=>({...r, stars:r.stars||r.rating||0}));
   if (catF) filtered = filtered.filter(r => r.productId === catF);
   if (starsF) filtered = filtered.filter(r => r.stars >= starsF);
   filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -8027,8 +8042,8 @@ function renderAdminReviews() {
   const el = document.getElementById('admin-reviews-list'); if (!el) return;
 
   if (currentReviewTab === 'pending') {
-    // Show pending reviews from clients
-    let prv = pendingReviews.filter(r => !q || r.name.toLowerCase().includes(q) || (r.textFR||r.textEN||'').toLowerCase().includes(q));
+    // Les avis explicitement en attente restent ici ; les avis sans statut sont publiés.
+    let prv = reviewRows(reviews).filter(reviewIsPending).filter(r => !q || String(r.name||r.authorName||'').toLowerCase().includes(q) || (r.textFR||r.textEN||r.comment||'').toLowerCase().includes(q));
     el.innerHTML = prv.length ? prv.map(r => {
       const p = r.productId ? getProd(r.productId) : null;
       const text = r.textFR||r.textEN||'';
@@ -8056,8 +8071,8 @@ function renderAdminReviews() {
     return;
   }
 
-  // Approved reviews
-  let rv = reviews.filter(r => !q || r.name.toLowerCase().includes(q) || (r.textFR||'').toLowerCase().includes(q));
+  // Publiés : statut approuvé/published ou statut absent par défaut.
+  let rv = reviewRows(reviews).filter(reviewIsPublic).filter(r => !q || String(r.name||r.authorName||'').toLowerCase().includes(q) || (r.textFR||r.textEN||r.comment||'').toLowerCase().includes(q));
   el.innerHTML = rv.length ? rv.map(r => {
     const p = r.productId ? getProd(r.productId) : null;
     const dateStr = r.date ? new Date(r.date).toLocaleDateString('fr-FR') : '—';
@@ -13710,7 +13725,7 @@ window.addEventListener('load', () => setTimeout(() => {
 const $=(s,r=document)=>r.querySelector(s), list=v=>Array.isArray(v)?v:Object.values(v||{});
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=v=>list(v).filter(r=>r&&typeof r==='object').map(r=>({...r,name:String(r.name||r.authorName||'Client'),stars:Math.max(1,Math.min(5,Number(r.stars??r.rating)||5)),textFR:String(r.textFR??r.comment??''),textEN:String(r.textEN??r.comment??''),imageUrl:r.imageUrl||r.photoUrl||'',date:r.date||r.createdAt||''}));
-const isApproved=r=>r&&r.approved!==false&&r.pending!==true;
+const isApproved=reviewIsPublic;
 function compress(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');if(!file.type.startsWith('image/'))return reject(new Error('Le fichier sélectionné n’est pas une image.'));if(file.size>10*1024*1024)return reject(new Error('La photo doit faire 10 Mo maximum.'));const rd=new FileReader();rd.onerror=()=>reject(new Error('Lecture de la photo impossible.'));rd.onload=()=>{const im=new Image();im.onerror=()=>reject(new Error('Photo illisible.'));im.onload=()=>{const max=1000,ratio=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*ratio));c.height=Math.max(1,Math.round(im.naturalHeight*ratio));const x=c.getContext('2d',{alpha:false});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);const out=c.toDataURL('image/jpeg',.72);if(out.length>480000)return reject(new Error('Cette photo reste trop volumineuse après compression.'));resolve(out)};im.src=rd.result};rd.readAsDataURL(file)})}
 function closeSplash(){if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash();const s=$('#luxe-splash');if(s){s.classList.add('fade-out');s.style.pointerEvents='none'}}
 function card(r){const p=r.productId&&typeof getProd==='function'?getProd(r.productId):null,txt=(typeof lang==='undefined'||lang==='fr')?(r.textFR||r.textEN):(r.textEN||r.textFR),photo=r.imageUrl||r.photoUrl||'',date=r.date?new Date(r.date).toLocaleDateString('fr-FR',{year:'numeric',month:'short',day:'numeric'}):'';return `<div class="review-card">${p?`<div class="review-product-tag">${esc(typeof prodName==='function'?prodName(p):p.name)}</div>`:'<div class="review-product-tag">Boutique en général</div>'}<div class="review-stars">${typeof renderStars==='function'?renderStars(r.stars):'★★★★★'}</div>${photo&&(/^(https?:\/\/|data:image\/)/i.test(photo))?`<img class="review-photo" src="${esc(photo)}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync">`:''}<div class="review-text">${esc(txt)}</div><div class="review-author"><div class="review-avatar">${esc(r.name[0].toUpperCase())}</div><div class="review-author-info"><div class="review-author-name">${esc(r.name)}</div><div class="review-author-meta">${esc(date)}</div></div>${r.verified?'<div class="review-verified">✔ Avis vérifié</div>':''}</div></div>`}
@@ -13723,7 +13738,7 @@ async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-
       $('#pub-rv-sent')?.classList.add('show');showToast('Merci. Votre avis a été envoyé pour modération.','✅');$('#pub-rv-name').value='';$('#pub-rv-text').value='';$('#pub-rv-stars').value='0';if($('#pub-rv-photo'))$('#pub-rv-photo').value='';return false}catch(e){console.error('[Reviews] RTDB:',e);showToast(e.message||'Avis non envoyé.','❌');return false}}
 function fields(){const t=$('#pub-rv-text');if(t&&!$('#pub-rv-photo')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="pub-rv-photo">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">';t.closest('div')?.after(w)}const a=$('#rv-text-fr');if(a&&!$('#rv-image-url')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="rv-image-url">URL de l’image (optionnelle)</label><input class="form-input" id="rv-image-url" type="url" placeholder="https://…">';a.closest('div')?.after(w)}}
 function admin(){if(typeof window.saveReview!=='function'||window.saveReview.__emilFixed)return;const fn=async()=>{const name=$('#rv-name')?.value.trim(),text=$('#rv-text-fr')?.value.trim(),id=$('#editing-review-id')?.value,stars=Number($('#rv-stars')?.value||5),imageUrl=$('#rv-image-url')?.value.trim()||'';if(!name||!text){showToast('Nom et avis (FR) obligatoires','⚠️');return false}const rv={id:id||'rev'+Date.now(),name,productId:$('#rv-product')?.value||'',stars,rating:stars,textFR:text,textEN:$('#rv-text-en')?.value.trim()||'',date:$('#rv-date')?.value||new Date().toISOString(),verified:true,approved:true,pending:false,imageUrl,photoUrl:imageUrl},all=normalize(window.reviews||[]),i=all.findIndex(x=>x.id===rv.id);if(i>=0)all[i]=rv;else all.unshift(rv);try{await firebaseDb.ref('reviews').set(all);window.reviews=all;renderReviews();if(typeof resetReviewForm==='function')resetReviewForm();if(typeof renderAdminReviews==='function')renderAdminReviews();showToast('Avis administrateur enregistré et synchronisé.','✅');return true}catch(e){console.error(e);showToast('Avis non enregistré : erreur Firebase.','❌');return false}};fn.__emilFixed=true;window.saveReview=fn}
-function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=data&&typeof data==='object'?Object.keys(data).map(key=>({id:key,...(data[key]||{})})):[];window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(review=>review.approved===false||review.pending===true);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
+function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=Array.isArray(data)?data.filter(Boolean):(data?Object.values(data):[]);window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(reviewIsPending);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
 window.renderReviewCard=card;window.renderHomeReviews=renderReviews;window.submitPublicReview=submit;
 function boot(){fields();admin();listen();renderReviews();if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}}
 window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields();admin();listen()},1200)});
