@@ -147,8 +147,8 @@ window.OneSignalDeferred.push(async function(OneSignal) {
 		  width: 220px;
 		  height: auto;
 		  margin-bottom: 24px;
-		  filter: drop-shadow(0 0 15px rgba(201,168,76, 0.3));
-		  animation: logo-shimmer 3s infinite alternate;
+  filter: drop-shadow(0 0 15px rgba(201,168,76, 0.3));
+  animation: logo-shimmer 1.4s ease-in-out 2 alternate;
 		}
 		.splash-brand {
 		  font-family: var(--font-display);
@@ -185,7 +185,7 @@ window.OneSignalDeferred.push(async function(OneSignal) {
 	  top: 0; left: -100%;
 	  width: 100%; height: 100%;
 	  background: var(--gold);
-	  animation: splash-load 1.5s infinite;
+	  animation: splash-load 1.15s ease-in-out 2 alternate;
 	}
 	@keyframes splash-load {
 	  0% { left: -100%; }
@@ -2208,6 +2208,16 @@ img,svg,video,iframe{max-width:100%}
 <script>
   // Exécution immédiate du rendu dès que le body commence à parser
   (function() {
+    // Coordination unique du splash : le contenu charge en arrière-plan,
+    // puis l’écran disparaît dès que produits + images + avis sont prêts.
+    const ready = window.__SPLASH_READY_STATE__ = {products:false, images:false, reviews:false};
+    window.__markLuxeReady = function(part) {
+      if (Object.prototype.hasOwnProperty.call(ready, part)) ready[part] = true;
+      if (ready.products && ready.images && ready.reviews && typeof window.closeLuxeSplash === 'function') {
+        window.closeLuxeSplash();
+      }
+    };
+
     // 1. RÉCUPÉRATION DU CACHE (On utilise le nom de clé utilisé par la classe DB)
     const cacheKey = 'lemil_products';
     let productsCache = [];
@@ -2223,22 +2233,17 @@ img,svg,video,iframe{max-width:100%}
     
     const hasCache = productsCache && productsCache.length > 0;
     
-    // 2. TIMEOUT DE SÉCURITÉ (Force le masquage après 60s pour laisser le temps à Firebase)
+    // 2. TIMEOUT DE SÉCURITÉ : jamais plus de 2 secondes.
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
-      const splash = document.getElementById('luxe-splash');
-      if (splash && !splash.classList.contains('fade-out')) {
-        splash.classList.add('fade-out');
-        console.log('[Luxe] Safety timeout (60s) triggered');
-      }
-    }, 60000);
+      if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
+    }, 2000);
 
     // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Sera appelée après rendu réel)
     window.closeLuxeSplash = function() {
       const splash = document.getElementById('luxe-splash');
-      if (splash && !splash.classList.contains('fade-out')) {
-        splash.classList.add('fade-out');
-        if (window.__SPLASH_TIMEOUT__) clearTimeout(window.__SPLASH_TIMEOUT__);
-      }
+      if (!splash || splash.classList.contains('fade-out')) return;
+      splash.classList.add('fade-out');
+      if (window.__SPLASH_TIMEOUT__) clearTimeout(window.__SPLASH_TIMEOUT__);
     };
     window.closeSplash = window.closeLuxeSplash;
 
@@ -3793,7 +3798,7 @@ Action: Immediate restocking required.</textarea></div>
           <h2 class="section-title" data-i18n="reviews_title">Ce que disent nos <em>Clients</em></h2>
         </div>
         <div class="reviews-stats" id="home-reviews-stats"></div>
-        <div class="reviews-grid" id="home-reviews-grid"></div>
+        <div class="reviews-grid" id="reviews-container"></div>
         <div style="text-align:center;margin-top:36px">
           <button class="btn-outline" onclick="navigate('reviews')" data-i18n="view_all_reviews">Voir tous les avis →</button>
         </div>
@@ -4640,13 +4645,17 @@ function initFirebase() {
     // Les avis sont lus exclusivement à la racine reviews.
     if (!firebaseDb.__emilRootReviewsListener) {
       firebaseDb.__emilRootReviewsListener = true;
-      const db = firebaseDb;
-      const reviewsRef = db.ref('reviews');
+      const reviewsRef = firebase.database().ref('reviews');
       reviewsRef.on('value', (snapshot) => {
-        const rows = Object.values(snapshot.val() || {});
-        handleKeyUpdate('reviews', rows);
+        const data = snapshot.val();
+        const reviewsArray = data && typeof data === 'object'
+          ? Object.keys(data).map(key => ({ id: key, ...(data[key] || {}) }))
+          : [];
+        handleKeyUpdate('reviews', reviewsArray);
+        if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('reviews');
       }, error => {
         console.error('[Firebase] Lecture du nœud reviews impossible :', error);
+        if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('reviews');
         setSyncStatus('offline');
       });
     }
@@ -7841,36 +7850,43 @@ function renderReviewCard(r) {
   const productTag = p
     ? `<div class="review-product-tag">${prodName(p)}</div>`
     : `<div class="review-product-tag">${t('general_review')}</div>`;
-  const text = lang==='fr' ? (r.textFR||r.textEN||'') : (r.textEN||r.textFR||'');
-  const initial = (r.name||'?')[0].toUpperCase();
+  const text = lang==='fr' ? (r.textFR||r.textEN||r.comment||'') : (r.textEN||r.textFR||r.comment||'');
+  const initial = (r.name||r.authorName||'?')[0].toUpperCase();
   const dateStr = r.date ? new Date(r.date).toLocaleDateString(lang==='fr'?'fr-FR':'en-US',{year:'numeric',month:'short',day:'numeric'}) : '';
   const verified = r.verified
     ? `<div class="review-verified">✔ ${t('verified_purchase')}</div>` : '';
+  const photo = r.imageUrl || r.photoUrl || '';
+  const photoHtml = /^(https?:\/\/|data:image\/)/i.test(photo)
+    ? `<img class="review-photo" src="${esc(photo)}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync">`
+    : '';
 
   return `
     <div class="review-card">
       ${productTag}
-      <div class="review-stars">${renderStars(r.stars)}</div>
-      <div class="review-text">${text}</div>
+      <div class="review-stars">${renderStars(r.stars||r.rating||0)}</div>
+      ${photoHtml}
+      <div class="review-text">${esc(text)}</div>
       <div class="review-author">
-        <div class="review-avatar">${initial}</div>
+        <div class="review-avatar">${esc(initial)}</div>
         <div class="review-author-info">
-          <div class="review-author-name">${r.name}</div>
-          <div class="review-author-meta">${dateStr}</div>
+          <div class="review-author-name">${esc(r.name||r.authorName||'Client')}</div>
+          <div class="review-author-meta">${esc(dateStr)}</div>
         </div>
         ${verified}
       </div>
     </div>`;
 }
 
-// ---- Home reviews (show best 6) ----
+// ---- Home reviews ----
 function renderHomeReviews() {
-  const top = [...reviews].filter(r=>r.approved===true).sort((a,b)=>(b.stars||b.rating||0)-(a.stars||a.rating||0)).slice(0,6);
+  const approvedReviews = (Array.isArray(reviews) ? reviews : Object.values(reviews || {}))
+    .filter(r=>r && r.approved!==false && r.pending!==true)
+    .sort((a,b)=>(b.stars||b.rating||0)-(a.stars||a.rating||0));
   const statsEl = document.getElementById('home-reviews-stats');
-  const gridEl = document.getElementById('home-reviews-grid');
-  if (statsEl) statsEl.innerHTML = renderStatsBlock(reviews.filter(r=>r.approved===true));
-  if (gridEl) gridEl.innerHTML = top.length
-    ? top.map(renderReviewCard).join('')
+  const gridEl = document.getElementById('reviews-container') || document.getElementById('home-reviews-grid');
+  if (statsEl) statsEl.innerHTML = renderStatsBlock(approvedReviews);
+  if (gridEl) gridEl.innerHTML = approvedReviews.length
+    ? approvedReviews.map(renderReviewCard).join('')
     : `<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">${t('reviews_empty')}</div>`;
 }
 
@@ -9323,7 +9339,7 @@ function renderQuizOption(o, i, hasImgs) {
   if (hasImgs && o.img) {
     return `<div class="quiz-option" data-idx="${i}" onclick="selectQuizOption(${i})">
       <div class="quiz-opt-img-wrap">
-        <img src="${o.img}" alt="${lang==='fr'?o.fr:o.en}" loading="eager" decoding="sync">
+        <img src="${o.img}" alt="${lang==='fr'?o.fr:o.en}" loading="eager" fetchpriority="high" decoding="sync">
       </div>
       <div class="quiz-opt-img-label">${lang==='fr'?o.fr:o.en}</div>
     </div>`;
@@ -9955,7 +9971,7 @@ function renderShowcaseGrids() {
     el.innerHTML = items.length ? items.map(s=>{
       const p = s.productId ? getProd(s.productId) : null;
       return `<div class="showcase-item" onclick="${p?`openProduct('${s.productId}')`:''}">
-        <img src="${s.img}" alt="${s.caption||''}" loading="eager" decoding="sync">
+        <img src="${s.img}" alt="${s.caption||''}" loading="eager" fetchpriority="high" decoding="sync">
         <div class="showcase-item-overlay">
           <div><div class="showcase-item-caption">${s.caption||''}</div>${p?`<span class="showcase-item-tag">📦 ${prodName(p)}</span>`:''}</div>
         </div>
@@ -13215,13 +13231,28 @@ function renderAll() {
     console.error('[Render] renderAll failed', e);
   }
 
-  // ── PRÉCHARGEMENT SYNCHRONE DU CATALOGUE AVANT LA FIN DU SPLASH ──
+  // ── PRÉCHARGEMENT DU CATALOGUE AVANT LA FIN DU SPLASH ──
   (async function() {
     const validProducts=getValidProducts();
     const urls=[...new Set(validProducts.flatMap(p=>Array.isArray(p.imgs)?p.imgs:[p.image,p.img,p.imgUrl]).filter(u=>typeof u==='string'&&u.trim()))];
-    if(!urls.length){ if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash(); return; }
-    await Promise.all(urls.map(src=>new Promise(resolve=>{const img=new Image();img.decoding='async';img.onload=img.onerror=()=>resolve();img.src=src;})));
-    requestAnimationFrame(()=>{ if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash(); if(typeof window.closeSplash==='undefined')window.closeSplash=window.closeLuxeSplash; });
+    if(typeof window.__markLuxeReady==='function' && (validProducts.length || isInitialPullComplete)) {
+      window.__markLuxeReady('products');
+    }
+    if(!urls.length){
+      if(typeof window.__markLuxeReady==='function') window.__markLuxeReady('images');
+      return;
+    }
+    await Promise.all(urls.map(src=>new Promise(resolve=>{
+      const img=new Image();
+      img.decoding='sync';
+      img.fetchPriority='high';
+      img.onload=img.onerror=()=>resolve();
+      img.src=src;
+    })));
+    requestAnimationFrame(()=>{
+      if(typeof window.__markLuxeReady==='function') window.__markLuxeReady('images');
+      if(typeof window.closeSplash==='undefined') window.closeSplash=window.closeLuxeSplash;
+    });
   })();
 }
 
@@ -13387,7 +13418,7 @@ window.addEventListener('load', function() {
       return false;
     }
   }
-  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && r.approved===true); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div>${r.imageUrl||r.photoUrl?`<img src="${String(r.imageUrl||r.photoUrl).replace(/[<>]/g,'')}" alt="Photo jointe à l’avis" loading="eager" decoding="sync" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)">`:''}<div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
+  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && r.approved===true); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div>${r.imageUrl||r.photoUrl?`<img src="${String(r.imageUrl||r.photoUrl).replace(/[<>]/g,'')}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)">`:''}<div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
 function injectProductReview(productId) { const body = document.getElementById('pm-body'); if (!body || body.querySelector('.emil-product-review')) return; const box = document.createElement('section'); box.className = 'emil-product-review public-review-form'; box.innerHTML = `<h3>Votre expérience</h3><p>Partagez votre avis sur ce produit. Il sera publié après modération.</p><div class="pub-star-picker" id="product-rv-picker"><span class="pub-star" data-v="1">★</span><span class="pub-star" data-v="2">★</span><span class="pub-star" data-v="3">★</span><span class="pub-star" data-v="4">★</span><span class="pub-star" data-v="5">★</span></div><input type="hidden" id="product-rv-stars" value="0"><input class="form-input" id="product-rv-name" placeholder="Votre nom" style="margin-bottom:8px;width:100%;box-sizing:border-box;"><textarea class="form-textarea" id="product-rv-text" placeholder="Votre avis" style="margin-bottom:8px;width:100%;box-sizing:border-box;"></textarea><label for="product-rv-photo" id="product-rv-photo-label" style="display:flex;align-items:center;gap:clamp(12px,3vw,18px);width:100%;min-height:100px;margin-bottom:12px;padding:clamp(15px,4vw,24px);background:#1f1f1f;border:1px solid rgba(201,163,75,.45);border-radius:12px;cursor:pointer;transition:all .3s ease;box-sizing:border-box;overflow:hidden;"><div style="width:clamp(48px,12vw,58px);height:clamp(48px,12vw,58px);min-width:clamp(48px,12vw,58px);border-radius:50%;background:rgba(201,163,75,.12);display:flex;align-items:center;justify-content:center;color:#d5ad4e;font-size:clamp(24px,6vw,30px);flex-shrink:0;">✦</div><div style="display:flex;flex-direction:column;gap:5px;min-width:0;flex:1;"><span id="product-rv-photo-title" style="font-family:Georgia,serif;font-size:clamp(17px,4vw,20px);color:#d5ad4e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ajouter une photo</span><span id="product-rv-photo-info" style="font-size:clamp(12px,3.5vw,14px);color:#9ca3af;line-height:1.5;">Cliquez pour sélectionner · JPG, PNG ou WebP</span></div></label><input id="product-rv-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none"><button class="btn-primary" id="product-rv-submit" style="max-width:100%;box-sizing:border-box;">Soumettre mon avis</button><div class="emil-product-approved-reviews"></div>`; body.appendChild(box); const photoInput = box.querySelector('#product-rv-photo'); const photoLabel = box.querySelector('#product-rv-photo-label'); photoInput.addEventListener('change', () => { if (photoInput.files && photoInput.files[0]) { box.querySelector('#product-rv-photo-title').textContent = photoInput.files[0].name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); photoLabel.addEventListener('dragover', e => { e.preventDefault(); photoLabel.style.borderColor = '#d5ad4e'; photoLabel.style.background = 'rgba(201,163,75,.08)'; }); photoLabel.addEventListener('dragleave', () => { photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; }); photoLabel.addEventListener('drop', e => { e.preventDefault(); photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; const file = e.dataTransfer.files[0]; if (file && ['image/jpeg','image/png','image/webp'].includes(file.type)) { const dt = new DataTransfer(); dt.items.add(file); photoInput.files = dt.files; box.querySelector('#product-rv-photo-title').textContent = file.name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); box.querySelectorAll('.pub-star').forEach(star => star.addEventListener('click', () => { const n = Number(star.dataset.v); document.getElementById('product-rv-stars').value = n; box.querySelectorAll('.pub-star').forEach(s => s.classList.toggle('active', Number(s.dataset.v) <= n)); })); box.querySelector('#product-rv-submit').addEventListener('click', () => submitReview(productId, 'product-rv')); renderProductReviews(productId, box.querySelector('.emil-product-approved-reviews')); }  function addPhotoField() { if (document.getElementById('pub-rv-photo')) return; const text = document.getElementById('pub-rv-text'); if (!text) return; const wrap = document.createElement('div'); wrap.style.cssText = 'margin-bottom:14px'; wrap.innerHTML = '<label class="form-label">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">'; text.parentElement.after(wrap); }
   function installHooks() { addPhotoField(); const oldSubmit = window.submitPublicReview; window.submitPublicReview = async function() { const productId = document.getElementById('pub-rv-product')?.value || 'general'; try { await submitReview(productId, 'pub-rv'); document.getElementById('pub-rv-sent')?.classList.add('show'); } catch (e) { if (window.showToast) window.showToast(e.message, '❌'); } return false; }; const originalOpen = window.openProduct; if (typeof originalOpen === 'function') window.openProduct = function(id) { originalOpen(id); setTimeout(() => injectProductReview(id), 250); }; }
   window.addEventListener('load', () => setTimeout(installHooks, 500));
@@ -13682,8 +13713,8 @@ const normalize=v=>list(v).filter(r=>r&&typeof r==='object').map(r=>({...r,name:
 const isApproved=r=>r&&r.approved!==false&&r.pending!==true;
 function compress(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');if(!file.type.startsWith('image/'))return reject(new Error('Le fichier sélectionné n’est pas une image.'));if(file.size>10*1024*1024)return reject(new Error('La photo doit faire 10 Mo maximum.'));const rd=new FileReader();rd.onerror=()=>reject(new Error('Lecture de la photo impossible.'));rd.onload=()=>{const im=new Image();im.onerror=()=>reject(new Error('Photo illisible.'));im.onload=()=>{const max=1000,ratio=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*ratio));c.height=Math.max(1,Math.round(im.naturalHeight*ratio));const x=c.getContext('2d',{alpha:false});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);const out=c.toDataURL('image/jpeg',.72);if(out.length>480000)return reject(new Error('Cette photo reste trop volumineuse après compression.'));resolve(out)};im.src=rd.result};rd.readAsDataURL(file)})}
 function closeSplash(){if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash();const s=$('#luxe-splash');if(s){s.classList.add('fade-out');s.style.pointerEvents='none'}}
-function card(r){const p=r.productId&&typeof getProd==='function'?getProd(r.productId):null,txt=(typeof lang==='undefined'||lang==='fr')?(r.textFR||r.textEN):(r.textEN||r.textFR),photo=r.imageUrl||r.photoUrl||'',date=r.date?new Date(r.date).toLocaleDateString('fr-FR',{year:'numeric',month:'short',day:'numeric'}):'';return `<div class="review-card">${p?`<div class="review-product-tag">${esc(typeof prodName==='function'?prodName(p):p.name)}</div>`:'<div class="review-product-tag">Boutique en général</div>'}<div class="review-stars">${typeof renderStars==='function'?renderStars(r.stars):'★★★★★'}</div>${photo&&(/^(https?:\/\/|data:image\/)/i.test(photo))?`<img class="review-photo" src="${esc(photo)}" alt="Photo jointe à l’avis" loading="eager" decoding="sync">`:''}<div class="review-text">${esc(txt)}</div><div class="review-author"><div class="review-avatar">${esc(r.name[0].toUpperCase())}</div><div class="review-author-info"><div class="review-author-name">${esc(r.name)}</div><div class="review-author-meta">${esc(date)}</div></div>${r.verified?'<div class="review-verified">✔ Avis vérifié</div>':''}</div></div>`}
-function renderReviews(){const rows=normalize(window.reviews||[]).filter(isApproved),grid=$('#home-reviews-grid'),stats=$('#home-reviews-stats');if(stats&&typeof renderStatsBlock==='function')stats.innerHTML=renderStatsBlock(rows);if(grid)grid.innerHTML=rows.length?rows.slice().sort((a,b)=>b.stars-a.stars).slice(0,6).map(card).join(''):`<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>`}
+function card(r){const p=r.productId&&typeof getProd==='function'?getProd(r.productId):null,txt=(typeof lang==='undefined'||lang==='fr')?(r.textFR||r.textEN):(r.textEN||r.textFR),photo=r.imageUrl||r.photoUrl||'',date=r.date?new Date(r.date).toLocaleDateString('fr-FR',{year:'numeric',month:'short',day:'numeric'}):'';return `<div class="review-card">${p?`<div class="review-product-tag">${esc(typeof prodName==='function'?prodName(p):p.name)}</div>`:'<div class="review-product-tag">Boutique en général</div>'}<div class="review-stars">${typeof renderStars==='function'?renderStars(r.stars):'★★★★★'}</div>${photo&&(/^(https?:\/\/|data:image\/)/i.test(photo))?`<img class="review-photo" src="${esc(photo)}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync">`:''}<div class="review-text">${esc(txt)}</div><div class="review-author"><div class="review-avatar">${esc(r.name[0].toUpperCase())}</div><div class="review-author-info"><div class="review-author-name">${esc(r.name)}</div><div class="review-author-meta">${esc(date)}</div></div>${r.verified?'<div class="review-verified">✔ Avis vérifié</div>':''}</div></div>`}
+function renderReviews(){const rows=normalize(window.reviews||[]).filter(isApproved),grid=$('#reviews-container')||$('#home-reviews-grid'),stats=$('#home-reviews-stats');if(stats&&typeof renderStatsBlock==='function')stats.innerHTML=renderStatsBlock(rows);if(grid)grid.innerHTML=rows.length?rows.slice().sort((a,b)=>b.stars-a.stars).map(card).join(''):`<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>`}
 async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-rv-text')?.value.trim(),stars=Number($('#pub-rv-stars')?.value||0),productId=$('#pub-rv-product')?.value||'general',file=$('#pub-rv-photo')?.files?.[0];if(!name||!text||!stars){showToast('Nom, note et commentaire requis','⚠️');return false}try{const imageUrl=await compress(file),rv={id:'rv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,authorName:name,productId,stars,rating:stars,textFR:text,textEN:'',comment:text,imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false},next=[rv,...list(window.pendingReviews||[])];if(!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');      const approved = reviewRows(window.reviews || []).filter(review => review.approved !== false && review.pending !== true);
       const mergedReviews=[...approved, ...next];
       await firebaseDb.ref('reviews').set(mergedReviews);
@@ -13692,9 +13723,9 @@ async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-
       $('#pub-rv-sent')?.classList.add('show');showToast('Merci. Votre avis a été envoyé pour modération.','✅');$('#pub-rv-name').value='';$('#pub-rv-text').value='';$('#pub-rv-stars').value='0';if($('#pub-rv-photo'))$('#pub-rv-photo').value='';return false}catch(e){console.error('[Reviews] RTDB:',e);showToast(e.message||'Avis non envoyé.','❌');return false}}
 function fields(){const t=$('#pub-rv-text');if(t&&!$('#pub-rv-photo')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="pub-rv-photo">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">';t.closest('div')?.after(w)}const a=$('#rv-text-fr');if(a&&!$('#rv-image-url')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="rv-image-url">URL de l’image (optionnelle)</label><input class="form-input" id="rv-image-url" type="url" placeholder="https://…">';a.closest('div')?.after(w)}}
 function admin(){if(typeof window.saveReview!=='function'||window.saveReview.__emilFixed)return;const fn=async()=>{const name=$('#rv-name')?.value.trim(),text=$('#rv-text-fr')?.value.trim(),id=$('#editing-review-id')?.value,stars=Number($('#rv-stars')?.value||5),imageUrl=$('#rv-image-url')?.value.trim()||'';if(!name||!text){showToast('Nom et avis (FR) obligatoires','⚠️');return false}const rv={id:id||'rev'+Date.now(),name,productId:$('#rv-product')?.value||'',stars,rating:stars,textFR:text,textEN:$('#rv-text-en')?.value.trim()||'',date:$('#rv-date')?.value||new Date().toISOString(),verified:true,approved:true,pending:false,imageUrl,photoUrl:imageUrl},all=normalize(window.reviews||[]),i=all.findIndex(x=>x.id===rv.id);if(i>=0)all[i]=rv;else all.unshift(rv);try{await firebaseDb.ref('reviews').set(all);window.reviews=all;renderReviews();if(typeof resetReviewForm==='function')resetReviewForm();if(typeof renderAdminReviews==='function')renderAdminReviews();showToast('Avis administrateur enregistré et synchronisé.','✅');return true}catch(e){console.error(e);showToast('Avis non enregistré : erreur Firebase.','❌');return false}};fn.__emilFixed=true;window.saveReview=fn}
-function listen(){if(typeof initFirebase==='function')initFirebase();if(!window.firebaseDb||firebaseDb.__emilRootReviewsListener)return;firebaseDb.__emilReviewListener=true;firebaseDb.ref('reviews').on('value',s=>{const rows=Object.values(s.val()||{}).filter(review=>review&&typeof review==='object');window.reviews=reviewRows(rows);window.pendingReviews=window.reviews.filter(review=>review.approved===false||review.pending===true);renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()})}
+function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=data&&typeof data==='object'?Object.keys(data).map(key=>({id:key,...(data[key]||{})})):[];window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(review=>review.approved===false||review.pending===true);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
 window.renderReviewCard=card;window.renderHomeReviews=renderReviews;window.submitPublicReview=submit;
-function boot(){fields();admin();listen();renderReviews();setTimeout(closeSplash,1800)}
+function boot(){fields();admin();listen();renderReviews();if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}}
 window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields();admin();listen()},1200)});
 })();
 </script>
