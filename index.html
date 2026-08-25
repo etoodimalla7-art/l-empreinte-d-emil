@@ -4512,9 +4512,8 @@ const SHARED_KEYS = [
   'ft_'
 ];
 
-// Le nœud Firebase public des avis est à la racine : reviews.
-// Le SDK compat chargé par cette page expose l’équivalent de ref(db, 'reviews')
-// sous la forme firebaseDb.ref('reviews').
+// Le nœud Firebase des avis est stocké dans l’espace partagé : storedData/reviews.
+// Toutes les lectures et écritures d’avis utilisent ce chemin unique.
 function reviewRows(value) {
   const source = Array.isArray(value) ? value.filter(Boolean) : (value ? Object.values(value) : []);
   return source
@@ -4703,16 +4702,21 @@ function initFirebase() {
       });
     });
 
-    // Les avis sont lus exclusivement à la racine reviews.
+    // Les avis sont lus exclusivement sous storedData/reviews.
     if (!firebaseDb.__emilRootReviewsListener) {
       firebaseDb.__emilRootReviewsListener = true;
-      const reviewsRef = db.ref('reviews');
+      const reviewsRef = firebase.database().ref('storedData/reviews');
       reviewsRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        const reviewsArray = renderReviewsDirect(data);
+        const rawData = snapshot.val();
+        const reviewsArray = Array.isArray(rawData)
+          ? rawData.filter(Boolean)
+          : (rawData && typeof rawData === 'object' ? Object.values(rawData).filter(Boolean) : []);
+        console.log('Données brutes Firebase:', rawData);
+        console.log('Avis convertis:', reviewsArray);
+        window.__rawFirebaseReviews = rawData;
         handleKeyUpdate('reviews', reviewsArray);
-        // handleKeyUpdate peut relancer les rendus habituels ; on réinjecte donc le brut en dernier.
-        renderReviewsDirect(data);
+        // Le rendu public est réinjecté après le rendu général afin qu’aucun filtre historique ne puisse l’écraser.
+        renderReviewsDirect(rawData);
         if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('reviews');
       }, error => {
         console.error('[Firebase] Lecture du nœud reviews impossible :', error);
@@ -7848,7 +7852,7 @@ async function writeSharedData(updates) {
     const byId = new Map();
     [...approvedRows, ...pendingRows].forEach(review => byId.set(String(review.id), review));
     nextRootReviews = [...byId.values()];
-    writes.push(firebaseDb.ref('reviews').set(nextRootReviews));
+    writes.push(firebaseDb.ref('storedData/reviews').set(nextRootReviews));
   }
   if (Object.keys(storedUpdates).length) {
     writes.push(firebaseDb.ref('storedData').update(storedUpdates));
@@ -13490,7 +13494,7 @@ window.addEventListener('load', function() {
       window.pendingReviews=pending;
       window.reviews=[...current, savedReview];
       if(typeof firebaseDb==='undefined'||!firebaseDb) throw new Error('Realtime Database indisponible.');
-      await firebaseDb.ref('reviews').set([...current, savedReview]);
+      await firebaseDb.ref('storedData/reviews').set([...current, savedReview]);
       if(typeof DB!=='undefined')DB.set('reviews',[...current, savedReview]);
       if(window.showToast)window.showToast('Avis soumis pour modération','✅');
       return true;
@@ -13799,13 +13803,13 @@ function card(r){const p=r.productId&&typeof getProd==='function'?getProd(r.prod
 function renderReviews(){const rows=normalize(window.reviews||[]).filter(isApproved),grid=$('#reviews-container')||$('#home-reviews-grid'),stats=$('#home-reviews-stats');if(stats&&typeof renderStatsBlock==='function')stats.innerHTML=renderStatsBlock(rows);if(grid)grid.innerHTML=rows.length?rows.slice().sort((a,b)=>b.stars-a.stars).map(card).join(''):`<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>`}
 async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-rv-text')?.value.trim(),stars=Number($('#pub-rv-stars')?.value||0),productId=$('#pub-rv-product')?.value||'general',file=$('#pub-rv-photo')?.files?.[0];if(!name||!text||!stars){showToast('Nom, note et commentaire requis','⚠️');return false}try{const imageUrl=await compress(file),rv={id:'rv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,authorName:name,productId,stars,rating:stars,textFR:text,textEN:'',comment:text,imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false},next=[rv,...list(window.pendingReviews||[])];if(!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');      const approved = reviewRows(window.reviews || []);
       const mergedReviews=[...approved, ...next];
-      await firebaseDb.ref('reviews').set(mergedReviews);
+      await firebaseDb.ref('storedData/reviews').set(mergedReviews);
       window.reviews=mergedReviews;
       window.pendingReviews=next;
       $('#pub-rv-sent')?.classList.add('show');showToast('Merci. Votre avis a été envoyé pour modération.','✅');$('#pub-rv-name').value='';$('#pub-rv-text').value='';$('#pub-rv-stars').value='0';if($('#pub-rv-photo'))$('#pub-rv-photo').value='';return false}catch(e){console.error('[Reviews] RTDB:',e);showToast(e.message||'Avis non envoyé.','❌');return false}}
 function fields(){const t=$('#pub-rv-text');if(t&&!$('#pub-rv-photo')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="pub-rv-photo">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">';t.closest('div')?.after(w)}const a=$('#rv-text-fr');if(a&&!$('#rv-image-url')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="rv-image-url">URL de l’image (optionnelle)</label><input class="form-input" id="rv-image-url" type="url" placeholder="https://…">';a.closest('div')?.after(w)}}
-function admin(){if(typeof window.saveReview!=='function'||window.saveReview.__emilFixed)return;const fn=async()=>{const name=$('#rv-name')?.value.trim(),text=$('#rv-text-fr')?.value.trim(),id=$('#editing-review-id')?.value,stars=Number($('#rv-stars')?.value||5),imageUrl=$('#rv-image-url')?.value.trim()||'';if(!name||!text){showToast('Nom et avis (FR) obligatoires','⚠️');return false}const rv={id:id||'rev'+Date.now(),name,productId:$('#rv-product')?.value||'',stars,rating:stars,textFR:text,textEN:$('#rv-text-en')?.value.trim()||'',date:$('#rv-date')?.value||new Date().toISOString(),verified:true,approved:true,pending:false,imageUrl,photoUrl:imageUrl},all=normalize(window.reviews||[]),i=all.findIndex(x=>x.id===rv.id);if(i>=0)all[i]=rv;else all.unshift(rv);try{await firebaseDb.ref('reviews').set(all);window.reviews=all;renderReviews();if(typeof resetReviewForm==='function')resetReviewForm();if(typeof renderAdminReviews==='function')renderAdminReviews();showToast('Avis administrateur enregistré et synchronisé.','✅');return true}catch(e){console.error(e);showToast('Avis non enregistré : erreur Firebase.','❌');return false}};fn.__emilFixed=true;window.saveReview=fn}
-function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=Array.isArray(data)?data.filter(Boolean):(data?Object.values(data):[]);window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(reviewIsPending);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
+function admin(){if(typeof window.saveReview!=='function'||window.saveReview.__emilFixed)return;const fn=async()=>{const name=$('#rv-name')?.value.trim(),text=$('#rv-text-fr')?.value.trim(),id=$('#editing-review-id')?.value,stars=Number($('#rv-stars')?.value||5),imageUrl=$('#rv-image-url')?.value.trim()||'';if(!name||!text){showToast('Nom et avis (FR) obligatoires','⚠️');return false}const rv={id:id||'rev'+Date.now(),name,productId:$('#rv-product')?.value||'',stars,rating:stars,textFR:text,textEN:$('#rv-text-en')?.value.trim()||'',date:$('#rv-date')?.value||new Date().toISOString(),verified:true,approved:true,pending:false,imageUrl,photoUrl:imageUrl},all=normalize(window.reviews||[]),i=all.findIndex(x=>x.id===rv.id);if(i>=0)all[i]=rv;else all.unshift(rv);try{await firebaseDb.ref('storedData/reviews').set(all);window.reviews=all;renderReviews();if(typeof resetReviewForm==='function')resetReviewForm();if(typeof renderAdminReviews==='function')renderAdminReviews();showToast('Avis administrateur enregistré et synchronisé.','✅');return true}catch(e){console.error(e);showToast('Avis non enregistré : erreur Firebase.','❌');return false}};fn.__emilFixed=true;window.saveReview=fn}
+function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('storedData/reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=Array.isArray(data)?data.filter(Boolean):(data?Object.values(data):[]);window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(reviewIsPending);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
 window.renderReviewCard=card;window.renderHomeReviews=renderReviews;window.submitPublicReview=submit;
 function boot(){fields();admin();listen();renderReviews();if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}}
 window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields();admin();listen()},1200)});
