@@ -38,6 +38,17 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script><script>
 
+// Utilitaire global requis par les cartes d’avis et les rendus HTML.
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 /* FINAL FUNCTIONAL FIXES: resilient offline checkout, country switch, detailed fallback and push diagnostics */
 (function(){
   'use strict';
@@ -4653,28 +4664,30 @@ function initFirebase() {
   }
   if (isSyncInitialized) return true;
   try {
-    const config = {
+    const firebaseConfig = {
       apiKey: SYNC_CONFIG.apiKey,
       authDomain: SYNC_CONFIG.authDomain,
-      databaseURL: SYNC_CONFIG.databaseURL,
+      databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
       projectId: SYNC_CONFIG.projectId,
       storageBucket: SYNC_CONFIG.storageBucket,
       messagingSenderId: SYNC_CONFIG.messagingSenderId,
       appId: SYNC_CONFIG.appId
     };
     if (!firebase.apps.length) {
-      firebaseApp = firebase.initializeApp(config);
+      firebaseApp = firebase.initializeApp(firebaseConfig);
     } else {
       firebaseApp = firebase.app();
-      if (firebaseApp.options.databaseURL !== SYNC_CONFIG.databaseURL) {
-        console.error('[Firebase] databaseURL de l’application déjà initialisée différente de SYNC_CONFIG.databaseURL.', {
+      if (firebaseApp.options.databaseURL !== firebaseConfig.databaseURL) {
+        console.error('[Firebase] databaseURL de l’application déjà initialisée différente de firebaseConfig.databaseURL.', {
           initialized: firebaseApp.options.databaseURL,
-          configured: SYNC_CONFIG.databaseURL
+          configured: firebaseConfig.databaseURL
         });
         return false;
       }
     }
-    firebaseDb = firebase.database();
+    const db = firebase.database(firebaseApp);
+    firebaseDb = db;
+    console.info('[Firebase] Realtime Database active :', firebaseConfig.databaseURL);
     try {
       firebaseStorage = firebase.storage();
     } catch(e) {
@@ -4693,7 +4706,7 @@ function initFirebase() {
     // Les avis sont lus exclusivement à la racine reviews.
     if (!firebaseDb.__emilRootReviewsListener) {
       firebaseDb.__emilRootReviewsListener = true;
-      const reviewsRef = firebase.database().ref('reviews');
+      const reviewsRef = db.ref('reviews');
       reviewsRef.on('value', (snapshot) => {
         const data = snapshot.val();
         const reviewsArray = renderReviewsDirect(data);
@@ -13258,6 +13271,39 @@ async function savePushNotificationMessage(){
 }
 async function deletePushNotificationMessage(id){if(!confirm('Supprimer ce message ?'))return;try{await (await getPushNotificationFirestore()).collection('adminNotificationMessages').doc(id).delete();await loadPushNotificationMessages();showToast('Message supprimé','✅');}catch(e){showToast('Suppression refusée','❌');}}
 
+function getProductImageUrls(productList) {
+  return [...new Set((Array.isArray(productList) ? productList : []).flatMap(product => [
+    ...(Array.isArray(product?.imgs) ? product.imgs : []),
+    ...(Array.isArray(product?.images) ? product.images : []),
+    product?.image, product?.img, product?.imgUrl, product?.imageUrl
+  ]).filter(url => typeof url === 'string' && url.trim()))];
+}
+
+function preloadProductImages(productList) {
+  const cache = window.__LUXE_IMAGE_PRELOADS__ || (window.__LUXE_IMAGE_PRELOADS__ = new Map());
+  const urls = getProductImageUrls(productList);
+  return Promise.all(urls.map(src => {
+    if (cache.has(src)) return cache.get(src);
+    const promise = new Promise(resolve => {
+      const img = new Image();
+      img.decoding = 'sync';
+      try { img.fetchPriority = 'high'; } catch (e) {}
+      let settled = false;
+      const finish = ok => {
+        if (settled) return;
+        settled = true;
+        resolve({ src, ok });
+      };
+      img.onload = () => finish(true);
+      img.onerror = () => finish(false);
+      img.src = src;
+      if (img.complete) Promise.resolve().then(() => finish(img.naturalWidth > 0));
+    });
+    cache.set(src, promise);
+    return promise;
+  }));
+}
+
 function renderAll() {
   try {
     sanitizeData();
@@ -13280,25 +13326,14 @@ function renderAll() {
 
   // ── PRÉCHARGEMENT DU CATALOGUE AVANT LA FIN DU SPLASH ──
   (async function() {
-    const validProducts=getValidProducts();
-    const urls=[...new Set(validProducts.flatMap(p=>Array.isArray(p.imgs)?p.imgs:[p.image,p.img,p.imgUrl]).filter(u=>typeof u==='string'&&u.trim()))];
-    if(typeof window.__markLuxeReady==='function' && (validProducts.length || isInitialPullComplete)) {
+    const validProducts = getValidProducts();
+    if (typeof window.__markLuxeReady === 'function' && (validProducts.length || isInitialPullComplete)) {
       window.__markLuxeReady('products');
     }
-    if(!urls.length){
-      if(typeof window.__markLuxeReady==='function') window.__markLuxeReady('images');
-      return;
-    }
-    await Promise.all(urls.map(src=>new Promise(resolve=>{
-      const img=new Image();
-      img.decoding='sync';
-      img.fetchPriority='high';
-      img.onload=img.onerror=()=>resolve();
-      img.src=src;
-    })));
-    requestAnimationFrame(()=>{
-      if(typeof window.__markLuxeReady==='function') window.__markLuxeReady('images');
-      if(typeof window.closeSplash==='undefined') window.closeSplash=window.closeLuxeSplash;
+    await preloadProductImages(validProducts);
+    requestAnimationFrame(() => {
+      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('images');
+      if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
     });
   })();
 }
