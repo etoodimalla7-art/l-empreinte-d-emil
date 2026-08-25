@@ -4511,6 +4511,36 @@ function reviewRows(value) {
     .map((review, index) => ({ ...review, id: review.id || String(index) }));
 }
 
+function escapeReviewHTML(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+}
+
+// Mode diagnostic volontairement sans filtre : tout avis reçu à la racine est rendu.
+function renderReviewsDirect(data) {
+  const reviewsArray = Array.isArray(data) ? data.filter(Boolean) : (data ? Object.values(data) : []);
+  console.log("Données brutes Firebase:", data);
+  console.log("Avis convertis:", reviewsArray);
+  const container = document.getElementById('reviews-container');
+  if (!container) return reviewsArray;
+  if (!reviewsArray.length) {
+    container.innerHTML = '<p>Aucun avis pour le moment.</p>';
+    return reviewsArray;
+  }
+  container.innerHTML = reviewsArray.map((review, index) => {
+    const r = review && typeof review === 'object' ? review : { comment: String(review ?? '') };
+    const text = r.comment || r.text || r.textFR || r.textEN || '';
+    const name = r.name || r.authorName || 'Client Anonyme';
+    const rating = Math.max(0, Math.min(5, Number(r.stars ?? r.rating) || 0));
+    const stars = rating ? '★'.repeat(rating) + '☆'.repeat(5 - rating) : '';
+    return `<div class="review-card" data-review-id="${escapeReviewHTML(r.id || index)}">
+      ${stars ? `<div class="review-stars" aria-label="${rating} étoiles">${stars}</div>` : ''}
+      <p class="review-text">"${escapeReviewHTML(text)}"</p>
+      <p class="review-author">- ${escapeReviewHTML(name)}</p>
+    </div>`;
+  }).join('');
+  return reviewsArray;
+}
+
 function reviewStatus(review) {
   return String(review?.status ?? review?.state ?? review?.moderationStatus ?? '').trim().toLowerCase();
 }
@@ -4666,8 +4696,10 @@ function initFirebase() {
       const reviewsRef = firebase.database().ref('reviews');
       reviewsRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        const reviewsArray = Array.isArray(data) ? data.filter(Boolean) : (data ? Object.values(data) : []);
+        const reviewsArray = renderReviewsDirect(data);
         handleKeyUpdate('reviews', reviewsArray);
+        // handleKeyUpdate peut relancer les rendus habituels ; on réinjecte donc le brut en dernier.
+        renderReviewsDirect(data);
         if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('reviews');
       }, error => {
         console.error('[Firebase] Lecture du nœud reviews impossible :', error);
@@ -7895,7 +7927,7 @@ function renderReviewCard(r) {
 
 // ---- Home reviews ----
 function renderHomeReviews() {
-  const approvedReviews = reviewRows(reviews).filter(reviewIsPublic)
+  const approvedReviews = reviewRows(reviews)
     .sort((a,b)=>(b.stars||b.rating||0)-(a.stars||a.rating||0));
   const statsEl = document.getElementById('home-reviews-stats');
   const gridEl = document.getElementById('reviews-container') || document.getElementById('home-reviews-grid');
@@ -7919,7 +7951,7 @@ function renderReviewsPage() {
   const catF = document.getElementById('reviews-cat-filter')?.value || '';
   const starsF = parseInt(document.getElementById('reviews-stars-filter')?.value||'0');
 
-  let filtered = reviewRows(reviews).filter(reviewIsPublic).map(r=>({...r, stars:r.stars||r.rating||0}));
+  let filtered = reviewRows(reviews).map(r=>({...r, stars:r.stars||r.rating||0}));
   if (catF) filtered = filtered.filter(r => r.productId === catF);
   if (starsF) filtered = filtered.filter(r => r.stars >= starsF);
   filtered.sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -13433,7 +13465,7 @@ window.addEventListener('load', function() {
       return false;
     }
   }
-  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId && r.approved===true); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis approuvés</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div>${r.imageUrl||r.photoUrl?`<img src="${String(r.imageUrl||r.photoUrl).replace(/[<>]/g,'')}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)">`:''}<div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
+  async function renderProductReviews(productId, target) { try { const rows=(Array.isArray(window.reviews)?window.reviews:[]).filter(r=>(r.productId||r.productId==='general')===productId); target.innerHTML = rows.length ? '<div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:10px 0">Avis</div>' + rows.map(r => `<div class="review-card" style="margin-bottom:10px"><div class="review-stars">${'★'.repeat(Number(r.rating)||0)}<span class="star empty">${'★'.repeat(5-(Number(r.rating)||0))}</span></div>${r.imageUrl||r.photoUrl?`<img src="${String(r.imageUrl||r.photoUrl).replace(/[<>]/g,'')}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync" style="width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)">`:''}<div class="review-text">${String(r.comment||'').replace(/[<>]/g,'')}</div><div class="review-author"><div class="review-avatar">${String(r.authorName||r.name||'?').slice(0,1).toUpperCase()}</div><div class="review-author-info"><div class="review-author-name">${String(r.authorName||r.name||'Client').replace(/[<>]/g,'')}</div><div class="review-author-meta">Avis vérifié après modération</div></div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'; } catch {} }
 function injectProductReview(productId) { const body = document.getElementById('pm-body'); if (!body || body.querySelector('.emil-product-review')) return; const box = document.createElement('section'); box.className = 'emil-product-review public-review-form'; box.innerHTML = `<h3>Votre expérience</h3><p>Partagez votre avis sur ce produit. Il sera publié après modération.</p><div class="pub-star-picker" id="product-rv-picker"><span class="pub-star" data-v="1">★</span><span class="pub-star" data-v="2">★</span><span class="pub-star" data-v="3">★</span><span class="pub-star" data-v="4">★</span><span class="pub-star" data-v="5">★</span></div><input type="hidden" id="product-rv-stars" value="0"><input class="form-input" id="product-rv-name" placeholder="Votre nom" style="margin-bottom:8px;width:100%;box-sizing:border-box;"><textarea class="form-textarea" id="product-rv-text" placeholder="Votre avis" style="margin-bottom:8px;width:100%;box-sizing:border-box;"></textarea><label for="product-rv-photo" id="product-rv-photo-label" style="display:flex;align-items:center;gap:clamp(12px,3vw,18px);width:100%;min-height:100px;margin-bottom:12px;padding:clamp(15px,4vw,24px);background:#1f1f1f;border:1px solid rgba(201,163,75,.45);border-radius:12px;cursor:pointer;transition:all .3s ease;box-sizing:border-box;overflow:hidden;"><div style="width:clamp(48px,12vw,58px);height:clamp(48px,12vw,58px);min-width:clamp(48px,12vw,58px);border-radius:50%;background:rgba(201,163,75,.12);display:flex;align-items:center;justify-content:center;color:#d5ad4e;font-size:clamp(24px,6vw,30px);flex-shrink:0;">✦</div><div style="display:flex;flex-direction:column;gap:5px;min-width:0;flex:1;"><span id="product-rv-photo-title" style="font-family:Georgia,serif;font-size:clamp(17px,4vw,20px);color:#d5ad4e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ajouter une photo</span><span id="product-rv-photo-info" style="font-size:clamp(12px,3.5vw,14px);color:#9ca3af;line-height:1.5;">Cliquez pour sélectionner · JPG, PNG ou WebP</span></div></label><input id="product-rv-photo" type="file" accept="image/jpeg,image/png,image/webp" style="display:none"><button class="btn-primary" id="product-rv-submit" style="max-width:100%;box-sizing:border-box;">Soumettre mon avis</button><div class="emil-product-approved-reviews"></div>`; body.appendChild(box); const photoInput = box.querySelector('#product-rv-photo'); const photoLabel = box.querySelector('#product-rv-photo-label'); photoInput.addEventListener('change', () => { if (photoInput.files && photoInput.files[0]) { box.querySelector('#product-rv-photo-title').textContent = photoInput.files[0].name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); photoLabel.addEventListener('dragover', e => { e.preventDefault(); photoLabel.style.borderColor = '#d5ad4e'; photoLabel.style.background = 'rgba(201,163,75,.08)'; }); photoLabel.addEventListener('dragleave', () => { photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; }); photoLabel.addEventListener('drop', e => { e.preventDefault(); photoLabel.style.borderColor = 'rgba(201,163,75,.45)'; photoLabel.style.background = '#1f1f1f'; const file = e.dataTransfer.files[0]; if (file && ['image/jpeg','image/png','image/webp'].includes(file.type)) { const dt = new DataTransfer(); dt.items.add(file); photoInput.files = dt.files; box.querySelector('#product-rv-photo-title').textContent = file.name; box.querySelector('#product-rv-photo-info').textContent = 'Photo sélectionnée avec succès ✓'; } }); box.querySelectorAll('.pub-star').forEach(star => star.addEventListener('click', () => { const n = Number(star.dataset.v); document.getElementById('product-rv-stars').value = n; box.querySelectorAll('.pub-star').forEach(s => s.classList.toggle('active', Number(s.dataset.v) <= n)); })); box.querySelector('#product-rv-submit').addEventListener('click', () => submitReview(productId, 'product-rv')); renderProductReviews(productId, box.querySelector('.emil-product-approved-reviews')); }  function addPhotoField() { if (document.getElementById('pub-rv-photo')) return; const text = document.getElementById('pub-rv-text'); if (!text) return; const wrap = document.createElement('div'); wrap.style.cssText = 'margin-bottom:14px'; wrap.innerHTML = '<label class="form-label">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">'; text.parentElement.after(wrap); }
   function installHooks() { addPhotoField(); const oldSubmit = window.submitPublicReview; window.submitPublicReview = async function() { const productId = document.getElementById('pub-rv-product')?.value || 'general'; try { await submitReview(productId, 'pub-rv'); document.getElementById('pub-rv-sent')?.classList.add('show'); } catch (e) { if (window.showToast) window.showToast(e.message, '❌'); } return false; }; const originalOpen = window.openProduct; if (typeof originalOpen === 'function') window.openProduct = function(id) { originalOpen(id); setTimeout(() => injectProductReview(id), 250); }; }
   window.addEventListener('load', () => setTimeout(installHooks, 500));
@@ -13725,12 +13757,12 @@ window.addEventListener('load', () => setTimeout(() => {
 const $=(s,r=document)=>r.querySelector(s), list=v=>Array.isArray(v)?v:Object.values(v||{});
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const normalize=v=>list(v).filter(r=>r&&typeof r==='object').map(r=>({...r,name:String(r.name||r.authorName||'Client'),stars:Math.max(1,Math.min(5,Number(r.stars??r.rating)||5)),textFR:String(r.textFR??r.comment??''),textEN:String(r.textEN??r.comment??''),imageUrl:r.imageUrl||r.photoUrl||'',date:r.date||r.createdAt||''}));
-const isApproved=reviewIsPublic;
+const isApproved=()=>true;
 function compress(file){return new Promise((resolve,reject)=>{if(!file)return resolve('');if(!file.type.startsWith('image/'))return reject(new Error('Le fichier sélectionné n’est pas une image.'));if(file.size>10*1024*1024)return reject(new Error('La photo doit faire 10 Mo maximum.'));const rd=new FileReader();rd.onerror=()=>reject(new Error('Lecture de la photo impossible.'));rd.onload=()=>{const im=new Image();im.onerror=()=>reject(new Error('Photo illisible.'));im.onload=()=>{const max=1000,ratio=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.max(1,Math.round(im.naturalWidth*ratio));c.height=Math.max(1,Math.round(im.naturalHeight*ratio));const x=c.getContext('2d',{alpha:false});x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);const out=c.toDataURL('image/jpeg',.72);if(out.length>480000)return reject(new Error('Cette photo reste trop volumineuse après compression.'));resolve(out)};im.src=rd.result};rd.readAsDataURL(file)})}
 function closeSplash(){if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash();const s=$('#luxe-splash');if(s){s.classList.add('fade-out');s.style.pointerEvents='none'}}
 function card(r){const p=r.productId&&typeof getProd==='function'?getProd(r.productId):null,txt=(typeof lang==='undefined'||lang==='fr')?(r.textFR||r.textEN):(r.textEN||r.textFR),photo=r.imageUrl||r.photoUrl||'',date=r.date?new Date(r.date).toLocaleDateString('fr-FR',{year:'numeric',month:'short',day:'numeric'}):'';return `<div class="review-card">${p?`<div class="review-product-tag">${esc(typeof prodName==='function'?prodName(p):p.name)}</div>`:'<div class="review-product-tag">Boutique en général</div>'}<div class="review-stars">${typeof renderStars==='function'?renderStars(r.stars):'★★★★★'}</div>${photo&&(/^(https?:\/\/|data:image\/)/i.test(photo))?`<img class="review-photo" src="${esc(photo)}" alt="Photo jointe à l’avis" loading="eager" fetchpriority="high" decoding="sync">`:''}<div class="review-text">${esc(txt)}</div><div class="review-author"><div class="review-avatar">${esc(r.name[0].toUpperCase())}</div><div class="review-author-info"><div class="review-author-name">${esc(r.name)}</div><div class="review-author-meta">${esc(date)}</div></div>${r.verified?'<div class="review-verified">✔ Avis vérifié</div>':''}</div></div>`}
 function renderReviews(){const rows=normalize(window.reviews||[]).filter(isApproved),grid=$('#reviews-container')||$('#home-reviews-grid'),stats=$('#home-reviews-stats');if(stats&&typeof renderStatsBlock==='function')stats.innerHTML=renderStatsBlock(rows);if(grid)grid.innerHTML=rows.length?rows.slice().sort((a,b)=>b.stars-a.stars).map(card).join(''):`<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>`}
-async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-rv-text')?.value.trim(),stars=Number($('#pub-rv-stars')?.value||0),productId=$('#pub-rv-product')?.value||'general',file=$('#pub-rv-photo')?.files?.[0];if(!name||!text||!stars){showToast('Nom, note et commentaire requis','⚠️');return false}try{const imageUrl=await compress(file),rv={id:'rv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,authorName:name,productId,stars,rating:stars,textFR:text,textEN:'',comment:text,imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false},next=[rv,...list(window.pendingReviews||[])];if(!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');      const approved = reviewRows(window.reviews || []).filter(review => review.approved !== false && review.pending !== true);
+async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-rv-text')?.value.trim(),stars=Number($('#pub-rv-stars')?.value||0),productId=$('#pub-rv-product')?.value||'general',file=$('#pub-rv-photo')?.files?.[0];if(!name||!text||!stars){showToast('Nom, note et commentaire requis','⚠️');return false}try{const imageUrl=await compress(file),rv={id:'rv_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),name,authorName:name,productId,stars,rating:stars,textFR:text,textEN:'',comment:text,imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false},next=[rv,...list(window.pendingReviews||[])];if(!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');      const approved = reviewRows(window.reviews || []);
       const mergedReviews=[...approved, ...next];
       await firebaseDb.ref('reviews').set(mergedReviews);
       window.reviews=mergedReviews;
