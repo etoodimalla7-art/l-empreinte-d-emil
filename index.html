@@ -92,21 +92,12 @@ function esc(str) {
   function smartSchedule(){
     if(!('Notification'in window)||Notification.permission!=='granted'||window.__emilSmartSchedule)return;window.__emilSmartSchedule=1;const key='emil-smart-push-'+new Date().toISOString().slice(0,10);const sent=JSON.parse(localStorage.getItem(key)||'{}');const texts={morning:['Une nouvelle signature vous attend.','Commencez la journée avec une pièce d’exception.'],noon:['Votre pause mérite une touche d’élégance.','Découvrez la sélection qui fait la différence.'],afternoon:['Un détail peut tout changer.','Les nouveautés Emil sont à découvrir.'],evening:['Ce soir, choisissez votre prochaine signature.','L’élégance vous attend avant la fin de la journée.']};let last=localStorage.getItem('emil-last-push-text')||'';const send=(kind,h)=>{const now=new Date(),target=new Date(now);target.setHours(h,0,0,0);if(target<=now)target.setDate(target.getDate()+1);const id=kind+'-'+h;if(sent[id])return;setTimeout(()=>{let choices=texts[kind].filter(t=>t!==last);const text=choices[Math.floor(Math.random()*choices.length)]||texts[kind][0];last=text;localStorage.setItem('emil-last-push-text',last);new Notification('L’Empreinte d’Emil',{body:text,icon:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-'+id});sent[id]=1;localStorage.setItem(key,JSON.stringify(sent));},Math.min(2147483647,Math.max(1000,target-now)));};[['morning',9],['noon',12],['afternoon',15],['evening',18],['evening',21]].forEach(x=>send(x[0],x[1]));setTimeout(()=>{if(!document.hidden)new Notification('L’Empreinte d’Emil',{body:'Vous nous manquez. Revenez découvrir votre sélection.',icon:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-idle'});},30*60*1000);}
   window.emilPushDiagnostics=()=>({permission:'Notification'in window?Notification.permission:'unsupported',scheduled:!!window.__emilSmartSchedule,productImageHook:typeof window.emilNotifyProduct==='function',mode:'autonomous while page is open; true background push requires a deployed service worker and server endpoint'});
-  window.addEventListener('load',()=>setTimeout(()=>{const phone=$('#c-phone'),country=$('#c-phone-country');phone?.addEventListener('input',ensureCardForm);country?.addEventListener('change',ensureCardForm);ensureCardForm();if('Notification'in window&&Notification.permission==='default')Notification.requestPermission().then(p=>{if(p==='granted')smartSchedule();});else smartSchedule();},950));
+  window.addEventListener('load',()=>setTimeout(()=>{const phone=$('#c-phone'),country=$('#c-phone-country');phone?.addEventListener('input',ensureCardForm);country?.addEventListener('change',ensureCardForm);ensureCardForm();if('Notification'in window&&Notification.permission==='granted')smartSchedule();},950));
 })();
 
 </script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-storage-compat.js"></script><script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-window.EMIL_ONESIGNAL_APP_ID = window.EMIL_ONESIGNAL_APP_ID || 'REPLACE_WITH_ONESIGNAL_APP_ID';
-window.OneSignalDeferred = window.OneSignalDeferred || [];
-window.OneSignalDeferred.push(async function(OneSignal) {
-  if (window.EMIL_ONESIGNAL_APP_ID.startsWith('REPLACE_')) return;
-  await OneSignal.init({ appId: window.EMIL_ONESIGNAL_APP_ID, notifyButton: { enable: false } });
-});
-</script>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2192,20 +2183,37 @@ img,svg,video,iframe{max-width:100%}
 }
 </style>
 
-<!-- OneSignal Web SDK v16 -->
+<!-- OneSignal Web SDK v16 — une seule initialisation pour éviter les doublons -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script id="onesignal-v16-init">
+  window.EMIL_ONESIGNAL_APP_ID = window.EMIL_ONESIGNAL_APP_ID || 'cccbad22-afa2-422e-965e-f678ae3314b8';
   window.OneSignalDeferred = window.OneSignalDeferred || [];
-  if (location.protocol === 'https:' && location.hostname !== 'localhost') {
-    OneSignalDeferred.push(async function(OneSignal) {
-      await OneSignal.init({
-        appId: "cccbad22-afa2-422e-965e-f678ae3314b8",
+  OneSignalDeferred.push(async function(OneSignal) {
+    if (!window.EMIL_ONESIGNAL_APP_ID || window.EMIL_ONESIGNAL_APP_ID.startsWith('REPLACE_')) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+    try {
+      await OneSignal.init({ appId: window.EMIL_ONESIGNAL_APP_ID, notifyButton: { enable: false }, serviceWorkerPath: 'OneSignalSDKWorker.js', serviceWorkerParam: { scope: '/' }, allowLocalhostAsSecureOrigin: true });
+      window.__emilOneSignalReady = true;
+      OneSignal.Notifications.addEventListener('permissionChange', function(permission) {
+        window.dispatchEvent(new CustomEvent('emil:push-permission', { detail: permission }));
       });
-    });
-  }
+      OneSignal.Notifications.addEventListener('click', function(event) {
+        const target = event?.result?.url || event?.notification?.launchURL;
+        if (target) window.location.assign(target);
+      });
+    } catch (error) {
+      console.warn('[OneSignal] Initialisation impossible :', error);
+    }
+  });
 </script>
 </head>
 <body>
+<style id="emil-push-style">
+  #emil-push-subscribe{position:fixed;right:20px;bottom:138px;z-index:998;display:flex;align-items:center;gap:8px;padding:10px 14px;border:1px solid rgba(201,168,76,.45);border-radius:999px;background:rgba(17,17,17,.94);color:var(--gold-light);font:500 11px var(--font-body);letter-spacing:.04em;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.25);transition:var(--transition)}
+  #emil-push-subscribe:hover,#emil-push-subscribe:focus-visible{border-color:var(--gold-light);background:rgba(43,36,19,.96);transform:translateY(-1px);outline:none}
+  #emil-push-subscribe.is-subscribed{color:var(--noir);background:var(--gold);border-color:var(--gold)}
+  @media(max-width:640px){#emil-push-subscribe{right:14px;bottom:136px;padding:10px 12px}#emil-push-subscribe span{display:none}}
+</style>
 <!-- LUXE SPLASH SCREEN -->
 <div id="luxe-splash">
   <div class="splash-content">
@@ -4267,6 +4275,7 @@ Action: Immediate restocking required.</textarea></div>
 
 <!-- QUIZ FAB -->
 <button id="quiz-fab" onclick="openQuiz()">✨ <span id="quiz-fab-label">Quel est votre parfum ?</span></button>
+<button id="emil-push-subscribe" type="button" onclick="emilSubscribePush()" aria-label="Recevoir les nouveautés de L’Empreinte d’Emil">🔔 <span>Recevoir les nouveautés</span></button>
 
 <!-- LOYALTY BADGE -->
 <div class="loyalty-badge" id="loyalty-badge" onclick="openLoyalty()">
@@ -6497,6 +6506,8 @@ function legacyWhatsAppFlow() {
   orders.unshift(order);
   DB.set('orders', orders);
   lastOrderData = order; window.currentOrder = order;
+  if (typeof window.emilTrackEvent === 'function') void window.emilTrackEvent({type:'whatsapp_order_intent',orderId,total,itemCount:cart.length});
+  if (typeof window.emilRecordOrder === 'function') void window.emilRecordOrder(order);
 
   // ── Award loyalty points ──
   if (typeof awardLoyaltyPoints === 'function') {
@@ -9429,6 +9440,7 @@ function selectQuizOption(i) {
   });
 
   quizAnswers[quizStep] = { optionId: opt.id, pids: opt.pids || [] };
+  if (typeof window.emilTrackEvent === 'function') void window.emilTrackEvent({type:'quiz_answer',questionId:q.id,optionId:opt.id,step:quizStep+1});
   quizStep++;
 
   setTimeout(() => renderQuizStep(), 280);
@@ -9480,6 +9492,7 @@ function calcQuizResults() {
 // ── Render results ─────────────────────────────────────────────
 function renderQuizResults(body) {
   const prods = calcQuizResults();
+  if (typeof window.emilTrackEvent === 'function') void window.emilTrackEvent({type:'quiz_completed',productIds:prods.map(p=>p.id)});
   const titleFR = 'Votre parfum idéal selon vos réponses';
   const titleEN = 'Your ideal fragrance based on your answers';
   const subFR   = 'Découvrez nos recommandations personnalisées pour vous';
@@ -13816,5 +13829,84 @@ window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields(
 })();
 </script>
 
+<!-- Pont chirurgical Render + OneSignal : aucun secret REST n’est exposé au navigateur. -->
+<script id="emil-render-onesignal-bridge">
+(function(){
+  'use strict';
+  const BACKEND_URL='https://l-empreinte-d-emil-1.onrender.com';
+  const EVENT_PATH='storedData/pushEvents';
+  const LOGO_URL='https://i.postimg.cc/HLdg7Tb5/logo.png';
+  const PRODUCT_URL=()=>location.origin+location.pathname;
+  const button=()=>document.getElementById('emil-push-subscribe');
+  const setButton=(text,subscribed)=>{const b=button();if(!b)return;b.querySelector('span')?.replaceChildren(document.createTextNode(text));b.classList.toggle('is-subscribed',!!subscribed);b.disabled=!!subscribed;b.setAttribute('aria-pressed',String(!!subscribed));};
+  const productImage=p=>{const values=[...(Array.isArray(p?.imgs)?p.imgs:[]),...(Array.isArray(p?.images)?p.images:[]),p?.image,p?.img,p?.imgUrl,p?.imageUrl];return values.find(v=>typeof v==='string'&&/^https?:\/\//i.test(v.trim()))?.trim()||'';};
+  const productTitle=p=>String(p?.nameFR||p?.titleFR||p?.name||p?.title||'Nouvelle signature Emil').trim();
+  const productPrice=p=>Number(p?.price||0)||0;
+  const safeUrl=value=>{try{const u=new URL(value,location.href);return /^https?:$/.test(u.protocol)?u.href:'';}catch{return '';}};
+  async function postBackend(path,payload){
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),8000);
+    try{
+      const response=await fetch(BACKEND_URL+path,{method:'POST',mode:'cors',credentials:'omit',headers:{'Accept':'application/json','Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+      const raw=await response.text();let data=null;try{data=raw?JSON.parse(raw):null;}catch{}
+      if(response.status===404||response.status===405)return {handled:false,status:response.status};
+      if(!response.ok)throw new Error('Render a répondu '+response.status);
+      return {handled:true,data};
+    }catch(error){
+      console.warn('[Render] Endpoint push indisponible, tentative Firebase :',error?.message||error);
+      return {handled:false,status:0};
+    }finally{clearTimeout(timeout);}
+  }
+  function firebaseReference(){
+    try{
+      if(typeof firebaseDb!=='undefined'&&firebaseDb)return firebaseDb.ref(EVENT_PATH);
+      if(typeof firebase!=='undefined'&&firebase.apps?.length)return firebase.database(firebase.app()).ref(EVENT_PATH);
+    }catch(error){console.warn('[Emil push] Référence Firebase indisponible :',error);}
+    return null;
+  }
+  window.emilTrackEvent=async function(payload){
+    try{return await postBackend('/api/interactions',{...payload,source:'storefront',createdAt:Date.now()});}
+    catch(error){console.warn('[Render] Interaction non enregistrée :',error?.message||error);return null;}
+  };
+  window.emilRecordOrder=async function(order){
+    try{return await postBackend('/api/orders',{...order,source:'whatsapp',createdAt:Date.now()});}
+    catch(error){console.warn('[Render] Commande non enregistrée :',error?.message||error);return null;}
+  };
+  window.emilPublishNewProduct=async function(product){
+    const image=productImage(product);const title=productTitle(product);const price=productPrice(product);
+    const event={type:'new_product',event:'new_product',productId:String(product?.id||'product-'+Date.now()),title, name:title,price,image,big_picture:image,url:safeUrl(PRODUCT_URL()),contents:{fr:`${title} rejoint la collection Emil${price?' — '+price.toLocaleString('fr-FR')+' FCFA':''}.`,en:`${title} has joined the Emil collection.`},headings:{fr:'Nouvelle signature — L’Empreinte d’Emil',en:'New signature — L’Empreinte d’Emil'},icon:LOGO_URL,processed:false,createdAt:Date.now()};
+    try{
+      const paths=['/api/notifications/product','/api/push-events'];
+      for(const path of paths){const result=await postBackend(path,event);if(result.handled){console.info('[Emil push] Événement produit remis à Render :',event.productId);return result.data;}}
+      const ref=firebaseReference();
+      if(!ref)throw new Error('Aucune route Render POST et Firebase indisponible.');
+      const written=await ref.push(event);console.info('[Emil push] Événement publié dans '+EVENT_PATH+' :',written.key);return {key:written.key};
+    }catch(error){console.error('[Emil push] Publication échouée pour '+event.productId,error);if(typeof showToast==='function')showToast('Produit enregistré, mais notification non envoyée. Vérifiez le worker Render.','⚠️');return null;}
+  };
+  window.emilSubscribePush=async function(){
+    const b=button();if(b)b.disabled=true;
+    try{
+      if(!('Notification'in window)){setButton('Notifications indisponibles',false);return;}
+      if(window.__emilOneSignalReady&&window.OneSignal){
+        const permission=await window.OneSignal.Notifications.requestPermission();
+        if(permission===true||permission==='granted'){if(window.OneSignal.User?.PushSubscription?.optIn)await window.OneSignal.User.PushSubscription.optIn();setButton('Nouveautés activées',true);if(typeof showToast==='function')showToast('Notifications Emil activées.','✅');}else{setButton('Activer les nouveautés',false);if(typeof showToast==='function')showToast('Autorisation de notifications refusée.','⚠️');}
+        return;
+      }
+      window.OneSignalDeferred=window.OneSignalDeferred||[];
+      window.OneSignalDeferred.push(async function(OneSignal){
+        const permission=await OneSignal.Notifications.requestPermission();
+        const ok=permission===true||permission==='granted';if(ok&&OneSignal.User?.PushSubscription?.optIn)await OneSignal.User.PushSubscription.optIn();setButton(ok?'Nouveautés activées':'Activer les nouveautés',ok);if(typeof showToast==='function')showToast(ok?'Notifications Emil activées.':'Autorisation de notifications refusée.',ok?'✅':'⚠️');
+      });
+    }catch(error){console.warn('[OneSignal] Abonnement impossible :',error);setButton('Réessayer les notifications',false);if(typeof showToast==='function')showToast('Abonnement push momentanément indisponible.','⚠️');}
+    finally{if(b&&!b.classList.contains('is-subscribed'))b.disabled=false;}
+  };
+  window.emilPushDiagnostics=()=>({backend:BACKEND_URL,eventPath:EVENT_PATH,oneSignalReady:!!window.__emilOneSignalReady,permission:'Notification'in window?Notification.permission:'unsupported',productImageField:'image + big_picture'});
+  window.addEventListener('emil:push-permission',event=>{const value=event?.detail;const ok=value===true||value==='granted';setButton(ok?'Nouveautés activées':'Activer les nouveautés',ok);});
+  window.addEventListener('load',()=>{
+    const b=button();if(!b)return;
+    if('Notification'in window&&Notification.permission==='granted')setButton('Notifications disponibles',false);
+    else setButton('Recevoir les nouveautés',false);
+  });
+})();
+</script>
 </body>
 </html>
