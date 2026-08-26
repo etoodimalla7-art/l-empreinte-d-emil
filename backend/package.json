@@ -1,0 +1,17 @@
+{
+  "name": "emil-push-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Worker Express pour Firebase Realtime Database et OneSignal",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "firebase-admin": "^13.4.0"
+  }
+}
