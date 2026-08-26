@@ -13,23 +13,23 @@ function requiredEnv(name) {
 }
 
 function buildFirebaseCredential() {
-  let rawKey = requiredEnv('FIREBASE_PRIVATE_KEY');
+  let key = process.env.FIREBASE_PRIVATE_KEY || '';
   
-  // Supprime les guillemets si tu en as mis par erreur dans Render
-  if ((rawKey.startsWith('"') && rawKey.endsWith('"')) || (rawKey.startsWith("'") && rawKey.endsWith("'"))) {
-    rawKey = rawKey.slice(1, -1);
+  // Nettoie les espaces et enlève les guillemets si présents
+  key = key.trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
   }
   
-  // Remplace proprement les \n textuels par de vrais sauts de ligne
-  const privateKey = rawKey.replace(/\\n/g, '\n');
+  // Remplace toutes les formes de sauts de ligne textuels par de vrais sauts de ligne
+  key = key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
 
   return admin.credential.cert({
     projectId: requiredEnv('FIREBASE_PROJECT_ID'),
     clientEmail: requiredEnv('FIREBASE_CLIENT_EMAIL'),
-    privateKey
+    privateKey: key
   });
 }
-
 function initFirebaseAdmin() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
