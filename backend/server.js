@@ -13,31 +13,10 @@ function requiredEnv(name) {
 }
 
 function buildFirebaseCredential() {
-  const projectId = requiredEnv('FIREBASE_PROJECT_ID');
-  const clientEmail = requiredEnv('FIREBASE_CLIENT_EMAIL');
-  let rawKey = requiredEnv('FIREBASE_PRIVATE_KEY');
-
-  // Nettoyage des guillemets éventuels
-  rawKey = rawKey.trim();
-  if ((rawKey.startsWith('"') && rawKey.endsWith('"')) || (rawKey.startsWith("'") && rawKey.endsWith("'"))) {
-    rawKey = rawKey.slice(1, -1).trim();
-  }
-
-  // Remplace les antislashs-n par de vrais sauts de ligne
-  let privateKey = rawKey.replace(/\\n/g, '\n');
-
-  // Si la clé est arrivée sur une seule ligne, on remet les retours à la ligne tous les 64 caractères
-  if (!privateKey.includes('\n') && privateKey.includes('BEGIN PRIVATE KEY')) {
-    const header = '-----BEGIN PRIVATE KEY-----';
-    const footer = '-----END PRIVATE KEY-----';
-    let body = privateKey.replace(header, '').replace(footer, '').trim();
-    let formattedBody = body.match(/.{1,64}/g)?.join('\n') || body;
-    privateKey = `${header}\n${formattedBody}\n${footer}`;
-  }
-
+  const privateKey = requiredEnv('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n');
   return admin.credential.cert({
-    projectId,
-    clientEmail,
+    projectId: requiredEnv('FIREBASE_PROJECT_ID'),
+    clientEmail: requiredEnv('FIREBASE_CLIENT_EMAIL'),
     privateKey
   });
 }
