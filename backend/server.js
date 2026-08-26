@@ -18,25 +18,22 @@ function requiredEnv(name) {
 function normalizePrivateKey(rawValue) {
   let key = String(rawValue || '').replace(/^\uFEFF/, '').trim();
 
-  // Accepte une valeur copiée comme chaîne JSON, par exemple :
-  // "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----"
+  // Accepte une valeur copiée comme chaîne JSON, avec des retours \\n littéraux.
   if (key.startsWith('"') && key.endsWith('"')) {
     try {
       const parsed = JSON.parse(key);
       if (typeof parsed === 'string') key = parsed;
     } catch {
-      // Ce n’est pas forcément du JSON : on retire seulement les guillemets.
       key = key.slice(1, -1);
     }
   }
 
-  // Render peut fournir soit de vrais retours à la ligne, soit les caractères
-  // littéraux \\n. Les deux formats deviennent ici un PEM identique.
+  // Accepte de vrais retours de ligne et un ou plusieurs antislashs suivis de n.
   key = key
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\n')
-    .replace(/[\\t ]+$/gm, '')
+    .replace(/\\+r\\+n/g, '\n')
+    .replace(/\\+n/g, '\n')
+    .replace(/\\+r/g, '\n')
+    .replace(/[\t ]+$/gm, '')
     .trim();
 
   const begin = '-----BEGIN PRIVATE KEY-----';
@@ -44,29 +41,50 @@ function normalizePrivateKey(rawValue) {
   const beginIndex = key.indexOf(begin);
   const endIndex = key.indexOf(end);
   if (beginIndex < 0 || endIndex < 0 || endIndex <= beginIndex) {
-    throw new Error('FIREBASE_PRIVATE_KEY invalide : délimiteurs PEM absents ou mal ordonnés.');
+    throw new Error('Clé Firebase invalide : délimiteurs PEM absents ou mal ordonnés.');
   }
 
-  // Ignore tout caractère parasite avant/après le bloc PEM.
   key = key.slice(beginIndex, endIndex + end.length).trim();
-
-  // Diagnostic cryptographique local, sans écrire la clé dans les logs.
   try {
     cryptoModule.createPrivateKey({ key, format: 'pem', type: 'pkcs8' });
   } catch (error) {
-    throw new Error(`FIREBASE_PRIVATE_KEY illisible ou tronquée : ${error.message}`);
+    throw new Error(`Clé Firebase illisible ou tronquée : ${error.message}`);
   }
   return key;
 }
 
+function parseServiceAccountJson() {
+  const raw = requiredEnv('FIREBASE_SERVICE_ACCOUNT_JSON');
+  let json = raw;
+  if (raw.startsWith('"') && raw.endsWith('"')) {
+    try { json = JSON.parse(raw); } catch { /* tentative de parsing direct */ }
+  }
+  try {
+    const account = JSON.parse(json);
+    if (!account || typeof account !== 'object') throw new Error('objet JSON attendu');
+    return account;
+  } catch (error) {
+    throw new Error(`FIREBASE_SERVICE_ACCOUNT_JSON invalide : ${error.message}`);
+  }
+}
 
 function buildFirebaseCredential() {
-  const privateKey = normalizePrivateKey(requiredEnv('FIREBASE_PRIVATE_KEY'));
-  return admin.credential.cert({
-    projectId: requiredEnv('FIREBASE_PROJECT_ID'),
-    clientEmail: requiredEnv('FIREBASE_CLIENT_EMAIL'),
-    privateKey
-  });
+  const account = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+    ? parseServiceAccountJson()
+    : {
+        project_id: requiredEnv('FIREBASE_PROJECT_ID'),
+        client_email: requiredEnv('FIREBASE_CLIENT_EMAIL'),
+        private_key: requiredEnv('FIREBASE_PRIVATE_KEY')
+      };
+
+  const projectId = String(account.project_id || account.projectId || '').trim();
+  const clientEmail = String(account.client_email || account.clientEmail || '').trim();
+  const privateKey = normalizePrivateKey(account.private_key || account.privateKey);
+  if (!projectId || !clientEmail) {
+    throw new Error('Le compte de service Firebase doit contenir project_id et client_email.');
+  }
+
+  return admin.credential.cert({ projectId, clientEmail, privateKey });
 }
 
 function initFirebaseAdmin() {
