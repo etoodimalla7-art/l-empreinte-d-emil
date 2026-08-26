@@ -1,5 +1,6 @@
 import express from 'express';
 import admin from 'firebase-admin';
+import cryptoModule from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 10000);
 const DATABASE_URL = 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app';
@@ -8,12 +9,59 @@ const EVENTS_PATH = 'storedData/pushEvents';
 
 function requiredEnv(name) {
   const value = process.env[name];
-  if (!value || !value.trim()) throw new Error(`Variable d’environnement manquante : ${name}`);
-  return value.trim();
+  if (!value || !String(value).trim()) {
+    throw new Error(`Variable d’environnement manquante : ${name}`);
+  }
+  return String(value).trim();
 }
 
+function normalizePrivateKey(rawValue) {
+  let key = String(rawValue || '').replace(/^\uFEFF/, '').trim();
+
+  // Accepte une valeur copiée comme chaîne JSON, par exemple :
+  // "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----"
+  if (key.startsWith('"') && key.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(key);
+      if (typeof parsed === 'string') key = parsed;
+    } catch {
+      // Ce n’est pas forcément du JSON : on retire seulement les guillemets.
+      key = key.slice(1, -1);
+    }
+  }
+
+  // Render peut fournir soit de vrais retours à la ligne, soit les caractères
+  // littéraux \\n. Les deux formats deviennent ici un PEM identique.
+  key = key
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/[\\t ]+$/gm, '')
+    .trim();
+
+  const begin = '-----BEGIN PRIVATE KEY-----';
+  const end = '-----END PRIVATE KEY-----';
+  const beginIndex = key.indexOf(begin);
+  const endIndex = key.indexOf(end);
+  if (beginIndex < 0 || endIndex < 0 || endIndex <= beginIndex) {
+    throw new Error('FIREBASE_PRIVATE_KEY invalide : délimiteurs PEM absents ou mal ordonnés.');
+  }
+
+  // Ignore tout caractère parasite avant/après le bloc PEM.
+  key = key.slice(beginIndex, endIndex + end.length).trim();
+
+  // Diagnostic cryptographique local, sans écrire la clé dans les logs.
+  try {
+    cryptoModule.createPrivateKey({ key, format: 'pem', type: 'pkcs8' });
+  } catch (error) {
+    throw new Error(`FIREBASE_PRIVATE_KEY illisible ou tronquée : ${error.message}`);
+  }
+  return key;
+}
+
+
 function buildFirebaseCredential() {
-  const privateKey = requiredEnv('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n');
+  const privateKey = normalizePrivateKey(requiredEnv('FIREBASE_PRIVATE_KEY'));
   return admin.credential.cert({
     projectId: requiredEnv('FIREBASE_PROJECT_ID'),
     clientEmail: requiredEnv('FIREBASE_CLIENT_EMAIL'),
