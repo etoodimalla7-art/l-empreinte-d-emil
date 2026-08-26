@@ -13,23 +13,12 @@ function requiredEnv(name) {
 }
 
 function buildFirebaseCredential() {
-  let key = process.env.FIREBASE_PRIVATE_KEY || '';
+  const serviceAccountJson = requiredEnv('FIREBASE_SERVICE_ACCOUNT');
+  const serviceAccount = JSON.parse(serviceAccountJson);
   
-  // Nettoie les espaces et enlève les guillemets si présents
-  key = key.trim();
-  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
-    key = key.slice(1, -1).trim();
-  }
-  
-  // Remplace toutes les formes de sauts de ligne textuels par de vrais sauts de ligne
-  key = key.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
-
-  return admin.credential.cert({
-    projectId: requiredEnv('FIREBASE_PROJECT_ID'),
-    clientEmail: requiredEnv('FIREBASE_CLIENT_EMAIL'),
-    privateKey: key
-  });
+  return admin.credential.cert(serviceAccount);
 }
+
 function initFirebaseAdmin() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
