@@ -1,9 +1,13 @@
 import express from 'express';
 import admin from 'firebase-admin';
 import cryptoModule from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
 
 const PORT = Number(process.env.PORT || 10000);
 const DATABASE_URL = 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app';
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
+const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+const SUPABASE_TABLE = String(process.env.SUPABASE_TABLE || 'store_data').trim();
 const ONESIGNAL_URL = 'https://onesignal.com/api/v1/notifications';
 const EVENTS_PATH = 'storedData/pushEvents';
 // Les images restent dans la Realtime Database sous forme de data URL compressée.
@@ -96,6 +100,60 @@ function initFirebaseAdmin() {
     credential: buildFirebaseCredential(),
     databaseURL: DATABASE_URL
   });
+}
+
+function getSupabaseClient() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+function storeKeyFromPath(pathValue) {
+  let decoded = String(pathValue || '');
+  try { decoded = decodeURIComponent(decoded); } catch { /* conserver la valeur brute */ }
+  const normalized = decoded.replace(/^\/+|\/+$/g, '').replace(/^storedData\//, '');
+  const parts = normalized.split('/').filter(Boolean);
+  return { key: parts.shift() || '', parts };
+}
+
+function setNestedValue(root, parts, value) {
+  if (!parts.length) return value;
+  const next = root && typeof root === 'object' ? structuredClone(root) : {};
+  let cursor = next;
+  parts.slice(0, -1).forEach(part => {
+    if (!cursor[part] || typeof cursor[part] !== 'object') cursor[part] = {};
+    cursor = cursor[part];
+  });
+  cursor[parts.at(-1)] = value;
+  return next;
+}
+
+function getNestedValue(root, parts) {
+  return parts.reduce((value, part) => value == null ? null : value[part], root);
+}
+
+async function readStoreValue(pathValue) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant.');
+  const { key, parts } = storeKeyFromPath(pathValue);
+  if (!key) return {};
+  const { data, error } = await client.from(SUPABASE_TABLE).select('value').eq('key', key).maybeSingle();
+  if (error) throw error;
+  return getNestedValue(data?.value ?? null, parts);
+}
+
+async function writeStoreValue(pathValue, value, mode = 'set') {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant.');
+  const { key, parts } = storeKeyFromPath(pathValue);
+  if (!key) throw new Error('Clé de stockage obligatoire.');
+  let nextValue = value;
+  if (parts.length || mode === 'update') {
+    const current = await readStoreValue(key);
+    nextValue = parts.length ? setNestedValue(current, parts, value) : { ...(current && typeof current === 'object' ? current : {}), ...(value && typeof value === 'object' ? value : {}) };
+  }
+  const { data, error } = await client.from(SUPABASE_TABLE).upsert({ key, value: nextValue, updated_at: new Date().toISOString() }, { onConflict: 'key' }).select('key,value,updated_at').single();
+  if (error) throw error;
+  return data;
 }
 
 function cleanText(value, fallback = '') {
@@ -253,6 +311,129 @@ function createServer() {
   });
   app.use(express.json({ limit: '12mb' }));
 
+  app.get('/api/store', async (_request, response) => {
+    try {
+      const client = getSupabaseClient();
+      if (!client) return response.status(503).json({ error: 'Supabase non configuré.' });
+      const { data, error } = await client.from(SUPABASE_TABLE).select('key,value,updated_at');
+      if (error) throw error;
+      return response.json({ ok: true, data: Object.fromEntries((data || []).map(row => [row.key, row.value])) });
+    } catch (error) {
+      console.error('[Supabase] Lecture globale impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
+    }
+  });
+
+  app.patch('/api/store', async (request, response) => {
+    try {
+      const updates = request.body?.value || request.body?.data || {};
+      if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return response.status(400).json({ error: 'Objet de mise à jour attendu.' });
+      const rows = await Promise.all(Object.entries(updates).map(([key, value]) => writeStoreValue(key, value, 'set')));
+      return response.json({ ok: true, rows });
+    } catch (error) {
+      console.error('[Supabase] Mise à jour globale impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Mise à jour Supabase impossible.' });
+    }
+  });
+
+  app.get('/api/store-node', async (request, response) => {
+    try {
+      const value = await readStoreValue(request.query.path || '');
+      return response.json({ ok: true, path: request.query.path || '', value });
+    } catch (error) {
+      console.error('[Supabase] Lecture de chemin impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
+    }
+  });
+
+  const handleStoreNodeWrite = async (request, response, mode) => {
+    try {
+      const row = await writeStoreValue(request.query.path || '', request.body?.value, mode);
+      return response.json({ ok: true, path: request.query.path || '', value: row.value, updated_at: row.updated_at });
+    } catch (error) {
+      console.error('[Supabase] Écriture de chemin impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Écriture Supabase impossible.' });
+    }
+  };
+  app.put('/api/store-node', (request, response) => handleStoreNodeWrite(request, response, 'set'));
+  app.patch('/api/store-node', (request, response) => handleStoreNodeWrite(request, response, 'update'));
+  app.delete('/api/store-node', async (request, response) => {
+    try {
+      const client = getSupabaseClient();
+      if (!client) return response.status(503).json({ error: 'Supabase non configuré.' });
+      const { key } = storeKeyFromPath(request.query.path || '');
+      const { error } = await client.from(SUPABASE_TABLE).delete().eq('key', key);
+      if (error) throw error;
+      return response.json({ ok: true });
+    } catch (error) {
+      console.error('[Supabase] Suppression de chemin impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Suppression Supabase impossible.' });
+    }
+  });
+
+  app.get('/api/store/:key', async (request, response) => {
+    try {
+      const value = await readStoreValue(request.params.key);
+      return response.json({ ok: true, key: request.params.key, value });
+    } catch (error) {
+      console.error('[Supabase] Lecture impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
+    }
+  });
+
+  app.put('/api/store/:key', async (request, response) => {
+    try {
+      const row = await writeStoreValue(request.params.key, request.body?.value, 'set');
+      return response.json({ ok: true, ...row });
+    } catch (error) {
+      console.error('[Supabase] Écriture impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Écriture Supabase impossible.' });
+    }
+  });
+
+  app.patch('/api/store/:key', async (request, response) => {
+    try {
+      const row = await writeStoreValue(request.params.key, request.body?.value || {}, 'update');
+      return response.json({ ok: true, ...row });
+    } catch (error) {
+      console.error('[Supabase] Mise à jour impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Mise à jour Supabase impossible.' });
+    }
+  });
+
+  app.delete('/api/store/:key', async (request, response) => {
+    try {
+      const client = getSupabaseClient();
+      if (!client) return response.status(503).json({ error: 'Supabase non configuré.' });
+      const { error } = await client.from(SUPABASE_TABLE).delete().eq('key', storeKeyFromPath(request.params.key).key);
+      if (error) throw error;
+      return response.json({ ok: true });
+    } catch (error) {
+      console.error('[Supabase] Suppression impossible :', error);
+      return response.status(500).json({ error: error?.message || 'Suppression Supabase impossible.' });
+    }
+  });
+
+  app.post('/api/notifications/product', async (request, response) => {
+    try {
+      const result = await sendOneSignalNotification(request.body || {});
+      return response.status(202).json({ ok: true, handled: true, data: result });
+    } catch (error) {
+      console.error('[OneSignal] Notification produit impossible :', error?.details || error);
+      return response.status(502).json({ ok: false, handled: false, error: error?.message || 'Notification impossible.' });
+    }
+  });
+
+  app.post('/api/push-events', async (request, response) => {
+    try {
+      const result = await sendOneSignalNotification(request.body || {});
+      return response.status(202).json({ ok: true, handled: true, data: result });
+    } catch (error) {
+      console.error('[OneSignal] Événement push impossible :', error?.details || error);
+      return response.status(502).json({ ok: false, handled: false, error: error?.message || 'Notification impossible.' });
+    }
+  });
+
   app.post('/api/upload', async (request, response) => {
     try {
       const { dataUrl, folder } = request.body || {};
@@ -275,8 +456,9 @@ function createServer() {
 
   app.get('/health', (_request, response) => response.status(200).json({
     ok: true,
-    service: 'emil-push-worker',
-    firebasePath: EVENTS_PATH,
+    service: 'emil-supabase-push-worker',
+    dataProvider: getSupabaseClient() ? 'supabase' : 'not-configured',
+    legacyFirebasePushPath: EVENTS_PATH,
     timestamp: new Date().toISOString()
   }));
 
@@ -285,15 +467,18 @@ function createServer() {
 }
 
 async function main() {
-  const firebaseApp = initFirebaseAdmin();
-  const db = admin.database(firebaseApp);
-  // Vérification immédiate de la configuration Firebase sans exposer de données.
-  await db.ref('.info/connected').once('value').catch(error => {
-    console.warn('[Firebase] Vérification initiale indisponible, le listener sera tout de même démarré.', error.message);
-  });
-  startPushEventListener(db);
-
   const app = createServer();
+  if (getSupabaseClient()) {
+    console.log(`[Supabase] Mode principal actif sur la table ${SUPABASE_TABLE}; Firebase historique désactivé.`);
+  } else {
+    const firebaseApp = initFirebaseAdmin();
+    const db = admin.database(firebaseApp);
+    // Compatibilité historique : le worker Firebase reste disponible si Supabase n’est pas configuré.
+    await db.ref('.info/connected').once('value').catch(error => {
+      console.warn('[Firebase] Vérification initiale indisponible, le listener sera tout de même démarré.', error.message);
+    });
+    startPushEventListener(db);
+  }
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[HTTP] Serveur Express à l’écoute sur le port ${PORT}`);
   });
