@@ -4729,7 +4729,7 @@ function initFirebase() {
     // Les avis sont lus exclusivement sous storedData/reviews.
     if (!firebaseDb.__emilRootReviewsListener) {
       firebaseDb.__emilRootReviewsListener = true;
-      const reviewsRef = firebase.database().ref('storedData/reviews');
+      const reviewsRef = firebaseDb.ref('storedData/reviews');
       reviewsRef.on('value', (snapshot) => {
         const rawData = snapshot.val();
         const reviewsArray = Array.isArray(rawData)
@@ -13820,7 +13820,7 @@ async function submit(){const name=$('#pub-rv-name')?.value.trim(),text=$('#pub-
       $('#pub-rv-sent')?.classList.add('show');showToast('Merci. Votre avis a été envoyé pour modération.','✅');$('#pub-rv-name').value='';$('#pub-rv-text').value='';$('#pub-rv-stars').value='0';if($('#pub-rv-photo'))$('#pub-rv-photo').value='';return false}catch(e){console.error('[Reviews] RTDB:',e);showToast(e.message||'Avis non envoyé.','❌');return false}}
 function fields(){const t=$('#pub-rv-text');if(t&&!$('#pub-rv-photo')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="pub-rv-photo">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp">';t.closest('div')?.after(w)}const a=$('#rv-text-fr');if(a&&!$('#rv-image-url')){const w=document.createElement('div');w.className='emil-review-image-field';w.innerHTML='<label class="form-label" for="rv-image-url">URL de l’image (optionnelle)</label><input class="form-input" id="rv-image-url" type="url" placeholder="https://…">';a.closest('div')?.after(w)}}
 function admin(){if(typeof window.saveReview!=='function'||window.saveReview.__emilFixed)return;const fn=async()=>{const name=$('#rv-name')?.value.trim(),text=$('#rv-text-fr')?.value.trim(),id=$('#editing-review-id')?.value,stars=Number($('#rv-stars')?.value||5),imageUrl=$('#rv-image-url')?.value.trim()||'';if(!name||!text){showToast('Nom et avis (FR) obligatoires','⚠️');return false}const rv={id:id||'rev'+Date.now(),name,productId:$('#rv-product')?.value||'',stars,rating:stars,textFR:text,textEN:$('#rv-text-en')?.value.trim()||'',date:$('#rv-date')?.value||new Date().toISOString(),verified:true,approved:true,pending:false,imageUrl,photoUrl:imageUrl},all=normalize(window.reviews||[]),i=all.findIndex(x=>x.id===rv.id);if(i>=0)all[i]=rv;else all.unshift(rv);try{await firebaseDb.ref('storedData/reviews').set(all);window.reviews=all;renderReviews();if(typeof resetReviewForm==='function')resetReviewForm();if(typeof renderAdminReviews==='function')renderAdminReviews();showToast('Avis administrateur enregistré et synchronisé.','✅');return true}catch(e){console.error(e);showToast('Avis non enregistré : erreur Firebase.','❌');return false}};fn.__emilFixed=true;window.saveReview=fn}
-function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebase.database().ref('storedData/reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=Array.isArray(data)?data.filter(Boolean):(data?Object.values(data):[]);window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(reviewIsPending);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
+function listen(){if(typeof initFirebase==='function')initFirebase();if(typeof firebaseDb==='undefined'||!firebaseDb||firebaseDb.__emilRootReviewsListener){if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}return;}firebaseDb.__emilReviewListener=true;const reviewsRef=firebaseDb.ref('storedData/reviews');reviewsRef.on('value',s=>{const data=s.val();const reviewsArray=Array.isArray(data)?data.filter(Boolean):(data?Object.values(data):[]);window.reviews=reviewRows(reviewsArray);window.pendingReviews=window.reviews.filter(reviewIsPending);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews');renderReviews();if(typeof renderAdminReviews==='function'&&window.adminLoggedIn)renderAdminReviews()},error=>{console.error('[Reviews] Lecture Firebase impossible:',error);if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')})}
 window.renderReviewCard=card;window.renderHomeReviews=renderReviews;
 function boot(){fields();admin();listen();renderReviews();if(typeof firebaseDb==='undefined'||!firebaseDb){if(typeof window.__markLuxeReady==='function')window.__markLuxeReady('reviews')}}
 window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields();admin();listen()},1200)});
@@ -13914,6 +13914,105 @@ window.addEventListener('load',()=>{setTimeout(boot,250);setTimeout(()=>{fields(
     if('Notification'in window&&Notification.permission==='granted')setButton('Notifications disponibles',false);
     else setButton('Recevoir les nouveautés',false);
   });
+})();
+</script>
+<script id="emil-supabase-adapter">
+(() => {
+  'use strict';
+  // Supabase est la source active; Firebase reste uniquement un héritage désactivé.
+  const apiBase = String(window.BACKEND_URL || 'https://l-empreinte-d-emil-1.onrender.com').replace(/\/$/, '');
+  const pollers = new Map();
+  const activePaths = path => String(path || '').replace(/^\/+|\/+$/g, '');
+  const apiUrl = path => `${apiBase}/api/store-node?path=${encodeURIComponent(activePaths(path))}`;
+  const snapshot = (value, key = null) => ({ val: () => value, key, exists: () => value !== null && value !== undefined });
+  const isRoot = path => activePaths(path) === 'storedData' || activePaths(path) === '';
+  const request = async (path, options = {}) => {
+    const response = await fetch(isRoot(path) ? `${apiBase}/api/store` : apiUrl(path), {
+      ...options,
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(options.headers || {}) }
+    });
+    const raw = await response.text();
+    let body = {}; try { body = raw ? JSON.parse(raw) : {}; } catch (_) {}
+    if (!response.ok) throw new Error(body.error || `Supabase Render HTTP ${response.status}`);
+    return body;
+  };
+  const ref = path => {
+    const cleanPath = activePaths(path);
+    return {
+      async once() {
+        const body = await request(cleanPath);
+        const value = isRoot(cleanPath) ? (body.data || {}) : (Object.prototype.hasOwnProperty.call(body, 'value') ? body.value : null);
+        return snapshot(value, cleanPath.split('/').pop() || null);
+      },
+      on(eventName, callback, errorCallback) {
+        if (eventName !== 'value') return () => {};
+        let last = Symbol('first');
+        let stopped = false;
+        const poll = async () => {
+          if (stopped) return;
+          try {
+            const body = await request(cleanPath);
+            const value = Object.prototype.hasOwnProperty.call(body, 'value') ? body.value : null;
+            const signature = JSON.stringify(value);
+            if (signature !== last) { last = signature; callback(snapshot(value, cleanPath.split('/').pop() || null)); }
+          } catch (error) { if (typeof errorCallback === 'function') errorCallback(error); }
+        };
+        poll();
+        const timer = setInterval(poll, 15000);
+        pollers.set(cleanPath, timer);
+        return () => { stopped = true; clearInterval(timer); pollers.delete(cleanPath); };
+      },
+      async set(value) {
+        if (isRoot(cleanPath)) {
+          const body = await request(cleanPath, { method: 'PATCH', body: JSON.stringify({ data: value }) });
+          return snapshot(body.data || value, cleanPath.split('/').pop() || null);
+        }
+        const body = await request(cleanPath, { method: 'PUT', body: JSON.stringify({ value }) });
+        return snapshot(body.value ?? value, cleanPath.split('/').pop() || null);
+      },
+      async update(value) {
+        const body = isRoot(cleanPath)
+          ? await request(cleanPath, { method: 'PATCH', body: JSON.stringify({ data: value }) })
+          : await request(cleanPath, { method: 'PATCH', body: JSON.stringify({ value }) });
+        return snapshot(isRoot(cleanPath) ? (body.data || value) : (body.value ?? value), cleanPath.split('/').pop() || null);
+      },
+      async remove() {
+        await request(cleanPath, { method: 'DELETE' });
+        return snapshot(null, cleanPath.split('/').pop() || null);
+      },
+      async transaction(updater) {
+        const currentBody = await request(cleanPath);
+        const current = Object.prototype.hasOwnProperty.call(currentBody, 'value') ? currentBody.value : null;
+        const next = updater(current);
+        if (next === undefined) return { committed: false, snapshot: snapshot(current, cleanPath.split('/').pop() || null) };
+        const result = await ref(cleanPath).set(next);
+        return { committed: true, snapshot: result };
+      },
+      push(value) {
+        const key = `emil_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        return ref(`${cleanPath}/${key}`).set(value).then(result => ({ key, val: () => result.val() }));
+      }
+    };
+  };
+  const adapter = { ref };
+  window.EMIL_SUPABASE_MODE = true;
+  window.EMIL_SUPABASE_API = apiBase;
+  // Les fonctions historiques gardent leur nom pour préserver tous les boutons.
+  try {
+    firebaseDb = adapter;
+    isSyncInitialized = false;
+    initFirebase = function() {
+      if (isSyncInitialized) return true;
+      firebaseDb = adapter;
+      isSyncInitialized = true;
+      console.info('[Supabase] Adaptateur actif via', apiBase);
+      return true;
+    };
+    window.initFirebase = initFirebase;
+    window.firebaseDb = firebaseDb;
+  } catch (error) {
+    console.error('[Supabase] Adaptateur impossible à installer :', error);
+  }
 })();
 </script>
 </body>
