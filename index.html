@@ -3436,8 +3436,7 @@ img,svg,video,iframe{max-width:100%}
         <div class="admin-section-title">🎞️ Lookbook Vidéo Immersif</div>
         <div style="max-width:640px">
           <p style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:18px">
-            Les fichiers vidéo sont envoyés sur <strong>Firebase Storage</strong> (pas dans la base de données) —
-            seuls le titre, la description et l'URL sont synchronisés en temps réel. Format vertical (9:16) recommandé, style Reels/TikTok.
+            Les vidéos sont référencées par URL publique et leurs métadonnées sont synchronisées en temps réel. Format vertical (9:16) recommandé, style Reels/TikTok.
           </p>
 
           <!-- Upload zone -->
@@ -3447,7 +3446,7 @@ img,svg,video,iframe{max-width:100%}
             <input class="admin-input" type="url" id="lookbook-video-url" placeholder="https://...mp4, https://youtube.com/watch?v=... ou https://youtu.be/..." inputmode="url">
             <small style="display:block;color:var(--muted);margin-top:6px">Utilisez une URL HTTPS publique. Les liens MP4/Cloudinary sont lus directement ; les liens YouTube sont intégrés automatiquement.</small>
             <div class="video-upload-icon">🎞️</div>
-            <div class="video-upload-text">Collez une URL publique HTTPS ci-dessus<br><span style="font-size:10px;opacity:.6">Aucun fichier n’est envoyé vers Firebase Storage</span></div>
+            <div class="video-upload-text">Collez une URL publique HTTPS ci-dessus<br><span style="font-size:10px;opacity:.6">Aucun fichier vidéo n’est envoyé depuis cette interface</span></div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
@@ -4482,15 +4481,12 @@ const SYNC_CONFIG = {
   authDomain: 'lempreinte-d-emil.firebaseapp.com',
   databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
   projectId: 'lempreinte-d-emil',
-  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
   messagingSenderId: '979069264735',
   appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea',
   autoSync: 30
 };
 
-// Hébergement d’images sans Firebase Storage. Cloudinary unsigned est utilisé
-// par défaut : le nom du cloud et l’upload preset doivent être configurés dans
-// le tableau de bord Cloudinary. Ne jamais mettre une clé secrète côté client.
+// Les images produits et avis sont conservées en data URL Base64 via Render + RTDB.
 const IMAGE_HOSTING_CONFIG = {
   provider: 'server',
   cloudName: 'A_CONFIGURER',
@@ -4498,7 +4494,7 @@ const IMAGE_HOSTING_CONFIG = {
   imgbbApiKey: ''
 };
 
-// Tous les nouveaux uploads passent par Render. Le navigateur ne contacte plus Firebase Storage.
+// Tous les nouveaux uploads passent par Render puis sont conservés en Base64 dans la RTDB.
 const SERVER_UPLOAD_ENDPOINT = 'https://l-empreinte-d-emil-1.onrender.com/api/upload';
 window.EMIL_REVIEW_IMAGE_UPLOAD_ENDPOINT = window.EMIL_REVIEW_IMAGE_UPLOAD_ENDPOINT || SERVER_UPLOAD_ENDPOINT;
 
@@ -4532,9 +4528,10 @@ async function uploadImageToRender(dataUrl, folder, productId, index = 0) {
     });
     const raw = await response.text();
     let data = {}; try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
-    if (!response.ok || !data.url) throw new Error(data.error || `Upload Render refusé (${response.status}).`);
-    if (!/^https:\/\//i.test(data.url)) throw new Error('Render n’a pas retourné une URL HTTPS.');
-    return data.url;
+    const returnedImage = data.dataUrl || data.imageUrl || data.url;
+    if (!response.ok || !returnedImage) throw new Error(data.error || `Upload Render refusé (${response.status}).`);
+    if (!/^data:image\/(?:jpeg|png|webp);base64,/i.test(returnedImage)) throw new Error('Render n’a pas retourné une image Base64 valide.');
+    return returnedImage;
   } catch (error) {
     const message = error?.name === 'AbortError' ? 'L’upload Render a dépassé 30 secondes.' : (error?.message || 'Upload Render impossible.');
     console.error('[Upload Render]', message, error);
@@ -4548,7 +4545,6 @@ function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
 let firebaseDb = null;
-let firebaseStorage = null;
 let isSyncInitialized = false;
 let isInitialPullComplete = false; // Bloqueur pour syncPush au démarrage
 
@@ -4637,24 +4633,9 @@ function cacheGet(k, def) {
   try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : def; } catch(e) { return def; }
 }
 
-// Le cache navigateur ne doit jamais contenir d'image Base64. Les images sont
-// conservées dans Firebase Storage et les produits ne gardent que leurs URLs.
-function removeInlineImages(value) {
-  if (typeof value === 'string') {
-    return /^data:image\//i.test(value) ? null : value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(removeInlineImages).filter(item => item !== null);
-  }
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .map(([key, item]) => [key, removeInlineImages(item)])
-        .filter(([, item]) => item !== null)
-    );
-  }
-  return value;
-}
+// Les data URL Base64 restent valides dans la mémoire applicative et la RTDB.
+// Le cache local reste facultatif et peut être ignoré si le quota du navigateur est atteint.
+function removeInlineImages(value) { return value; }
 
 function clearNonEssentialCache() {
   try {
@@ -4712,10 +4693,6 @@ function initFirebase() {
     console.error('[Firebase] databaseURL invalide :', SYNC_CONFIG.databaseURL);
     return false;
   }
-  if (!SYNC_CONFIG.storageBucket) {
-    console.error('[Firebase] storageBucket manquant dans la configuration.');
-    return false;
-  }
   if (isSyncInitialized) return true;
   try {
     const firebaseConfig = {
@@ -4723,7 +4700,6 @@ function initFirebase() {
       authDomain: SYNC_CONFIG.authDomain,
       databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
       projectId: SYNC_CONFIG.projectId,
-      storageBucket: SYNC_CONFIG.storageBucket,
       messagingSenderId: SYNC_CONFIG.messagingSenderId,
       appId: SYNC_CONFIG.appId
     };
@@ -4742,13 +4718,6 @@ function initFirebase() {
     const db = firebase.database(firebaseApp);
     firebaseDb = db;
     console.info('[Firebase] Realtime Database active :', firebaseConfig.databaseURL);
-    try {
-      firebaseStorage = firebase.storage();
-    } catch(e) {
-      console.error('[Firebase] Storage init error :', e);
-      firebaseStorage = null;
-    }
-    
     // Les données générales restent fragmentées sous storedData/.
     SHARED_KEYS.forEach(key => {
       firebaseDb.ref('storedData/' + key).on('value', (snapshot) => {
@@ -7264,49 +7233,9 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: match[1] });
 }
 
+// Compatibilité avec d’anciens appels : tout passe désormais par Render + Base64.
 async function uploadImageToExternalHost(dataUrl, productId, index) {
-  const provider = String(IMAGE_HOSTING_CONFIG.provider || '').toLowerCase();
-  let publicUrl = '';
-
-  if (provider === 'cloudinary') {
-    const { cloudName, uploadPreset } = IMAGE_HOSTING_CONFIG;
-    if (!cloudName || cloudName === 'A_CONFIGURER' || !uploadPreset || uploadPreset === 'A_CONFIGURER') {
-      throw new Error('Cloudinary non configuré : renseignez cloudName et uploadPreset.');
-    }
-    const formData = new FormData();
-    formData.append('file', dataUrlToBlob(dataUrl), productId + '-' + index + '.webp');
-    formData.append('upload_preset', uploadPreset);
-    const response = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cloudName) + '/image/upload', {
-      method: 'POST',
-      body: formData
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.secure_url) {
-      throw new Error('Cloudinary upload failed: ' + (result.error?.message || response.status));
-    }
-    publicUrl = result.secure_url;
-  } else if (provider === 'imgbb') {
-    const apiKey = IMAGE_HOSTING_CONFIG.imgbbApiKey;
-    if (!apiKey || apiKey === 'A_CONFIGURER') {
-      throw new Error('ImgBB non configuré : renseignez imgbbApiKey.');
-    }
-    const formData = new FormData();
-    formData.append('key', apiKey);
-    formData.append('image', dataUrl.split(',')[1]);
-    const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success || !result.data?.display_url) {
-      throw new Error('ImgBB upload failed: ' + (result.error?.message || response.status));
-    }
-    publicUrl = result.data.display_url;
-  } else {
-    throw new Error('Fournisseur d’images inconnu : ' + provider);
-  }
-
-  if (!/^https:\/\//i.test(publicUrl)) {
-    throw new Error('L’hébergeur n’a pas retourné une URL HTTPS publique.');
-  }
-  return publicUrl;
+  return uploadImageToRender(dataUrl, 'products', productId, index);
 }
 
 async function uploadProductImages(productId, imageSources) {
@@ -8433,7 +8362,7 @@ function initLookbookObserver() {
   document.querySelectorAll('.lookbook-video').forEach(v => lookbookObserver.observe(v));
 }
 
-// ── ADMIN : Upload / Suppression Lookbook (Firebase Storage) ────
+// ── ADMIN : URLs / Suppression Lookbook (Realtime Database) ────
 function normalizeLookbookVideoUrl(rawUrl) {
   const value = String(rawUrl || '').trim();
   if (!value) throw new Error('URL vidéo obligatoire.');
@@ -8527,11 +8456,6 @@ async function deleteLookbookVideo(id) {
     await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
     lookbook = nextLookbook;
     cacheSet('lookbook', lookbook);
-    if (firebaseStorage && entry?.storagePath) {
-      await firebaseStorage.ref().child(entry.storagePath).delete().catch(error => {
-        console.warn('[Storage] Métadonnée supprimée mais fichier vidéo non supprimé :', error);
-      });
-    }
   } catch (error) {
     console.error('[Lookbook] Échec de suppression Firebase :', error);
     showToast('Vidéo non supprimée : erreur de synchronisation Firebase.', '❌');
