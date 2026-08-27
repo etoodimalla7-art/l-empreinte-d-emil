@@ -4492,11 +4492,57 @@ const SYNC_CONFIG = {
 // par défaut : le nom du cloud et l’upload preset doivent être configurés dans
 // le tableau de bord Cloudinary. Ne jamais mettre une clé secrète côté client.
 const IMAGE_HOSTING_CONFIG = {
-  provider: 'imgbb',
+  provider: 'server',
   cloudName: 'A_CONFIGURER',
   uploadPreset: 'A_CONFIGURER',
-  imgbbApiKey: 'f9a5d4676da2957c171a035913a5de9a'
+  imgbbApiKey: ''
 };
+
+// Tous les nouveaux uploads passent par Render. Le navigateur ne contacte plus Firebase Storage.
+const SERVER_UPLOAD_ENDPOINT = 'https://l-empreinte-d-emil-1.onrender.com/api/upload';
+window.EMIL_REVIEW_IMAGE_UPLOAD_ENDPOINT = window.EMIL_REVIEW_IMAGE_UPLOAD_ENDPOINT || SERVER_UPLOAD_ENDPOINT;
+
+async function compressUploadDataUrl(dataUrl) {
+  const value=String(dataUrl||'');
+  if(!/^data:image\/(?:jpeg|png|webp);base64,/i.test(value)) throw new Error('Image locale invalide ou format non pris en charge.');
+  return new Promise((resolve,reject)=>{
+    const image=new Image();
+    image.onload=()=>{
+      const max=1600, ratio=Math.min(1,max/Math.max(image.naturalWidth||image.width,image.naturalHeight||image.height));
+      const canvas=document.createElement('canvas'); canvas.width=Math.max(1,Math.round((image.naturalWidth||image.width)*ratio)); canvas.height=Math.max(1,Math.round((image.naturalHeight||image.height)*ratio));
+      const context=canvas.getContext('2d'); if(!context)return reject(new Error('Compression image indisponible.'));
+      context.drawImage(image,0,0,canvas.width,canvas.height); resolve(canvas.toDataURL('image/jpeg',.82));
+    };
+    image.onerror=()=>reject(new Error('Image illisible par le navigateur.')); image.src=value;
+  });
+}
+
+async function uploadImageToRender(dataUrl, folder, productId, index = 0) {
+  const preparedDataUrl=await compressUploadDataUrl(dataUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(SERVER_UPLOAD_ENDPOINT, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: preparedDataUrl, folder: folder === 'reviews' ? 'reviews' : 'products', productId: String(productId || ''), fileName: `${folder || 'products'}-${productId || 'image'}-${index}.jpg` }),
+      signal: controller.signal
+    });
+    const raw = await response.text();
+    let data = {}; try { data = raw ? JSON.parse(raw) : {}; } catch (_) {}
+    if (!response.ok || !data.url) throw new Error(data.error || `Upload Render refusé (${response.status}).`);
+    if (!/^https:\/\//i.test(data.url)) throw new Error('Render n’a pas retourné une URL HTTPS.');
+    return data.url;
+  } catch (error) {
+    const message = error?.name === 'AbortError' ? 'L’upload Render a dépassé 30 secondes.' : (error?.message || 'Upload Render impossible.');
+    console.error('[Upload Render]', message, error);
+    throw new Error(message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function loadSyncConfig() { /* Hardcoded */ }
 
@@ -7272,7 +7318,7 @@ async function uploadProductImages(productId, imageSources) {
       if (source && /^https:\/\//i.test(source)) uploadedUrls.push(source);
       continue;
     }
-    uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
+    uploadedUrls.push(await uploadImageToRender(source, 'products', productId, index));
   }
   return uploadedUrls;
 }
@@ -8062,10 +8108,16 @@ function editReview(id) {
 
 async function deleteReview(id) {
   if (!confirm('Supprimer cet avis ?')) return false;
-  const nextReviews = reviews.filter(r=>r.id!==id);
+  const reviewId=String(id);
+  const nextReviews=(Array.isArray(reviews)?reviews:[]).filter(r=>String(r?.id)!==reviewId);
+  const nextPendingReviews=(Array.isArray(pendingReviews)?pendingReviews:[]).filter(r=>String(r?.id)!==reviewId);
+  if(nextReviews.length===reviews.length && nextPendingReviews.length===pendingReviews.length){showToast('Avis introuvable.','⚠️');return false;}
   try {
-    await writeSharedData({ reviews: nextReviews });
+    await writeSharedData({ reviews: nextReviews, pendingReviews: nextPendingReviews });
     reviews = nextReviews;
+    pendingReviews = nextPendingReviews;
+    window.reviews = nextReviews;
+    window.pendingReviews = nextPendingReviews;
   } catch (error) {
     console.error('[Reviews] Échec de suppression Firebase :', error);
     showToast('Avis non supprimé : erreur de synchronisation Firebase.', '❌');
@@ -13473,6 +13525,11 @@ window.addEventListener('load', function() {
 (() => {
   const compress = file => new Promise((resolve, reject) => { const img = new Image(); const reader = new FileReader(); reader.onload = () => { img.onload = () => { const max = 1400, ratio = Math.min(1, max / Math.max(img.width, img.height)); const canvas = document.createElement('canvas'); canvas.width = Math.max(1, Math.round(img.width * ratio)); canvas.height = Math.max(1, Math.round(img.height * ratio)); canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height); resolve({ base64: canvas.toDataURL('image/jpeg', .78), mime: 'image/jpeg' }); }; img.onerror = reject; img.src = reader.result; }; reader.onerror = reject; reader.readAsDataURL(file); });
   const base64ToBytes = value => { const payload=String(value||'').split(',').pop(); const padding = '='.repeat((4 - payload.length % 4) % 4); const raw = atob((payload + padding).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from([...raw].map(char => char.charCodeAt(0))); };
+  async function uploadReviewImageThroughBackend(file, productId) {
+    if(!file) return null;
+    const compressed=await compress(file);
+    return uploadImageToRender(compressed.base64,'reviews',productId,0);
+  }
   async function submitReview(productId, prefix) {
     const name=document.getElementById(prefix+'-name')?.value.trim();
     const comment=document.getElementById(prefix+'-text')?.value.trim();
@@ -13490,17 +13547,12 @@ window.addEventListener('load', function() {
       let imageUrl=null;
       if(file && !imageWarning){
         try{
-          storage=typeof firebase.storage==='function' ? firebase.storage(app) : null;
-          if(!storage) throw new Error('Firebase Storage indisponible pour cette image.');
-          const safeName=file.name.replace(/[^a-z0-9._-]/gi,'-');
-          const ref=storage.ref().child(`reviews/${productId||'general'}/${Date.now()}-${safeName}`);
-          const compressed=await compress(file);
-          const uploadBlob=new Blob([base64ToBytes(compressed.base64)],{type:compressed.mime});
-          const snap=await ref.put(uploadBlob,{contentType:compressed.mime,cacheControl:'public,max-age=31536000'});
-          imageUrl=await snap.ref.getDownloadURL();
+          imageUrl=await uploadReviewImageThroughBackend(file,productId);
         }catch(uploadError){
-          console.warn('[Reviews] Photo non jointe, soumission texte poursuivie :',uploadError);
-          imageWarning='La photo n’a pas pu être jointe (réseau/CORS). Votre avis texte a tout de même été envoyé.';
+          console.info('[Reviews] Photo optionnelle ignorée, soumission texte poursuivie :',uploadError?.message||uploadError);
+          imageWarning=window.EMIL_REVIEW_IMAGE_UPLOAD_ENDPOINT
+            ? 'La photo n’a pas pu être jointe. Votre avis texte a tout de même été envoyé.'
+            : 'La photo sera jointe dès que l’endpoint sécurisé d’upload sera configuré. Votre avis texte a été envoyé.';
         }
       }
       const review={name,authorName:name,productId:productId||'general',rating,stars:rating,comment,textFR:comment,textEN:'',imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false};
