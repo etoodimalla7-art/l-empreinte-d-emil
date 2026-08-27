@@ -131,6 +131,20 @@ function getNestedValue(root, parts) {
   return parts.reduce((value, part) => value == null ? null : value[part], root);
 }
 
+function emptyStoreValue(pathValue) {
+  const { key, parts } = storeKeyFromPath(pathValue);
+  if (parts.length) return {};
+  const collectionKeys = new Set([
+    'products', 'categories', 'reviews', 'orders', 'transactions',
+    'payments', 'lookbook', 'promoCodes', 'pushEvents', 'customers'
+  ]);
+  return collectionKeys.has(key) ? [] : {};
+}
+
+function neutralizeStoreValue(pathValue, value) {
+  return value === null || value === undefined ? emptyStoreValue(pathValue) : value;
+}
+
 async function readStoreValue(pathValue) {
   const client = getSupabaseClient();
   if (!client) throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant.');
@@ -138,7 +152,8 @@ async function readStoreValue(pathValue) {
   if (!key) return {};
   const { data, error } = await client.from(SUPABASE_TABLE).select('value').eq('key', key).maybeSingle();
   if (error) throw error;
-  return getNestedValue(data?.value ?? null, parts);
+  const storedValue = data?.value ?? null;
+  return neutralizeStoreValue(pathValue, getNestedValue(storedValue, parts));
 }
 
 async function writeStoreValue(pathValue, value, mode = 'set') {
@@ -317,7 +332,9 @@ function createServer() {
       if (!client) return response.status(503).json({ error: 'Supabase non configuré.' });
       const { data, error } = await client.from(SUPABASE_TABLE).select('key,value,updated_at');
       if (error) throw error;
-      return response.json({ ok: true, data: Object.fromEntries((data || []).map(row => [row.key, row.value])) });
+      const rows = Array.isArray(data) ? data : [];
+      const normalized = Object.fromEntries(rows.filter(row => row && row.key).map(row => [row.key, row.value ?? emptyStoreValue(row.key)]));
+      return response.json({ ok: true, data: normalized });
     } catch (error) {
       console.error('[Supabase] Lecture globale impossible :', error);
       return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
@@ -339,7 +356,7 @@ function createServer() {
   app.get('/api/store-node', async (request, response) => {
     try {
       const value = await readStoreValue(request.query.path || '');
-      return response.json({ ok: true, path: request.query.path || '', value });
+      return response.json({ ok: true, path: request.query.path || '', value: neutralizeStoreValue(request.query.path || '', value) });
     } catch (error) {
       console.error('[Supabase] Lecture de chemin impossible :', error);
       return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
@@ -374,7 +391,7 @@ function createServer() {
   app.get('/api/store/:key', async (request, response) => {
     try {
       const value = await readStoreValue(request.params.key);
-      return response.json({ ok: true, key: request.params.key, value });
+      return response.json({ ok: true, key: request.params.key, value: neutralizeStoreValue(request.params.key, value) });
     } catch (error) {
       console.error('[Supabase] Lecture impossible :', error);
       return response.status(500).json({ error: error?.message || 'Lecture Supabase impossible.' });
