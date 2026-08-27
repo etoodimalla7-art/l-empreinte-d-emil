@@ -4,8 +4,11 @@ import cryptoModule from 'node:crypto';
 
 const PORT = Number(process.env.PORT || 10000);
 const DATABASE_URL = 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app';
+const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'lempreinte-d-emil.firebasestorage.app';
 const ONESIGNAL_URL = 'https://onesignal.com/api/v1/notifications';
 const EVENTS_PATH = 'storedData/pushEvents';
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg','image/png','image/webp']);
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -91,7 +94,8 @@ function initFirebaseAdmin() {
   if (admin.apps.length) return admin.app();
   return admin.initializeApp({
     credential: buildFirebaseCredential(),
-    databaseURL: DATABASE_URL
+    databaseURL: DATABASE_URL,
+    storageBucket: STORAGE_BUCKET
   });
 }
 
@@ -212,10 +216,84 @@ function startPushEventListener(db) {
   console.log(`[Firebase] Listener actif sur ${EVENTS_PATH}`);
 }
 
+function parseDataUrl(value) {
+  const match = String(value || '').match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=_-]+)$/i);
+  if (!match) throw new Error('Image invalide : data URL JPEG, PNG ou WebP attendue.');
+  const contentType = match[1].toLowerCase();
+  const base64 = match[2].replace(/-/g, '+').replace(/_/g, '/');
+  const buffer = Buffer.from(base64, 'base64');
+  if (!buffer.length || buffer.length > MAX_UPLOAD_BYTES) throw new Error('Image trop volumineuse : maximum 8 Mo.');
+  return { contentType, buffer };
+}
+
+function safeUploadPath(folder, fileName) {
+  const safeFolder = folder === 'products' ? 'products' : folder === 'reviews' ? 'reviews' : null;
+  if (!safeFolder) throw new Error('Dossier d’upload invalide.');
+  const safeName = String(fileName || 'image.jpg').replace(/[^a-z0-9._-]/gi, '-').slice(-120) || 'image.jpg';
+  return `emil/${safeFolder}/${Date.now()}-${cryptoModule.randomUUID()}-${safeName}`;
+}
+
+async function uploadImageServerSide({ dataUrl, folder, fileName }) {
+  const { contentType, buffer } = parseDataUrl(dataUrl);
+  const bucket = admin.storage().bucket();
+  const objectPath = safeUploadPath(folder, fileName);
+  const token = cryptoModule.randomUUID();
+  const file = bucket.file(objectPath);
+  await file.save(buffer, {
+    resumable: false,
+    metadata: {
+      contentType,
+      cacheControl: 'public,max-age=31536000,immutable',
+      metadata: { firebaseStorageDownloadTokens: token }
+    }
+  });
+  return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket.name)}/o/${encodeURIComponent(objectPath)}?alt=media&token=${token}`;
+}
+
+function allowedOrigin(origin) {
+  if (!origin) return true;
+  const configured = String(process.env.FRONTEND_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
+  const allowed = new Set([
+    'https://lempreinte-demil.onrender.com',
+    'https://l-empreinte-d-emil-1.onrender.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    ...configured
+  ]);
+  return allowed.has(origin);
+}
+
 function createServer() {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '64kb' }));
+  app.use((request, response, next) => {
+    const origin = request.headers.origin;
+    if (origin && !allowedOrigin(origin)) return response.status(403).json({ error: 'Origin non autorisée.' });
+    if (origin) response.setHeader('Access-Control-Allow-Origin', origin);
+    response.setHeader('Vary', 'Origin');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Authorization, X-Upload-Token');
+    response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    if (request.method === 'OPTIONS') return response.sendStatus(204);
+    next();
+  });
+  app.use(express.json({ limit: '12mb' }));
+
+  app.post('/api/upload', async (request, response) => {
+    try {
+      const { dataUrl, folder, fileName } = request.body || {};
+      if (!dataUrl) return response.status(400).json({ error: 'dataUrl obligatoire.' });
+      // Protection optionnelle : activez UPLOAD_TOKEN sur Render pour exiger ce secret côté serveur.
+      const expectedToken = String(process.env.UPLOAD_TOKEN || '').trim();
+      if (expectedToken && request.get('X-Upload-Token') !== expectedToken) {
+        return response.status(401).json({ error: 'Upload non autorisé.' });
+      }
+      const url = await uploadImageServerSide({ dataUrl, folder, fileName });
+      return response.status(201).json({ ok: true, url, imageUrl: url, path: folder, contentType: 'image' });
+    } catch (error) {
+      console.error('[Upload] Échec serveur Firebase Storage :', error);
+      return response.status(400).json({ error: error?.message || 'Upload impossible.' });
+    }
+  });
 
   app.get('/health', (_request, response) => response.status(200).json({
     ok: true,
