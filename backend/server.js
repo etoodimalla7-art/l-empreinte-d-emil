@@ -197,7 +197,7 @@ function notificationPayload(eventData) {
     url,
     data: {
       type: 'new-product',
-      productId: cleanText(product?.id),
+      productId: cleanText(eventData?.productId, cleanText(product?.id)),
       image: image || ''
     }
   };
