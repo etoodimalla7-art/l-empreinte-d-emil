@@ -2184,19 +2184,49 @@ img,svg,video,iframe{max-width:100%}
 }
 </style>
 
-<!-- OneSignal Web SDK v16 -->
+<!-- OneSignal Web SDK v16 : intégration optionnelle et totalement isolée -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script id="onesignal-v16-init">
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  if (location.protocol === 'https:' && location.hostname !== 'localhost') {
-    OneSignalDeferred.push(async function(OneSignal) {
-      if (window.__EMIL_ONESIGNAL_INIT__) return;
-      window.__EMIL_ONESIGNAL_INIT__ = true;
-      await OneSignal.init({
-        appId: "cccbad22-afa2-422e-965e-f678ae3314b8",
-      });
+  window.addEventListener('DOMContentLoaded', () => {
+    (async () => {
+      try {
+        // Si le navigateur bloque le stockage tiers/local, on n'initialise pas
+        // OneSignal. Le reste de l'application n'attend jamais ce contrôle.
+        const storageAvailable = (() => {
+          try {
+            const key = '__emil_onesignal_storage_test__';
+            window.localStorage.setItem(key, '1');
+            window.localStorage.removeItem(key);
+            return true;
+          } catch (storageError) {
+            console.warn('OneSignal ignoré : stockage bloqué par le navigateur.', storageError);
+            return false;
+          }
+        })();
+        if (!storageAvailable) return;
+        if (location.protocol !== 'https:' || location.hostname === 'localhost') return;
+        if (window.__EMIL_ONESIGNAL_INIT__) return;
+        window.__EMIL_ONESIGNAL_INIT__ = true;
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        await new Promise((resolve) => {
+          window.OneSignalDeferred.push(async (OneSignal) => {
+            try {
+              await OneSignal.init({ appId: 'cccbad22-afa2-422e-965e-f678ae3314b8' });
+            } catch (err) {
+              console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
+            } finally {
+              resolve();
+            }
+          });
+        });
+      } catch (err) {
+        console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
+      }
+    })().catch((err) => {
+      // Dernier filet de sécurité : aucun rejet OneSignal ne doit interrompre le site.
+      console.warn('OneSignal désactivé sans impact sur le site.', err);
     });
-  }
+  }, { once: true });
 </script>
 </head>
 <body>
