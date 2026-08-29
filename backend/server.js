@@ -8,39 +8,28 @@ const PORT = Number(process.env.PORT || 10000);
 const DATABASE_URL =
   'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app';
 
-const SUPABASE_URL =
-  String(process.env.SUPABASE_URL || '').trim();
-
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY =
   String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 const SUPABASE_TABLE =
   String(process.env.SUPABASE_TABLE || 'store_data').trim();
 
-/*
- * IMPORTANT:
- * Current OneSignal REST API.
- */
+const ONESIGNAL_APP_ID =
+  String(process.env.ONESIGNAL_APP_ID || '').trim();
+
+const ONESIGNAL_REST_API_KEY =
+  String(process.env.ONESIGNAL_REST_API_KEY || '').trim();
+
 const ONESIGNAL_URL =
   'https://api.onesignal.com/notifications';
 
-const ONESIGNAL_EVENTS_PATH =
-  'https://api.onesignal.com/notifications';
+const ONESIGNAL_SUBSCRIPTIONS_URL =
+  `https://api.onesignal.com/apps/${ONESIGNAL_APP_ID}/subscriptions`;
 
-const EVENTS_PATH =
-  'storedData/pushEvents';
+const EVENTS_PATH = 'storedData/pushEvents';
 
-/*
- * Maximum image size accepted by the /api/upload endpoint.
- */
-const MAX_UPLOAD_BYTES =
-  2 * 1024 * 1024;
-
-/*
- * OneSignal network timeout.
- */
-const ONESIGNAL_TIMEOUT_MS =
-  15000;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 
 /* =========================================================
@@ -51,9 +40,7 @@ function requiredEnv(name) {
   const value = process.env[name];
 
   if (!value || !String(value).trim()) {
-    throw new Error(
-      `Variable d’environnement manquante : ${name}`
-    );
+    throw new Error(`Variable d’environnement manquante : ${name}`);
   }
 
   return String(value).trim();
@@ -61,7 +48,7 @@ function requiredEnv(name) {
 
 
 /* =========================================================
-   FIREBASE PRIVATE KEY
+   FIREBASE
 ========================================================= */
 
 function normalizePrivateKey(rawValue) {
@@ -69,9 +56,6 @@ function normalizePrivateKey(rawValue) {
     .replace(/^\uFEFF/, '')
     .trim();
 
-  /*
-   * Accept JSON-string formatted private keys.
-   */
   if (key.startsWith('"') && key.endsWith('"')) {
     try {
       const parsed = JSON.parse(key);
@@ -84,9 +68,6 @@ function normalizePrivateKey(rawValue) {
     }
   }
 
-  /*
-   * Convert escaped line breaks to real line breaks.
-   */
   key = key
     .replace(/\\+r\\+n/g, '\n')
     .replace(/\\+n/g, '\n')
@@ -94,17 +75,11 @@ function normalizePrivateKey(rawValue) {
     .replace(/[\t ]+$/gm, '')
     .trim();
 
-  const begin =
-    '-----BEGIN PRIVATE KEY-----';
+  const begin = '-----BEGIN PRIVATE KEY-----';
+  const end = '-----END PRIVATE KEY-----';
 
-  const end =
-    '-----END PRIVATE KEY-----';
-
-  const beginIndex =
-    key.indexOf(begin);
-
-  const endIndex =
-    key.indexOf(end);
+  const beginIndex = key.indexOf(begin);
+  const endIndex = key.indexOf(end);
 
   if (
     beginIndex < 0 ||
@@ -116,13 +91,9 @@ function normalizePrivateKey(rawValue) {
     );
   }
 
-  key =
-    key
-      .slice(
-        beginIndex,
-        endIndex + end.length
-      )
-      .trim();
+  key = key
+    .slice(beginIndex, endIndex + end.length)
+    .trim();
 
   try {
     cryptoModule.createPrivateKey({
@@ -140,13 +111,8 @@ function normalizePrivateKey(rawValue) {
 }
 
 
-/* =========================================================
-   FIREBASE SERVICE ACCOUNT
-========================================================= */
-
 function parseServiceAccountJson() {
-  const raw =
-    requiredEnv('FIREBASE_SERVICE_ACCOUNT_JSON');
+  const raw = requiredEnv('FIREBASE_SERVICE_ACCOUNT_JSON');
 
   let json = raw;
 
@@ -157,24 +123,19 @@ function parseServiceAccountJson() {
     try {
       json = JSON.parse(raw);
     } catch {
-      /* Continue with raw JSON */
+      // continue
     }
   }
 
   try {
-    const account =
-      JSON.parse(json);
+    const account = JSON.parse(json);
 
-    if (
-      !account ||
-      typeof account !== 'object'
-    ) {
-      throw new Error(
-        'objet JSON attendu'
-      );
+    if (!account || typeof account !== 'object') {
+      throw new Error('objet JSON attendu');
     }
 
     return account;
+
   } catch (error) {
     throw new Error(
       `FIREBASE_SERVICE_ACCOUNT_JSON invalide : ${error.message}`
@@ -188,14 +149,9 @@ function buildFirebaseCredential() {
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
       ? parseServiceAccountJson()
       : {
-          project_id:
-            requiredEnv('FIREBASE_PROJECT_ID'),
-
-          client_email:
-            requiredEnv('FIREBASE_CLIENT_EMAIL'),
-
-          private_key:
-            requiredEnv('FIREBASE_PRIVATE_KEY')
+          project_id: requiredEnv('FIREBASE_PROJECT_ID'),
+          client_email: requiredEnv('FIREBASE_CLIENT_EMAIL'),
+          private_key: requiredEnv('FIREBASE_PRIVATE_KEY')
         };
 
   const projectId =
@@ -238,11 +194,8 @@ function initFirebaseAdmin() {
   }
 
   return admin.initializeApp({
-    credential:
-      buildFirebaseCredential(),
-
-    databaseURL:
-      DATABASE_URL
+    credential: buildFirebaseCredential(),
+    databaseURL: DATABASE_URL
   });
 }
 
@@ -277,14 +230,12 @@ function getSupabaseClient() {
 ========================================================= */
 
 function storeKeyFromPath(pathValue) {
-  let decoded =
-    String(pathValue || '');
+  let decoded = String(pathValue || '');
 
   try {
-    decoded =
-      decodeURIComponent(decoded);
+    decoded = decodeURIComponent(decoded);
   } catch {
-    /* Keep raw value */
+    // conserver la valeur brute
   }
 
   const normalized =
@@ -298,95 +249,72 @@ function storeKeyFromPath(pathValue) {
       .filter(Boolean);
 
   return {
-    key:
-      parts.shift() || '',
-
+    key: parts.shift() || '',
     parts
   };
 }
 
 
-function setNestedValue(
-  root,
-  parts,
-  value
-) {
+function setNestedValue(root, parts, value) {
   if (!parts.length) {
     return value;
   }
 
   const next =
-    root &&
-    typeof root === 'object'
+    root && typeof root === 'object'
       ? structuredClone(root)
       : {};
 
   let cursor = next;
 
-  parts
-    .slice(0, -1)
-    .forEach(part => {
-      if (
-        !cursor[part] ||
-        typeof cursor[part] !== 'object'
-      ) {
-        cursor[part] = {};
-      }
+  parts.slice(0, -1).forEach(part => {
+    if (
+      !cursor[part] ||
+      typeof cursor[part] !== 'object'
+    ) {
+      cursor[part] = {};
+    }
 
-      cursor =
-        cursor[part];
-    });
+    cursor = cursor[part];
+  });
 
-  cursor[
-    parts.at(-1)
-  ] = value;
+  cursor[parts.at(-1)] = value;
 
   return next;
 }
 
 
-function getNestedValue(
-  root,
-  parts
-) {
+function getNestedValue(root, parts) {
   return parts.reduce(
     (value, part) =>
-      value == null
-        ? null
-        : value[part],
+      value == null ? null : value[part],
     root
   );
 }
 
 
-function emptyStoreValue(
-  pathValue
-) {
+function emptyStoreValue(pathValue) {
   const {
     key,
     parts
-  } =
-    storeKeyFromPath(
-      pathValue
-    );
+  } = storeKeyFromPath(pathValue);
 
   if (parts.length) {
     return {};
   }
 
-  const collectionKeys =
-    new Set([
-      'products',
-      'categories',
-      'reviews',
-      'orders',
-      'transactions',
-      'payments',
-      'lookbook',
-      'promoCodes',
-      'pushEvents',
-      'customers'
-    ]);
+  const collectionKeys = new Set([
+    'products',
+    'categories',
+    'reviews',
+    'orders',
+    'transactions',
+    'payments',
+    'lookbook',
+    'promoCodes',
+    'pushEvents',
+    'customers'
+  ]);
 
   return collectionKeys.has(key)
     ? []
@@ -394,10 +322,7 @@ function emptyStoreValue(
 }
 
 
-function neutralizeStoreValue(
-  pathValue,
-  value
-) {
+function neutralizeStoreValue(pathValue, value) {
   return value === null ||
     value === undefined
     ? emptyStoreValue(pathValue)
@@ -405,11 +330,8 @@ function neutralizeStoreValue(
 }
 
 
-async function readStoreValue(
-  pathValue
-) {
-  const client =
-    getSupabaseClient();
+async function readStoreValue(pathValue) {
+  const client = getSupabaseClient();
 
   if (!client) {
     throw new Error(
@@ -420,10 +342,7 @@ async function readStoreValue(
   const {
     key,
     parts
-  } =
-    storeKeyFromPath(
-      pathValue
-    );
+  } = storeKeyFromPath(pathValue);
 
   if (!key) {
     return {};
@@ -432,12 +351,11 @@ async function readStoreValue(
   const {
     data,
     error
-  } =
-    await client
-      .from(SUPABASE_TABLE)
-      .select('value')
-      .eq('key', key)
-      .maybeSingle();
+  } = await client
+    .from(SUPABASE_TABLE)
+    .select('value')
+    .eq('key', key)
+    .maybeSingle();
 
   if (error) {
     throw error;
@@ -461,8 +379,7 @@ async function writeStoreValue(
   value,
   mode = 'set'
 ) {
-  const client =
-    getSupabaseClient();
+  const client = getSupabaseClient();
 
   if (!client) {
     throw new Error(
@@ -473,10 +390,7 @@ async function writeStoreValue(
   const {
     key,
     parts
-  } =
-    storeKeyFromPath(
-      pathValue
-    );
+  } = storeKeyFromPath(pathValue);
 
   if (!key) {
     throw new Error(
@@ -484,8 +398,7 @@ async function writeStoreValue(
     );
   }
 
-  let nextValue =
-    value;
+  let nextValue = value;
 
   if (
     parts.length ||
@@ -502,39 +415,41 @@ async function writeStoreValue(
             value
           )
         : {
-            ...(current &&
-            typeof current === 'object'
-              ? current
-              : {}),
-
-            ...(value &&
-            typeof value === 'object'
-              ? value
-              : {})
+            ...(
+              current &&
+              typeof current === 'object'
+                ? current
+                : {}
+            ),
+            ...(
+              value &&
+              typeof value === 'object'
+                ? value
+                : {}
+            )
           };
   }
 
   const {
     data,
     error
-  } =
-    await client
-      .from(SUPABASE_TABLE)
-      .upsert(
-        {
-          key,
-          value: nextValue,
-          updated_at:
-            new Date().toISOString()
-        },
-        {
-          onConflict: 'key'
-        }
-      )
-      .select(
-        'key,value,updated_at'
-      )
-      .single();
+  } = await client
+    .from(SUPABASE_TABLE)
+    .upsert(
+      {
+        key,
+        value: nextValue,
+        updated_at:
+          new Date().toISOString()
+      },
+      {
+        onConflict: 'key'
+      }
+    )
+    .select(
+      'key,value,updated_at'
+    )
+    .single();
 
   if (error) {
     throw error;
@@ -545,7 +460,7 @@ async function writeStoreValue(
 
 
 /* =========================================================
-   TEXT / PRODUCT HELPERS
+   GENERAL HELPERS
 ========================================================= */
 
 function cleanText(
@@ -559,9 +474,7 @@ function cleanText(
 }
 
 
-function eventProduct(
-  eventData
-) {
+function eventProduct(eventData) {
   return eventData?.product &&
     typeof eventData.product === 'object'
     ? eventData.product
@@ -570,89 +483,151 @@ function eventProduct(
 
 
 /* =========================================================
-   URL VALIDATION
+   ONESIGNAL
 ========================================================= */
 
-function isHttpsUrl(
-  value
-) {
-  if (!value) {
-    return false;
-  }
-
-  try {
-    const parsed =
-      new URL(value);
-
-    return (
-      parsed.protocol === 'https:'
+function getOneSignalConfig() {
+  if (!ONESIGNAL_APP_ID) {
+    throw new Error(
+      'ONESIGNAL_APP_ID est manquant sur Render.'
     );
-  } catch {
-    return false;
   }
+
+  if (!ONESIGNAL_REST_API_KEY) {
+    throw new Error(
+      'ONESIGNAL_REST_API_KEY est manquant sur Render.'
+    );
+  }
+
+  return {
+    appId: ONESIGNAL_APP_ID,
+    apiKey: ONESIGNAL_REST_API_KEY
+  };
+}
+
+
+function oneSignalHeaders() {
+  getOneSignalConfig();
+
+  return {
+    'Authorization':
+      `Key ${ONESIGNAL_REST_API_KEY}`,
+
+    'Content-Type':
+      'application/json'
+  };
 }
 
 
 /*
- * OneSignal images need to be remotely accessible.
- * Data URLs from Firebase are therefore NOT sent as
- * notification images.
+ * Vérifie les subscriptions enregistrées
+ * dans l'application OneSignal.
  */
-function normalizeNotificationImage(
-  value
-) {
-  const image =
-    cleanText(value);
+async function getOneSignalSubscriptions() {
+  getOneSignalConfig();
 
-  if (!image) {
-    return '';
-  }
-
-  if (!isHttpsUrl(image)) {
-    console.warn(
-      '[OneSignal] Image ignorée car elle n’est pas HTTPS.'
+  const response =
+    await fetch(
+      ONESIGNAL_SUBSCRIPTIONS_URL,
+      {
+        method: 'GET',
+        headers: oneSignalHeaders()
+      }
     );
 
-    return '';
+  const text =
+    await response.text();
+
+  let data;
+
+  try {
+    data =
+      text
+        ? JSON.parse(text)
+        : {};
+  } catch {
+    data = {
+      raw: text
+    };
   }
 
-  return image;
+  if (!response.ok) {
+    const error =
+      new Error(
+        `OneSignal subscriptions HTTP ${response.status}`
+      );
+
+    error.details = data;
+
+    throw error;
+  }
+
+  return data;
 }
 
 
-function normalizeNotificationUrl(
-  value
-) {
-  const fallback =
-    'https://lempreinte-demil.onrender.com/';
-
-  const url =
-    cleanText(
-      value,
-      fallback
-    );
-
-  if (
-    isHttpsUrl(url)
-  ) {
-    return url;
+/*
+ * Détermine si une subscription est réellement
+ * utilisable pour le Push Web.
+ */
+function isUsablePushSubscription(subscription) {
+  if (!subscription) {
+    return false;
   }
 
-  console.warn(
-    '[OneSignal] URL invalide, utilisation de l’URL principale.'
-  );
+  const subscribed =
+    subscription.subscribed === true;
 
-  return fallback;
+  const enabled =
+    subscription.enabled !== false;
+
+  const status =
+    String(
+      subscription.status || ''
+    ).toLowerCase();
+
+  const validStatus =
+    !status ||
+    status === 'subscribed' ||
+    status === 'enabled';
+
+  return (
+    subscribed &&
+    enabled &&
+    validStatus
+  );
+}
+
+
+async function getPushSubscriptionReport() {
+  const data =
+    await getOneSignalSubscriptions();
+
+  const subscriptions =
+    Array.isArray(data?.subscriptions)
+      ? data.subscriptions
+      : Array.isArray(data?.items)
+        ? data.items
+        : [];
+
+  const usable =
+    subscriptions.filter(
+      isUsablePushSubscription
+    );
+
+  return {
+    total: subscriptions.length,
+    usable: usable.length,
+    subscriptions
+  };
 }
 
 
 /* =========================================================
-   ONESIGNAL PAYLOAD
+   NOTIFICATION PAYLOAD
 ========================================================= */
 
-function notificationPayload(
-  eventData
-) {
+function notificationPayload(eventData) {
   const product =
     eventProduct(eventData);
 
@@ -680,7 +655,7 @@ function notificationPayload(
       )
     );
 
-  const rawImage =
+  const image =
     cleanText(
       eventData?.image,
       cleanText(
@@ -696,60 +671,41 @@ function notificationPayload(
       )
     );
 
-  const image =
-    normalizeNotificationImage(
-      rawImage
-    );
-
   const url =
-    normalizeNotificationUrl(
-      eventData?.url
-    );
-
-  const subscriptionId =
     cleanText(
-      eventData?.subscriptionId,
-      cleanText(
-        eventData?.subscription_id
-      )
+      eventData?.url,
+      'https://lempreinte-demil.onrender.com/'
     );
 
-  /*
-   * IMPORTANT:
-   *
-   * include_subscription_ids cannot be combined
-   * with included_segments.
-   */
   const payload = {
     app_id:
-      requiredEnv(
-        'ONESIGNAL_APP_ID'
-      ),
+      ONESIGNAL_APP_ID,
 
     target_channel:
       'push',
 
+    included_segments:
+      ['Subscribed Users'],
+
     headings: {
-      fr: title,
-      en: title
+      en: title,
+      fr: title
     },
 
     contents: {
-      fr: body,
-      en: body
+      en: body,
+      fr: body
     },
 
     url,
 
-    custom_data: {
+    data: {
       type: 'new-product',
 
       productId:
         cleanText(
           eventData?.productId,
-          cleanText(
-            product?.id
-          )
+          cleanText(product?.id)
         ),
 
       image:
@@ -757,72 +713,26 @@ function notificationPayload(
     }
   };
 
-  /*
-   * If the frontend knows the exact browser
-   * subscription, send directly to that browser.
-   */
-  if (subscriptionId) {
-    payload.include_subscription_ids = [
-      subscriptionId
-    ];
-  } else {
-    /*
-     * Otherwise send to all active Push subscribers.
-     */
-    payload.included_segments = [
-      'Subscribed Users'
-    ];
-  }
 
   /*
-   * Only add image properties when the image
-   * is a valid HTTPS URL.
+   * OneSignal Web Push accepte ces champs
+   * lorsque l'image est HTTPS.
    */
-  if (image) {
-    payload.big_picture =
-      image;
-
+  if (
+    image &&
+    /^https:\/\//i.test(image)
+  ) {
     payload.chrome_web_image =
       image;
 
     payload.chrome_web_icon =
       image;
+
+    payload.big_picture =
+      image;
   }
 
   return payload;
-}
-
-
-/* =========================================================
-   FETCH WITH TIMEOUT
-========================================================= */
-
-async function fetchWithTimeout(
-  url,
-  options = {},
-  timeoutMs = ONESIGNAL_TIMEOUT_MS
-) {
-  const controller =
-    new AbortController();
-
-  const timeout =
-    setTimeout(
-      () => controller.abort(),
-      timeoutMs
-    );
-
-  try {
-    return await fetch(
-      url,
-      {
-        ...options,
-        signal:
-          controller.signal
-      }
-    );
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 
@@ -833,56 +743,92 @@ async function fetchWithTimeout(
 async function sendOneSignalNotification(
   eventData
 ) {
+  getOneSignalConfig();
+
+  const report =
+    await getPushSubscriptionReport();
+
+  console.log(
+    '[OneSignal] Subscription report:',
+    {
+      total: report.total,
+      usable: report.usable
+    }
+  );
+
+
+  /*
+   * IMPORTANT :
+   *
+   * On refuse d'envoyer une requête inutile
+   * si OneSignal ne voit aucune subscription.
+   */
+  if (report.usable === 0) {
+    const error =
+      new Error(
+        'OneSignal ne voit actuellement aucune subscription Push Web active. Autorisez les notifications sur le site puis rechargez la page.'
+      );
+
+    error.code =
+      'NO_ACTIVE_PUSH_SUBSCRIPTION';
+
+    error.details = {
+      totalSubscriptions:
+        report.total,
+
+      usableSubscriptions:
+        report.usable,
+
+      appId:
+        ONESIGNAL_APP_ID
+    };
+
+    throw error;
+  }
+
+
   const payload =
     notificationPayload(
       eventData
     );
 
   console.log(
-    '[OneSignal] Sending notification:',
+    '[OneSignal] Sending payload:',
     {
-      target:
-        payload.include_subscription_ids
-          ? 'specific subscription'
-          : 'Subscribed Users',
+      app_id:
+        payload.app_id,
+
+      target_channel:
+        payload.target_channel,
+
+      included_segments:
+        payload.included_segments,
 
       title:
-        payload.headings?.fr,
+        payload.headings?.en,
 
-      hasImage:
-        Boolean(
-          payload.chrome_web_image
-        )
+      url:
+        payload.url
     }
   );
 
+
   const response =
-    await fetchWithTimeout(
+    await fetch(
       ONESIGNAL_URL,
       {
         method: 'POST',
 
-        headers: {
-          Authorization:
-            `Key ${requiredEnv(
-              'ONESIGNAL_REST_API_KEY'
-            )}`,
-
-          'Content-Type':
-            'application/json',
-
-          Accept:
-            'application/json'
-        },
+        headers:
+          oneSignalHeaders(),
 
         body:
           JSON.stringify(
             payload
           )
-      },
-
-      ONESIGNAL_TIMEOUT_MS
+      }
     );
+
 
   const responseText =
     await response.text();
@@ -892,9 +838,7 @@ async function sendOneSignalNotification(
   try {
     responseData =
       responseText
-        ? JSON.parse(
-            responseText
-          )
+        ? JSON.parse(responseText)
         : {};
   } catch {
     responseData = {
@@ -903,11 +847,7 @@ async function sendOneSignalNotification(
     };
   }
 
-  /*
-   * OneSignal may return HTTP 200 but without
-   * a message ID when no valid subscriptions
-   * exist.
-   */
+
   if (!response.ok) {
     const error =
       new Error(
@@ -920,11 +860,28 @@ async function sendOneSignalNotification(
     throw error;
   }
 
-  if (!responseData?.id) {
+
+  /*
+   * OneSignal peut répondre 200 mais
+   * ne créer aucun message.
+   */
+  const recipients =
+    Number(
+      responseData?.recipients || 0
+    );
+
+  const id =
+    responseData?.id || null;
+
+
+  if (!id && recipients === 0) {
     const error =
       new Error(
-        'OneSignal n’a créé aucun message. Aucun abonnement Push valide n’a probablement été trouvé.'
+        'OneSignal a accepté la requête mais aucun message Push n’a été créé.'
       );
+
+    error.code =
+      'ONESIGNAL_ZERO_RECIPIENTS';
 
     error.details =
       responseData;
@@ -932,93 +889,24 @@ async function sendOneSignalNotification(
     throw error;
   }
 
-  console.log(
-    '[OneSignal] Message created successfully:',
-    responseData.id
-  );
 
-  return responseData;
+  return {
+    ...responseData,
+
+    verifiedRecipients:
+      recipients,
+
+    verifiedMessageId:
+      id
+  };
 }
 
 
 /* =========================================================
-   ONESIGNAL DELIVERY STATUS
+   FIREBASE PUSH EVENTS
 ========================================================= */
 
-async function getOneSignalMessageStatus(
-  messageId
-) {
-  const appId =
-    requiredEnv(
-      'ONESIGNAL_APP_ID'
-    );
-
-  const url =
-    `${ONESIGNAL_EVENTS_PATH}/${encodeURIComponent(
-      messageId
-    )}?app_id=${encodeURIComponent(
-      appId
-    )}`;
-
-  const response =
-    await fetchWithTimeout(
-      url,
-      {
-        method: 'GET',
-
-        headers: {
-          Authorization:
-            `Key ${requiredEnv(
-              'ONESIGNAL_REST_API_KEY'
-            )}`,
-
-          Accept:
-            'application/json'
-        }
-      },
-
-      10000
-    );
-
-  const text =
-    await response.text();
-
-  let data;
-
-  try {
-    data =
-      text
-        ? JSON.parse(text)
-        : {};
-  } catch {
-    data = {
-      raw: text
-    };
-  }
-
-  if (!response.ok) {
-    const error =
-      new Error(
-        `OneSignal status HTTP ${response.status}`
-      );
-
-    error.details =
-      data;
-
-    throw error;
-  }
-
-  return data;
-}
-
-
-/* =========================================================
-   FIREBASE PUSH EVENT CLAIMING
-========================================================= */
-
-async function claimEvent(
-  eventRef
-) {
+async function claimEvent(eventRef) {
   const result =
     await eventRef.transaction(
       current => {
@@ -1037,7 +925,9 @@ async function claimEvent(
             true,
 
           processingAt:
-            admin.database.ServerValue.TIMESTAMP
+            admin.database
+              .ServerValue
+              .TIMESTAMP
         };
       }
     );
@@ -1048,9 +938,7 @@ async function claimEvent(
 }
 
 
-async function processPushEvent(
-  snapshot
-) {
+async function processPushEvent(snapshot) {
   const eventRef =
     snapshot.ref;
 
@@ -1071,6 +959,7 @@ async function processPushEvent(
       return;
     }
 
+
     console.log(
       `[Push] Traitement de ${eventId}`,
       {
@@ -1087,10 +976,12 @@ async function processPushEvent(
       }
     );
 
+
     const oneSignalResult =
       await sendOneSignalNotification(
         eventData
       );
+
 
     await eventRef.update({
       processed:
@@ -1100,7 +991,9 @@ async function processPushEvent(
         false,
 
       processedAt:
-        admin.database.ServerValue.TIMESTAMP,
+        admin.database
+          .ServerValue
+          .TIMESTAMP,
 
       oneSignalNotificationId:
         oneSignalResult.id ||
@@ -1110,16 +1003,19 @@ async function processPushEvent(
         null
     });
 
+
     console.log(
-      `[Push] Notification OneSignal créée pour ${eventId}:`,
-      oneSignalResult.id
+      `[Push] Notification OneSignal envoyée pour ${eventId}`,
+      oneSignalResult
     );
+
   } catch (error) {
     console.error(
       `[Push] Échec pour ${eventId}`,
       error?.details ||
-        error
+      error
     );
+
 
     try {
       await eventRef.update({
@@ -1139,8 +1035,11 @@ async function processPushEvent(
           ),
 
         lastErrorAt:
-          admin.database.ServerValue.TIMESTAMP
+          admin.database
+            .ServerValue
+            .TIMESTAMP
       });
+
     } catch (updateError) {
       console.error(
         `[Push] Impossible d’enregistrer l’erreur pour ${eventId}`,
@@ -1151,17 +1050,9 @@ async function processPushEvent(
 }
 
 
-/* =========================================================
-   FIREBASE PUSH LISTENER
-========================================================= */
-
-function startPushEventListener(
-  db
-) {
+function startPushEventListener(db) {
   const eventsRef =
-    db.ref(
-      EVENTS_PATH
-    );
+    db.ref(EVENTS_PATH);
 
   eventsRef.on(
     'child_added',
@@ -1185,6 +1076,7 @@ function startPushEventListener(
     }
   );
 
+
   console.log(
     `[Firebase] Listener actif sur ${EVENTS_PATH}`
   );
@@ -1192,12 +1084,10 @@ function startPushEventListener(
 
 
 /* =========================================================
-   IMAGE UPLOAD VALIDATION
+   IMAGE UPLOAD
 ========================================================= */
 
-function validateBase64Image(
-  value
-) {
+function validateBase64Image(value) {
   const dataUrl =
     String(value || '')
       .trim();
@@ -1242,22 +1132,18 @@ function validateBase64Image(
    CORS
 ========================================================= */
 
-function allowedOrigin(
-  origin
-) {
+function allowedOrigin(origin) {
   if (!origin) {
     return true;
   }
 
   const configured =
     String(
-      process.env.FRONTEND_ORIGINS ||
-      ''
+      process.env.FRONTEND_ORIGINS || ''
     )
       .split(',')
       .map(
-        value =>
-          value.trim()
+        value => value.trim()
       )
       .filter(Boolean);
 
@@ -1274,9 +1160,7 @@ function allowedOrigin(
       ...configured
     ]);
 
-  return allowed.has(
-    origin
-  );
+  return allowed.has(origin);
 }
 
 
@@ -1293,10 +1177,9 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     CORS
-  ======================================================= */
-
+  /*
+   * CORS
+   */
   app.use(
     (
       request,
@@ -1344,19 +1227,14 @@ function createServer() {
         request.method ===
         'OPTIONS'
       ) {
-        return response.sendStatus(
-          204
-        );
+        return response
+          .sendStatus(204);
       }
 
       next();
     }
   );
 
-
-  /* =======================================================
-     JSON
-  ======================================================= */
 
   app.use(
     express.json({
@@ -1366,36 +1244,12 @@ function createServer() {
 
 
   /* =======================================================
-     ONESIGNAL SERVICE WORKER
-  ======================================================= */
-
-  app.get(
-    '/OneSignalSDKWorker.js',
-    (_request, response) => {
-      response
-        .status(200)
-        .type('application/javascript')
-        .set(
-          'Cache-Control',
-          'public, max-age=3600'
-        )
-        .send(
-          'importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");'
-        );
-    }
-  );
-
-
-  /* =======================================================
-     STORE - FULL
+     STORE
   ======================================================= */
 
   app.get(
     '/api/store',
-    async (
-      _request,
-      response
-    ) => {
+    async (_request, response) => {
       try {
         const client =
           getSupabaseClient();
@@ -1412,14 +1266,11 @@ function createServer() {
         const {
           data,
           error
-        } =
-          await client
-            .from(
-              SUPABASE_TABLE
-            )
-            .select(
-              'key,value,updated_at'
-            );
+        } = await client
+          .from(SUPABASE_TABLE)
+          .select(
+            'key,value,updated_at'
+          );
 
         if (error) {
           throw error;
@@ -1450,12 +1301,11 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           data:
             normalized
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Lecture globale impossible :',
@@ -1474,10 +1324,6 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     STORE - PATCH FULL
-  ======================================================= */
-
   app.patch(
     '/api/store',
     async (
@@ -1494,7 +1340,9 @@ function createServer() {
           !updates ||
           typeof updates !==
             'object' ||
-          Array.isArray(updates)
+          Array.isArray(
+            updates
+          )
         ) {
           return response
             .status(400)
@@ -1509,10 +1357,7 @@ function createServer() {
             Object.entries(
               updates
             ).map(
-              ([
-                key,
-                value
-              ]) =>
+              ([key, value]) =>
                 writeStoreValue(
                   key,
                   value,
@@ -1522,11 +1367,10 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           rows
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Mise à jour globale impossible :',
@@ -1545,10 +1389,6 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     STORE NODE - GET
-  ======================================================= */
-
   app.get(
     '/api/store-node',
     async (
@@ -1566,17 +1406,15 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           path,
-
           value:
             neutralizeStoreValue(
               path,
               value
             )
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Lecture de chemin impossible :',
@@ -1594,10 +1432,6 @@ function createServer() {
     }
   );
 
-
-  /* =======================================================
-     STORE NODE - WRITE
-  ======================================================= */
 
   const handleStoreNodeWrite =
     async (
@@ -1618,17 +1452,14 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           path,
-
           value:
             row.value,
-
           updated_at:
             row.updated_at
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Écriture de chemin impossible :',
@@ -1674,10 +1505,6 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     STORE NODE - DELETE
-  ======================================================= */
-
   app.delete(
     '/api/store-node',
     async (
@@ -1707,25 +1534,22 @@ function createServer() {
 
         const {
           error
-        } =
-          await client
-            .from(
-              SUPABASE_TABLE
-            )
-            .delete()
-            .eq(
-              'key',
-              key
-            );
+        } = await client
+          .from(SUPABASE_TABLE)
+          .delete()
+          .eq(
+            'key',
+            key
+          );
 
         if (error) {
           throw error;
         }
 
         return response.json({
-          ok:
-            true
+          ok: true
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Suppression de chemin impossible :',
@@ -1745,7 +1569,7 @@ function createServer() {
 
 
   /* =======================================================
-     STORE KEY - GET
+     STORE BY KEY
   ======================================================= */
 
   app.get(
@@ -1761,18 +1585,16 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           key:
             request.params.key,
-
           value:
             neutralizeStoreValue(
               request.params.key,
               value
             )
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Lecture impossible :',
@@ -1791,10 +1613,6 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     STORE KEY - PUT
-  ======================================================= */
-
   app.put(
     '/api/store/:key',
     async (
@@ -1810,11 +1628,10 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           ...row
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Écriture impossible :',
@@ -1833,10 +1650,6 @@ function createServer() {
   );
 
 
-  /* =======================================================
-     STORE KEY - PATCH
-  ======================================================= */
-
   app.patch(
     '/api/store/:key',
     async (
@@ -1853,11 +1666,10 @@ function createServer() {
           );
 
         return response.json({
-          ok:
-            true,
-
+          ok: true,
           ...row
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Mise à jour impossible :',
@@ -1875,10 +1687,6 @@ function createServer() {
     }
   );
 
-
-  /* =======================================================
-     STORE KEY - DELETE
-  ======================================================= */
 
   app.delete(
     '/api/store/:key',
@@ -1901,27 +1709,24 @@ function createServer() {
 
         const {
           error
-        } =
-          await client
-            .from(
-              SUPABASE_TABLE
-            )
-            .delete()
-            .eq(
-              'key',
-              storeKeyFromPath(
-                request.params.key
-              ).key
-            );
+        } = await client
+          .from(SUPABASE_TABLE)
+          .delete()
+          .eq(
+            'key',
+            storeKeyFromPath(
+              request.params.key
+            ).key
+          );
 
         if (error) {
           throw error;
         }
 
         return response.json({
-          ok:
-            true
+          ok: true
         });
+
       } catch (error) {
         console.error(
           '[Supabase] Suppression impossible :',
@@ -1941,7 +1746,93 @@ function createServer() {
 
 
   /* =======================================================
-     ADMIN PUSH NOTIFICATION
+     ONESIGNAL DIAGNOSTICS
+  ======================================================= */
+
+  app.get(
+    '/api/notifications/status',
+    async (
+      _request,
+      response
+    ) => {
+      try {
+        const report =
+          await getPushSubscriptionReport();
+
+        return response.json({
+          ok: true,
+
+          appIdConfigured:
+            Boolean(
+              ONESIGNAL_APP_ID
+            ),
+
+          apiKeyConfigured:
+            Boolean(
+              ONESIGNAL_REST_API_KEY
+            ),
+
+          totalSubscriptions:
+            report.total,
+
+          activeSubscriptions:
+            report.usable,
+
+          subscriptions:
+            report.subscriptions.map(
+              subscription => ({
+                id:
+                  subscription.id ||
+                  null,
+
+                subscribed:
+                  subscription.subscribed ===
+                  true,
+
+                enabled:
+                  subscription.enabled !==
+                  false,
+
+                type:
+                  subscription.type ||
+                  null,
+
+                platform:
+                  subscription.platform ||
+                  null,
+
+                status:
+                  subscription.status ||
+                  null
+              })
+            )
+        });
+
+      } catch (error) {
+        console.error(
+          '[OneSignal] Status impossible :',
+          error?.details ||
+          error
+        );
+
+        return response
+          .status(502)
+          .json({
+            ok: false,
+            error:
+              error?.message ||
+              'Impossible de lire les subscriptions OneSignal.',
+            details:
+              error?.details ||
+              null
+          });
+      }
+    }
+  );
+
+
+  /* =======================================================
+     SEND PRODUCT NOTIFICATION
   ======================================================= */
 
   app.post(
@@ -1951,74 +1842,38 @@ function createServer() {
       response
     ) => {
       try {
-        const body =
-          request.body || {};
-
-        console.log(
-          '[Admin Push] Request received:',
-          {
-            title:
-              body.title,
-
-            hasBody:
-              Boolean(
-                body.body
-              ),
-
-            hasImage:
-              Boolean(
-                body.image
-              ),
-
-            url:
-              body.url,
-
-            subscriptionId:
-              body.subscriptionId
-                ? 'provided'
-                : 'not provided'
-          }
-        );
-
         const result =
           await sendOneSignalNotification(
-            body
+            request.body || {}
           );
 
-        /*
-         * DO NOT return success unless OneSignal
-         * actually returned a message ID.
-         */
         return response
-          .status(200)
+          .status(202)
           .json({
-            ok:
-              true,
-
-            handled:
-              true,
-
-            messageId:
-              result.id,
-
+            ok: true,
+            handled: true,
             data:
               result
           });
+
       } catch (error) {
         console.error(
           '[OneSignal] Notification produit impossible :',
           error?.details ||
-            error
+          error
         );
 
         return response
           .status(502)
           .json({
-            ok:
-              false,
+            ok: false,
 
             handled:
               false,
+
+            code:
+              error?.code ||
+              'ONESIGNAL_ERROR',
 
             error:
               error?.message ||
@@ -2046,40 +1901,36 @@ function createServer() {
       try {
         const result =
           await sendOneSignalNotification(
-            request.body ||
-              {}
+            request.body || {}
           );
 
         return response
-          .status(200)
+          .status(202)
           .json({
-            ok:
-              true,
-
-            handled:
-              true,
-
-            messageId:
-              result.id,
-
+            ok: true,
+            handled: true,
             data:
               result
           });
+
       } catch (error) {
         console.error(
           '[OneSignal] Événement push impossible :',
           error?.details ||
-            error
+          error
         );
 
         return response
           .status(502)
           .json({
-            ok:
-              false,
+            ok: false,
 
             handled:
               false,
+
+            code:
+              error?.code ||
+              'ONESIGNAL_ERROR',
 
             error:
               error?.message ||
@@ -2095,73 +1946,7 @@ function createServer() {
 
 
   /* =======================================================
-     ONESIGNAL DELIVERY STATUS
-  ======================================================= */
-
-  app.get(
-    '/api/notifications/status/:messageId',
-    async (
-      request,
-      response
-    ) => {
-      try {
-        const messageId =
-          String(
-            request.params.messageId ||
-              ''
-          ).trim();
-
-        if (!messageId) {
-          return response
-            .status(400)
-            .json({
-              ok:
-                false,
-
-              error:
-                'messageId manquant.'
-            });
-        }
-
-        const status =
-          await getOneSignalMessageStatus(
-            messageId
-          );
-
-        return response.json({
-          ok:
-            true,
-
-          status
-        });
-      } catch (error) {
-        console.error(
-          '[OneSignal] Impossible de récupérer le statut :',
-          error?.details ||
-            error
-        );
-
-        return response
-          .status(502)
-          .json({
-            ok:
-              false,
-
-            error:
-              error?.message ||
-              'Statut OneSignal indisponible.',
-
-            details:
-              error?.details ||
-              null
-          });
-      }
-    }
-  );
-
-
-  /* =======================================================
-     UPLOAD
+     IMAGE UPLOAD
   ======================================================= */
 
   app.post(
@@ -2187,8 +1972,10 @@ function createServer() {
         }
 
         if (
-          folder !== 'products' &&
-          folder !== 'reviews'
+          folder !==
+            'products' &&
+          folder !==
+            'reviews'
         ) {
           return response
             .status(400)
@@ -2198,9 +1985,6 @@ function createServer() {
             });
         }
 
-        /*
-         * Optional upload protection.
-         */
         const expectedToken =
           String(
             process.env.UPLOAD_TOKEN ||
@@ -2226,16 +2010,10 @@ function createServer() {
             dataUrl
           );
 
-        /*
-         * No object storage.
-         * The validated data URL is returned
-         * to the frontend.
-         */
         return response
           .status(201)
           .json({
-            ok:
-              true,
+            ok: true,
 
             url:
               normalizedDataUrl,
@@ -2252,6 +2030,7 @@ function createServer() {
             contentType:
               'image'
           });
+
       } catch (error) {
         console.error(
           '[Upload] Échec validation Base64 :',
@@ -2276,12 +2055,63 @@ function createServer() {
 
   app.get(
     '/health',
-    (_request, response) =>
+    async (
+      _request,
       response
+    ) => {
+      let oneSignalStatus = {
+        configured:
+          Boolean(
+            ONESIGNAL_APP_ID &&
+            ONESIGNAL_REST_API_KEY
+          ),
+
+        activeSubscriptions:
+          null
+      };
+
+      try {
+        if (
+          oneSignalStatus.configured
+        ) {
+          const report =
+            await getPushSubscriptionReport();
+
+          oneSignalStatus =
+            {
+              configured:
+                true,
+
+              activeSubscriptions:
+                report.usable,
+
+              totalSubscriptions:
+                report.total,
+
+              api:
+                ONESIGNAL_URL
+            };
+        }
+      } catch (error) {
+        oneSignalStatus =
+          {
+            configured:
+              true,
+
+            activeSubscriptions:
+              null,
+
+            error:
+              error?.message ||
+              'OneSignal status unavailable'
+          };
+      }
+
+
+      return response
         .status(200)
         .json({
-          ok:
-            true,
+          ok: true,
 
           service:
             'emil-supabase-push-worker',
@@ -2289,26 +2119,18 @@ function createServer() {
           dataProvider:
             getSupabaseClient()
               ? 'supabase'
-              : 'firebase',
+              : 'not-configured',
 
           legacyFirebasePushPath:
             EVENTS_PATH,
 
           oneSignal:
-            {
-              configured:
-                Boolean(
-                  process.env.ONESIGNAL_APP_ID &&
-                  process.env.ONESIGNAL_REST_API_KEY
-                ),
-
-              api:
-                ONESIGNAL_URL
-            },
+            oneSignalStatus,
 
           timestamp:
             new Date().toISOString()
-        })
+        });
+    }
   );
 
 
@@ -2318,7 +2140,10 @@ function createServer() {
 
   app.get(
     '/',
-    (_request, response) =>
+    (
+      _request,
+      response
+    ) =>
       response
         .status(200)
         .send(
@@ -2339,17 +2164,46 @@ async function main() {
   const app =
     createServer();
 
+
   /*
-   * Supabase remains the primary store
-   * exactly as in your original architecture.
+   * Supabase = source principale
    */
-  if (getSupabaseClient()) {
+  if (
+    getSupabaseClient()
+  ) {
     console.log(
       `[Supabase] Mode principal actif sur la table ${SUPABASE_TABLE}; Firebase historique désactivé.`
     );
+
+    if (
+      ONESIGNAL_APP_ID &&
+      ONESIGNAL_REST_API_KEY
+    ) {
+      console.log(
+        `[OneSignal] Configuration détectée pour App ID ${ONESIGNAL_APP_ID}`
+      );
+
+      try {
+        const report =
+          await getPushSubscriptionReport();
+
+        console.log(
+          `[OneSignal] ${report.usable}/${report.total} subscription(s) Push utilisable(s).`
+        );
+
+      } catch (error) {
+        console.warn(
+          '[OneSignal] Impossible de vérifier les subscriptions au démarrage :',
+          error?.details ||
+          error
+        );
+      }
+    }
+
   } else {
+
     /*
-     * Legacy Firebase fallback.
+     * Compatibilité Firebase historique
      */
     const firebaseApp =
       initFirebaseAdmin();
@@ -2362,17 +2216,20 @@ async function main() {
     await db
       .ref('.info/connected')
       .once('value')
-      .catch(error => {
-        console.warn(
-          '[Firebase] Vérification initiale indisponible, le listener sera tout de même démarré.',
-          error.message
-        );
-      });
+      .catch(
+        error => {
+          console.warn(
+            '[Firebase] Vérification initiale indisponible, le listener sera tout de même démarré.',
+            error.message
+          );
+        }
+      );
 
     startPushEventListener(
       db
     );
   }
+
 
   app.listen(
     PORT,
@@ -2383,50 +2240,37 @@ async function main() {
       );
 
       console.log(
-        `[OneSignal] API: ${ONESIGNAL_URL}`
+        `[HTTP] Port: ${PORT}`
       );
 
       console.log(
-        `[OneSignal] Configured: ${
-          Boolean(
-            process.env.ONESIGNAL_APP_ID &&
-            process.env.ONESIGNAL_REST_API_KEY
-          )
+        `[HTTP] OneSignal: ${
+          ONESIGNAL_APP_ID
+            ? 'configured'
+            : 'missing'
         }`
-      );
-
-      console.log(
-        '[OneSignal] Service worker: /OneSignalSDKWorker.js'
       );
     }
   );
 }
 
 
-/* =========================================================
-   STARTUP ERROR HANDLING
-========================================================= */
+main()
+  .catch(
+    error => {
+      console.error(
+        '[Startup] Démarrage impossible',
+        error
+      );
 
-main().catch(
-  error => {
-    console.error(
-      '[Startup] Démarrage impossible',
-      error
-    );
+      process.exit(1);
+    }
+  );
 
-    process.exit(1);
-  }
-);
-
-
-/* =========================================================
-   EXPORTS
-========================================================= */
 
 export {
   createServer,
   notificationPayload,
   processPushEvent,
-  sendOneSignalNotification,
-  getOneSignalMessageStatus
+  sendOneSignalNotification
 };
