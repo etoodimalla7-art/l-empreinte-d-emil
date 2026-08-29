@@ -2184,19 +2184,49 @@ img,svg,video,iframe{max-width:100%}
 }
 </style>
 
-<!-- OneSignal Web SDK v16 -->
+<!-- OneSignal Web SDK v16 : intégration optionnelle et totalement isolée -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script id="onesignal-v16-init">
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  if (location.protocol === 'https:' && location.hostname !== 'localhost') {
-    OneSignalDeferred.push(async function(OneSignal) {
-      if (window.__EMIL_ONESIGNAL_INIT__) return;
-      window.__EMIL_ONESIGNAL_INIT__ = true;
-      await OneSignal.init({
-        appId: "cccbad22-afa2-422e-965e-f678ae3314b8",
-      });
+  window.addEventListener('DOMContentLoaded', () => {
+    (async () => {
+      try {
+        // Si le navigateur bloque le stockage tiers/local, on n'initialise pas
+        // OneSignal. Le reste de l'application n'attend jamais ce contrôle.
+        const storageAvailable = (() => {
+          try {
+            const key = '__emil_onesignal_storage_test__';
+            window.localStorage.setItem(key, '1');
+            window.localStorage.removeItem(key);
+            return true;
+          } catch (storageError) {
+            console.warn('OneSignal ignoré : stockage bloqué par le navigateur.', storageError);
+            return false;
+          }
+        })();
+        if (!storageAvailable) return;
+        if (location.protocol !== 'https:' || location.hostname === 'localhost') return;
+        if (window.__EMIL_ONESIGNAL_INIT__) return;
+        window.__EMIL_ONESIGNAL_INIT__ = true;
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        await new Promise((resolve) => {
+          window.OneSignalDeferred.push(async (OneSignal) => {
+            try {
+              await OneSignal.init({ appId: 'cccbad22-afa2-422e-965e-f678ae3314b8' });
+            } catch (err) {
+              console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
+            } finally {
+              resolve();
+            }
+          });
+        });
+      } catch (err) {
+        console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
+      }
+    })().catch((err) => {
+      // Dernier filet de sécurité : aucun rejet OneSignal ne doit interrompre le site.
+      console.warn('OneSignal désactivé sans impact sur le site.', err);
     });
-  }
+  }, { once: true });
 </script>
 </head>
 <body>
@@ -2843,7 +2873,7 @@ img,svg,video,iframe{max-width:100%}
               <div style="margin-top:8px"><label class="admin-label">Label (EN)</label><input class="admin-input" id="p-engraving-label-en" placeholder="Your personalized engraving"></div>
             </div>
             <div style="margin-top:18px;display:flex;gap:10px">
-              <button class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
+              <button id="save-product-btn" class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
               <button class="admin-btn admin-btn-ghost" onclick="resetProductForm()">↩ Réinitialiser</button>
             </div>
           </div>
@@ -3058,8 +3088,21 @@ img,svg,video,iframe{max-width:100%}
         <div style="max-width:900px">
           <div class="admin-about-section">
             <div class="admin-about-section-title">Nouveau message automatique</div>
-            <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">Les messages actifs sont utilisés aléatoirement par les envois programmés de 10h00, 16h00 et 20h00. La clé API OneSignal reste uniquement dans le backend.</p>
-            <input type="hidden" id="push-message-id">
+            <div id="emil-notification-center" style="margin:0 0 18px;padding:16px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px">
+              <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:6px">Centre de Notifications</div>
+              <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Envoi sécurisé via <code>/api/notifications/product</code>. La clé REST OneSignal reste exclusivement sur le serveur.</p>
+              <div class="admin-form-grid">
+                <div><label class="admin-label">Titre *</label><input class="admin-input" id="center-push-title" value="Nouveauté exclusive disponible ! ✨"></div>
+                <div><label class="admin-label">Product ID</label><input class="admin-input" id="center-push-product-id" placeholder="Optionnel"></div>
+              </div>
+              <div style="margin-top:10px"><label class="admin-label">Message *</label><textarea class="admin-textarea" id="center-push-body" maxlength="240" placeholder="Votre message…"></textarea></div>
+              <div class="admin-form-grid" style="margin-top:10px">
+                <div><label class="admin-label">Image HTTPS</label><input class="admin-input" id="center-push-image" type="url" placeholder="https://…"></div>
+                <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="center-push-url" type="url" value="https://lempreinte-demil.onrender.com/"></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button id="center-push-send" class="admin-btn" type="button" onclick="sendAdminOneSignalNotification()">Envoyer via OneSignal</button><span id="center-push-status" style="font-size:12px;color:var(--muted)"></span></div>
+            </div>
+            <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">Les messages actifs sont utilisés aléatoirement par les envois programmés de 10h00, 16h00 et 20h00. La clé API OneSignal reste uniquement dans le backend.</p>            <input type="hidden" id="push-message-id">
             <div class="admin-form-grid">
               <div><label class="admin-label">Titre</label><input class="admin-input" id="push-message-title" placeholder="L’Empreinte d’Emil"></div>
               <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="push-message-url" type="url" placeholder="https://lempreinte-demil.onrender.com/"></div>
@@ -4484,6 +4527,17 @@ const IMAGE_HOSTING_CONFIG = {
   imgbbApiKey: 'f9a5d4676da2957c171a035913a5de9a'
 };
 
+// La clé REST OneSignal doit rester dans le backend. Ces endpoints publics
+// reçoivent les requêtes authentifiées par le serveur de l'application.
+const ONESIGNAL_CONFIG = {
+  appId: 'cccbad22-afa2-422e-965e-f678ae3314b8',
+  iconUrl: 'https://i.postimg.cc/HLdg7Tb5/logo.png',
+  badgeUrl: 'https://i.postimg.cc/HLdg7Tb5/logo.png',
+  productNotificationEndpoint: '/api/notifications/product',
+  scheduleEndpoint: '/api/notifications/schedule',
+  shopUrl: 'https://lempreinte-demil.onrender.com/'
+};
+
 function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
@@ -4691,10 +4745,36 @@ function initFirebase() {
     
     // Les données générales restent fragmentées sous storedData/.
     SHARED_KEYS.forEach(key => {
+      if (key === 'products') return;
       firebaseDb.ref('storedData/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) handleKeyUpdate(key, val);
       });
+    });
+
+    // Source unique de vérité du catalogue : chaque changement Firebase
+    // reconstruit la liste mémoire et déclenche le rendu, sans push local.
+    const productsRef = firebaseDb.ref('storedData/products');
+    productsRef.on('value', (snapshot) => {
+      const raw = snapshot.val() || {};
+      const entries = Array.isArray(raw) ? raw.map((value, key) => [String(key), value]) : Object.entries(raw);
+      const normalised = [];
+      const migrations = [];
+      entries.forEach(([key, value]) => {
+        if (!value || typeof value !== 'object') return;
+        const productId = String(value.productId || value.id || (key && !/^\d+$/.test(key) ? key : ''));
+        if (!productId) return;
+        const product = { ...value, id: productId, productId };
+        normalised.push(product);
+        if (key !== productId) migrations.push(productsRef.child(productId).set(product).then(() => productsRef.child(key).remove()));
+      });
+      handleKeyUpdate('products', normalised);
+      if (migrations.length) Promise.all(migrations).catch(error => console.warn('[Firebase] Migration produit:', error));
+      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('products');
+    }, error => {
+      console.error('[Firebase] Lecture des produits impossible :', error);
+      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('products');
+      setSyncStatus('offline');
     });
 
     // Les avis sont lus exclusivement sous storedData/reviews.
@@ -4738,7 +4818,7 @@ function handleKeyUpdate(key, value) {
   
   // Update global variables
   if (key === 'categories') categories = value;
-  else if (key === 'products') products = value;
+  else if (key === 'products') products = (Array.isArray(value) ? value : Object.values(value || {})).filter(p => p && p.id).map(p => ({...p, id:String(p.productId || p.id), productId:String(p.productId || p.id)}));
   else if (key === 'settings') settings = value;
   else if (key === 'reviews') {
     reviews = reviewRows(value);
@@ -7202,49 +7282,17 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: match[1] });
 }
 
-async function uploadImageToExternalHost(dataUrl, productId, index) {
-  const provider = String(IMAGE_HOSTING_CONFIG.provider || '').toLowerCase();
-  let publicUrl = '';
-
-  if (provider === 'cloudinary') {
-    const { cloudName, uploadPreset } = IMAGE_HOSTING_CONFIG;
-    if (!cloudName || cloudName === 'A_CONFIGURER' || !uploadPreset || uploadPreset === 'A_CONFIGURER') {
-      throw new Error('Cloudinary non configuré : renseignez cloudName et uploadPreset.');
-    }
-    const formData = new FormData();
-    formData.append('file', dataUrlToBlob(dataUrl), productId + '-' + index + '.webp');
-    formData.append('upload_preset', uploadPreset);
-    const response = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cloudName) + '/image/upload', {
-      method: 'POST',
-      body: formData
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.secure_url) {
-      throw new Error('Cloudinary upload failed: ' + (result.error?.message || response.status));
-    }
-    publicUrl = result.secure_url;
-  } else if (provider === 'imgbb') {
-    const apiKey = IMAGE_HOSTING_CONFIG.imgbbApiKey;
-    if (!apiKey || apiKey === 'A_CONFIGURER') {
-      throw new Error('ImgBB non configuré : renseignez imgbbApiKey.');
-    }
-    const formData = new FormData();
-    formData.append('key', apiKey);
-    formData.append('image', dataUrl.split(',')[1]);
-    const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.success || !result.data?.display_url) {
-      throw new Error('ImgBB upload failed: ' + (result.error?.message || response.status));
-    }
-    publicUrl = result.data.display_url;
-  } else {
-    throw new Error('Fournisseur d’images inconnu : ' + provider);
+async function uploadImageToFirebaseStorage(dataUrl, productId, index) {
+  if (typeof firebaseStorage === 'undefined' || !firebaseStorage) {
+    throw new Error('Firebase Storage est indisponible. Vérifiez la configuration et les règles Storage.');
   }
-
-  if (!/^https:\/\//i.test(publicUrl)) {
-    throw new Error('L’hébergeur n’a pas retourné une URL HTTPS publique.');
-  }
-  return publicUrl;
+  const blob = dataUrlToBlob(dataUrl);
+  const storageRef = firebaseStorage.ref().child(`products/${productId}/${Date.now()}-${index}.webp`);
+  const snapshot = await storageRef.put(blob, {
+    contentType: blob.type || 'image/webp',
+    cacheControl: 'public,max-age=31536000,immutable'
+  });
+  return snapshot.ref.getDownloadURL();
 }
 
 async function uploadProductImages(productId, imageSources) {
@@ -7252,100 +7300,85 @@ async function uploadProductImages(productId, imageSources) {
   const uploadedUrls = [];
   for (let index = 0; index < sources.length; index++) {
     const source = sources[index];
-    if (typeof source !== 'string' || !/^data:image\//i.test(source)) {
-      if (source && /^https:\/\//i.test(source)) uploadedUrls.push(source);
-      continue;
+    if (typeof source !== 'string') continue;
+    if (/^data:image\//i.test(source)) {
+      uploadedUrls.push(await uploadImageToFirebaseStorage(source, productId, index));
+    } else if (/^https:\/\//i.test(source)) {
+      uploadedUrls.push(source);
     }
-    uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
   }
   return uploadedUrls;
 }
 
 async function saveProduct() {
-  const nameFR = document.getElementById('p-name-fr').value.trim();
-  const price = parseInt(document.getElementById('p-price').value)||0;
-  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return false; }
-
-  const data = {
-    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
-    catId: document.getElementById('p-cat').value,
-    type: document.getElementById('p-type').value,
-    price, stock: parseInt(document.getElementById('p-stock').value)||0,
-    descFR: document.getElementById('p-desc-fr').value.trim(),
-    descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
-    isEssential: document.getElementById('p-is-essential').checked,
-    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
-    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
-    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
-      const parts = s.split(':');
-      if (parts.length < 2) return null;
-      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
-    }).filter(Boolean),
-  };
-
-  // Firebase est la source distante principale : on refuse de confirmer
-  // l'enregistrement si la base n'est pas initialisée ou si l'écriture échoue.
-  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-    const error = new Error('Firebase Realtime Database non disponible.');
-    console.error('[saveProduct] Firebase indisponible :', error);
-    showToast('Échec Firebase : impossible d’enregistrer le produit.', '❌');
-    return false;
-  }
-
-  let idx = -1;
-  let previousProduct = null;
-  let productToSave;
-  let isNewProduct = false;
-
-  if (editingProductId) {
-    idx = products.findIndex(p => p.id === editingProductId);
-    if (idx === -1) {
-      console.error('[saveProduct] Produit à modifier introuvable :', editingProductId);
-      showToast('Produit introuvable.', '❌');
-      return false;
-    }
-    previousProduct = products[idx];
-    productToSave = {...previousProduct, ...data};
-    if (currentImgs.length) productToSave.imgs = currentImgs;
-  } else {
-    isNewProduct = true;
-    idx = products.length;
-    productToSave = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
-  }
-
+  const button = document.getElementById('save-product-btn') || document.querySelector('#prod-add-tab button[onclick*="saveProduct"]');
+  if (window.__productSaveInFlight) return false;
+  window.__productSaveInFlight = true;
+  const originalLabel = button ? button.textContent : '';
+  if (button) { button.disabled = true; button.textContent = '⏳ Enregistrement en cours…'; }
   try {
-    // Les aperçus Base64 restent uniquement en mémoire pendant l’édition.
-    // Avant toute écriture RTDB, ils sont remplacés par des URLs HTTPS externes.
-    productToSave.imgs = await uploadProductImages(productToSave.id, productToSave.imgs);
+    const nameFR = document.getElementById('p-name-fr')?.value.trim() || '';
+    const price = parseInt(document.getElementById('p-price')?.value, 10) || 0;
+    const catId = document.getElementById('p-cat')?.value || '';
+    if (!nameFR || price <= 0 || !catId) throw new Error('Le nom, la catégorie et un prix supérieur à zéro sont obligatoires.');
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database est indisponible.');
 
-    // Écriture explicite et ciblée dans Realtime Database. L'appel await
-    // garantit que le succès n'est annoncé qu'après résolution de Firebase.
-    await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
-  } catch (firebaseError) {
-    console.error('[saveProduct] Échec de l’upload externe ou de l’écriture RTDB pour le produit ' + productToSave.id + ':', firebaseError);
-    if (isNewProduct) {
-      products.splice(idx, 0);
-    } else if (previousProduct) {
-      products[idx] = previousProduct;
-    }
-    showToast('Échec : image non hébergée ou produit non enregistré. Vérifiez la configuration de l’hébergeur et la connexion.', '❌');
+    const editingId = editingProductId ? String(editingProductId) : '';
+    const productRef = editingId ? firebaseDb.ref('storedData/products/' + editingId) : firebaseDb.ref('storedData/products').push();
+    const productId = editingId || productRef.key;
+    if (!productId) throw new Error('Impossible de générer un identifiant produit unique.');
+    const existing = editingId ? (getValidProducts().find(product => String(product.id) === editingId) || {}) : {};
+    const product = {
+      ...existing,
+      id: productId,
+      productId,
+      nameFR,
+      nameEN: document.getElementById('p-name-en')?.value.trim() || '',
+      catId,
+      type: document.getElementById('p-type')?.value || 'single',
+      price,
+      stock: Math.max(0, parseInt(document.getElementById('p-stock')?.value, 10) || 0),
+      descFR: document.getElementById('p-desc-fr')?.value.trim() || '',
+      descEN: document.getElementById('p-desc-en')?.value.trim() || '',
+      bundleItems: (document.getElementById('p-bundle-items')?.value || '').split('\n').map(value => value.trim()).filter(Boolean),
+      isEssential: !!document.getElementById('p-is-essential')?.checked,
+      sizes: (document.getElementById('p-sizes')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
+      colors: (document.getElementById('p-colors')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
+      volumes: (document.getElementById('p-volumes')?.value || '').split(',').map(value => {
+        const parts = value.split(':');
+        return parts.length > 1 && parts[0].trim() ? { name: parts[0].trim(), price: parseInt(parts[1], 10) || 0 } : null;
+      }).filter(Boolean),
+      engraving: {
+        enabled: !!document.getElementById('p-engraving-enabled')?.checked,
+        price: parseInt(document.getElementById('p-engraving-price')?.value, 10) || 0,
+        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value, 10) || 20,
+        labelFR: document.getElementById('p-engraving-label-fr')?.value || 'Votre gravure',
+        labelEN: document.getElementById('p-engraving-label-en')?.value || 'Your engraving'
+      },
+      updatedAt: new Date().toISOString()
+    };
+    if (!editingId) product.createdAt = product.updatedAt;
+    if (currentImgs.length) product.imgs = await uploadProductImages(productId, currentImgs);
+    else if (!Array.isArray(product.imgs)) product.imgs = [];
+
+    // Une seule écriture ciblée. Le listener Firebase mettra à jour le DOM.
+    await productRef.set(product);
+    const isNew = !editingId;
+    window.__lastSavedProductId = productId;
+    editingProductId = null;
+    window.__lastSaveWasNewProduct = isNew;
+    resetProductForm();
+    showToast(isNew ? 'Produit ajouté avec succès.' : 'Produit modifié avec succès.', '✅');
+    if (isNew && typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(product);
+    return true;
+  } catch (error) {
+    console.error('[saveProduct] Échec :', error);
+    alert('Enregistrement impossible : ' + (error.message || 'une erreur Firebase est survenue.'));
     return false;
+  } finally {
+    window.__productSaveInFlight = false;
+    if (button) { button.disabled = false; button.textContent = originalLabel || '💾 Enregistrer'; }
   }
-
-  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; if (typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(productToSave); }
-  else products[idx] = productToSave;
-
-  editingProductId = null;
-  document.getElementById('edit-banner').style.display = 'none';
-
-  // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
-  cacheSet('products', products);
-
-  resetProductForm();
-  renderAdminProducts();
-  renderAdminDashboard();
-  return true;
 }
 
 function editProduct(id) {
@@ -7381,34 +7414,20 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-function deleteProduct(id) {
-  if (!confirm('Supprimer ce produit ?')) return;
-  const idx = products.findIndex(p=>p.id===id);
-  if (idx > -1) {
-    products.splice(idx, 1);
-    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-      // Suppression CIBLÉE : on supprime uniquement l'entrée du produit dans son
-      // nœud d'index (storedData/products/<idx>) au lieu de réécrire tout le
-      // catalogue avec .set(products). Un set() global sur un gros catalogue
-      // (images en base64, etc.) dépasse la taille de write autorisée par
-      // Firebase et déclenche l'erreur "INTERNAL ERROR ... Write too large".
-      // remove() ne touche que ce nœud précis, donc c'est instantané et léger,
-      // quelle que soit la taille du reste du catalogue.
-      firebaseDb.ref('storedData/products/' + idx).remove()
-        .catch(e => console.warn('[Firebase] Échec suppression ciblée du produit:', e && e.message));
-    }
-  }
-  // Le cache local est mis à jour dans un bloc try/catch dédié : si le
-  // localStorage est saturé (QuotaExceededError), on ne bloque jamais
-  // l'interface — le produit reste supprimé visuellement et en mémoire,
-  // seul le cache hors-ligne peut rester légèrement désynchronisé.
+async function deleteProduct(productId) {
+  const id = String(productId || '').trim();
+  if (!id) { alert('Identifiant produit invalide.'); return false; }
+  if (!confirm('Supprimer définitivement ce produit ?')) return false;
   try {
-    DB.set('products', products);
-  } catch(e) {
-    console.warn('[Cache] Échec DB.set("products") après suppression (quota ?):', e && e.message);
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database est indisponible.');
+    await firebaseDb.ref('storedData/products/' + id).remove();
+    showToast('Produit supprimé.', '🗑');
+    return true;
+  } catch (error) {
+    console.error('[deleteProduct] Échec :', error);
+    alert('Suppression impossible : ' + (error.message || 'erreur Firebase.'));
+    return false;
   }
-  renderAdminProducts(); renderAdminDashboard();
-  showToast('Produit supprimé','🗑');
 }
 
 function resetProductForm() {
@@ -10644,44 +10663,6 @@ function editProductGo(id) {
   switchProductTab(document.querySelectorAll('.tab-btn')[1], 'add');
 }
 
-// Patch saveProduct to save engraving config
-const _origSaveProduct = saveProduct;
-saveProduct = async function() {
-  // Conserver l'identifiant avant que la fonction principale ne réinitialise
-  // editingProductId, afin de mettre à jour le bon produit en mode édition.
-  const productIdBeingEdited = editingProductId;
-  const saved = await _origSaveProduct();
-  if (!saved) return false;
-
-  const enabled = document.getElementById('p-engraving-enabled')?.checked || false;
-  const targetId = productIdBeingEdited || products[products.length - 1]?.id;
-  if (targetId) {
-    const idx = products.findIndex(p => p.id === targetId);
-    if (idx > -1) {
-      products[idx].engraving = {
-        enabled,
-        price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
-        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
-        labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
-        labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
-      };
-      try {
-        // Cette seconde écriture est attendue avant la confirmation finale.
-        await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
-      } catch (firebaseError) {
-        console.error('[saveProduct] Échec Firebase pour la configuration de gravure :', firebaseError);
-        showToast('Échec Firebase : la configuration du produit n’a pas été enregistrée.', '❌');
-        return false;
-      }
-      // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
-      cacheSet('products', products);
-    }
-  }
-
-  showToast('Produit enregistré !');
-  return true;
-};
-
 // Patch editProduct to load engraving fields
 const _origEditProduct = editProduct;
 editProduct = function(id) {
@@ -10978,34 +10959,20 @@ function renderStockNotifAdmin() {
   }
 }
 
-async function adjustProductStock(id) {
-  const val = parseInt(document.getElementById('stock-adj-'+id)?.value);
-  if (isNaN(val) || val < 0) return false;
-  const idx = products.findIndex(p => p.id === id);
-  if (idx === -1) return false;
-  const previousProducts = products;
-  const nextProducts = products.map((product, productIndex) =>
-    productIndex === idx ? {...product, stock: val} : product
-  );
+async function adjustProductStock(productId) {
+  const id = String(productId || '').trim();
+  const value = parseInt(document.getElementById('stock-adj-' + id)?.value, 10);
+  if (!id || isNaN(value) || value < 0) return false;
   try {
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-      throw new Error('Firebase Realtime Database indisponible.');
-    }
-    await firebaseDb.ref('storedData/products/' + idx).update({ stock: val });
-    products = nextProducts;
-    cacheSet('products', products);
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
+    await firebaseDb.ref('storedData/products/' + id).update({ stock: value, updatedAt: new Date().toISOString() });
+    showToast(`Stock mis à jour : ${value} unité(s)`, '📦');
+    return true;
   } catch (error) {
-    console.error('[Stock] Échec de synchronisation Firebase :', error);
-    products = previousProducts;
-    showToast('Stock non enregistré : erreur de synchronisation Firebase.', '❌');
+    console.error('[Stock] Échec :', error);
+    alert('Stock non enregistré : ' + (error.message || 'erreur Firebase.'));
     return false;
   }
-  renderStockNotifAdmin();
-  renderAdminDashboard();
-  checkStockAlerts(false);
-  renderAdminProducts();
-  showToast(`Stock mis à jour: ${val} unité(s)`, '📦');
-  return true;
 }
 
 function runStockCheck(force) {
@@ -13507,16 +13474,6 @@ function injectProductReview(productId) { const body = document.getElementById('
 })();
 
 
-window.addEventListener('load', () => setTimeout(() => {
-  const originalSaveProduct = window.saveProduct;
-  if (typeof originalSaveProduct !== 'function') return;
-  window.saveProduct = async function() {
-    const wasNew = window.isNewProduct !== false;
-    const result = await originalSaveProduct.apply(this, arguments);
-    if (wasNew && result !== false && window.__lastSavedProductId) { const product = Array.isArray(window.products) ? window.products.find(p => String(p.id) === String(window.__lastSavedProductId)) : null; if (typeof window.emilNotifyProduct === 'function') window.emilNotifyProduct(product); }
-    return result;
-  };
-}, 900));
 
 
 /* FINAL SPECIFICATIONS OVERRIDE — single-file deployment */
@@ -13725,6 +13682,55 @@ window.addEventListener('load', () => setTimeout(() => {
   const safeJson=(value,fallback)=>{try{return JSON.parse(value)}catch(_){return fallback}};
   const productTitle=p=>String(p?.nameFR||p?.name||p?.nameEN||'Nouvelle pièce');
   const productImage=p=>p?.imgs?.[0]||p?.image||p?.img||'https://i.postimg.cc/HLdg7Tb5/logo.png';
+  window.ONESIGNAL_CONFIG = window.ONESIGNAL_CONFIG || ONESIGNAL_CONFIG;
+  const oneSignalConfig = window.ONESIGNAL_CONFIG;
+  async function postOneSignal(endpoint, payload) {
+    if (!endpoint) throw new Error('Endpoint OneSignal non configuré.');
+    const response = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body:JSON.stringify(payload) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || 'Le serveur OneSignal a refusé la requête.');
+    return result;
+  }
+  window.sendAdminOneSignalNotification = async function() {
+    const button = document.getElementById('center-push-send');
+    const status = document.getElementById('center-push-status');
+    if (button) { button.disabled = true; button.textContent = 'Envoi en cours…'; }
+    if (status) status.textContent = '';
+    try {
+      const title = document.getElementById('center-push-title')?.value.trim();
+      const body = document.getElementById('center-push-body')?.value.trim();
+      const image = document.getElementById('center-push-image')?.value.trim() || '';
+      const productId = document.getElementById('center-push-product-id')?.value.trim() || '';
+      const url = document.getElementById('center-push-url')?.value.trim() || oneSignalConfig.shopUrl;
+      if (!title || !body) throw new Error('Le titre et le message sont obligatoires.');
+      await postOneSignal(oneSignalConfig.productNotificationEndpoint, { title, body, image, productId, url });
+      if (status) status.textContent = 'Notification acceptée par le serveur.';
+      show('Notification envoyée via OneSignal.', '✅');
+    } catch (error) {
+      if (status) status.textContent = error.message || 'Échec de l’envoi.';
+      alert('Notification non envoyée : ' + (error.message || 'erreur serveur.'));
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Envoyer via OneSignal'; }
+    }
+  };
+  window.emilSendOneSignalProduct = async function(product) {
+    if (!product || !product.id) return false;
+    const name = productTitle(product), image = productImage(product);
+    try {
+      await postOneSignal(oneSignalConfig.productNotificationEndpoint, {
+        appId: oneSignalConfig.appId,
+        title: 'Nouveauté exclusive disponible ! ✨',
+        body: 'Découvrez ' + name + ' disponible dès maintenant sur L’Empreinte d’Emil.',
+        image,
+        productId: String(product.id),
+        url: oneSignalConfig.shopUrl + '#product-' + encodeURIComponent(product.id)
+      });
+      return true;
+    } catch (error) {
+      console.warn('[OneSignal] notification produit non envoyée:', error.message);
+      return false;
+    }
+  };
   const show=(message,icon='✦')=>{if(typeof window.showToast==='function')window.showToast(message,icon);};
   function browserNotice(title,body,image,tag){
     if(!('Notification' in window)||Notification.permission!=='granted')return false;
@@ -13741,6 +13747,7 @@ window.addEventListener('load', () => setTimeout(() => {
     browserNotice('L’Empreinte d’Emil',body,productImage(p),'emil-product-'+p.id);
   }
   window.emilPublishNewProduct=function(product){
+    window.emilSendOneSignalProduct(product);
     const event={type:'new-product',product,at:Date.now()};
     try{localStorage.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
     if(channel)try{channel.postMessage(event)}catch(_){ }
@@ -13879,7 +13886,6 @@ window.addEventListener('load', () => setTimeout(() => {
   function finishSplashWhenReady(){const splash=$('#luxe-splash');if(!splash)return;const started=Number(window.__LUXE_SPLASH_STARTED_AT__||performance.now()),wait=Math.max(0,2500-(performance.now()-started));setTimeout(()=>{const state=window.__SPLASH_READY_STATE__;if(state&&state.products&&state.images&&state.reviews&&typeof window.closeLuxeSplash==='function')window.closeLuxeSplash()},wait)}
   function init(){ensureReviewFields();criticalStartup().finally(finishSplashWhenReady)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-  if(typeof OneSignal!=='undefined'||window.OneSignalDeferred){window.OneSignalDeferred=window.OneSignalDeferred||[];if(!window.__EMIL_ONESIGNAL_INIT__){window.__EMIL_ONESIGNAL_INIT__=true;window.OneSignalDeferred.push(async OneSignal=>{if(location.protocol!=='https:'||location.hostname==='localhost')return;try{await OneSignal.init({appId:'cccbad22-afa2-422e-965e-f678ae3314b8',notifyButton:{enable:false}})}catch(e){console.warn('[OneSignal] initialization skipped:',e)}})}}
 })();
 </script>
 </body>
