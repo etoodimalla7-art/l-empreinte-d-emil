@@ -2184,49 +2184,20 @@ img,svg,video,iframe{max-width:100%}
 }
 </style>
 
-<!-- OneSignal Web SDK v16 : intégration optionnelle et totalement isolée -->
+<!-- OneSignal Web SDK v16 -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script id="onesignal-v16-init">
-  window.addEventListener('DOMContentLoaded', () => {
-    (async () => {
-      try {
-        // Si le navigateur bloque le stockage tiers/local, on n'initialise pas
-        // OneSignal. Le reste de l'application n'attend jamais ce contrôle.
-        const storageAvailable = (() => {
-          try {
-            const key = '__emil_onesignal_storage_test__';
-            window.localStorage.setItem(key, '1');
-            window.localStorage.removeItem(key);
-            return true;
-          } catch (storageError) {
-            console.warn('OneSignal ignoré : stockage bloqué par le navigateur.', storageError);
-            return false;
-          }
-        })();
-        if (!storageAvailable) return;
-        if (location.protocol !== 'https:' || location.hostname === 'localhost') return;
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  try {
+    if (location.protocol === 'https:' && location.hostname !== 'localhost') {
+      OneSignalDeferred.push(async function(OneSignal) {
         if (window.__EMIL_ONESIGNAL_INIT__) return;
         window.__EMIL_ONESIGNAL_INIT__ = true;
-        window.OneSignalDeferred = window.OneSignalDeferred || [];
-        await new Promise((resolve) => {
-          window.OneSignalDeferred.push(async (OneSignal) => {
-            try {
-              await OneSignal.init({ appId: 'cccbad22-afa2-422e-965e-f678ae3314b8' });
-            } catch (err) {
-              console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
-            } finally {
-              resolve();
-            }
-          });
-        });
-      } catch (err) {
-        console.warn('OneSignal bloqué par le navigateur, suite du site exécutée normalement.', err);
-      }
-    })().catch((err) => {
-      // Dernier filet de sécurité : aucun rejet OneSignal ne doit interrompre le site.
-      console.warn('OneSignal désactivé sans impact sur le site.', err);
-    });
-  }, { once: true });
+        try { await OneSignal.init({appId:"cccbad22-afa2-422e-965e-f678ae3314b8"}); }
+        catch (e) { console.warn('[OneSignal] initialization skipped:', e); }
+      });
+    }
+  } catch (e) { console.warn('[OneSignal] setup skipped:', e); }
 </script>
 </head>
 <body>
@@ -2241,66 +2212,74 @@ img,svg,video,iframe{max-width:100%}
 </div>
 
 <script>
-  // Exécution immédiate du rendu dès que le body commence à parser
-  (function() {
-    // Coordination unique du splash : le contenu charge en arrière-plan,
-    // puis l’écran disparaît dès que produits + images + avis sont prêts.
-    const ready = window.__SPLASH_READY_STATE__ = {products:false, images:false, reviews:false};
+  /* EMIL STARTUP GUARD — the splash can NEVER block the UI */
+  (function () {
+    'use strict';
+    const ready = window.__SPLASH_READY_STATE__ = { products:false, images:false, reviews:false };
     window.__LUXE_SPLASH_STARTED_AT__ = performance.now();
-    window.__markLuxeReady = function(part) {
+
+    function hardDisableSplash() {
+      const splash = document.getElementById('luxe-splash');
+      if (!splash) return;
+      splash.classList.add('fade-out', 'splash-disabled');
+      splash.setAttribute('aria-hidden', 'true');
+      splash.style.setProperty('display', 'none', 'important');
+      splash.style.setProperty('visibility', 'hidden', 'important');
+      splash.style.setProperty('opacity', '0', 'important');
+      splash.style.setProperty('pointer-events', 'none', 'important');
+      splash.style.setProperty('z-index', '-1', 'important');
+    }
+
+    window.closeLuxeSplash = function () {
+      try { clearTimeout(window.__SPLASH_TIMEOUT__); } catch (_) {}
+      hardDisableSplash();
+      requestAnimationFrame(() => {
+        const splash = document.getElementById('luxe-splash');
+        if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+      });
+    };
+    window.closeSplash = window.closeLuxeSplash;
+
+    window.__markLuxeReady = function (part) {
       if (Object.prototype.hasOwnProperty.call(ready, part)) ready[part] = true;
-      if (ready.products && ready.images && ready.reviews && typeof window.closeLuxeSplash === 'function') {
+      /* Products being rendered is the critical condition. */
+      if (part === 'products' && typeof window.closeLuxeSplash === 'function') {
         window.closeLuxeSplash();
       }
     };
 
-    // 1. RÉCUPÉRATION DU CACHE (On utilise le nom de clé utilisé par la classe DB)
-    const cacheKey = 'lemil_products';
-    let productsCache = [];
-    try {
-      const raw = localStorage.getItem(cacheKey);
-      productsCache = raw ? JSON.parse(raw) : [];
-      // On force l'injection globale immédiate si disponible
-      if (productsCache.length > 0) window.products = productsCache;
-    } catch(e) { 
-      console.warn('[Luxe] Cache read error', e);
-      productsCache = [];
-    }
-    
-    const hasCache = productsCache && productsCache.length > 0;
-    
-    // 2. TIMEOUT DE SÉCURITÉ : le splash ne bloque jamais plus de 2,5 secondes.
+    /* Absolute maximum: 4 seconds, regardless of Firebase/network/image state. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
+      console.warn('[Startup] Splash safety timeout reached; unlocking UI.');
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 2500);
+    }, 4000);
 
-    // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Sera appelée après rendu réel)
-    window.closeLuxeSplash = function() {
-      const splash = document.getElementById('luxe-splash');
-      if (!splash || splash.classList.contains('fade-out')) return;
-      splash.classList.add('fade-out');
-      if (window.__SPLASH_TIMEOUT__) clearTimeout(window.__SPLASH_TIMEOUT__);
-    };
-    window.closeSplash = window.closeLuxeSplash;
-
-    // 4. OBSERVER POUR LE RENDU INSTANTANÉ
-    if (window.__INSTANT_RENDER__) {
-      const run = () => {
-        const fGrid = document.getElementById('featured-grid');
-        if (fGrid) {
-          // On passe le cache à la fonction de rendu si présent
-          window.__INSTANT_RENDER__(hasCache ? productsCache : null);
-          return true;
-        }
-        return false;
-      };
-      if (!run()) {
-        const observer = new MutationObserver((mutations, obs) => {
-          if (run()) obs.disconnect();
-        });
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-      }
+    /* Optional cache warm-up; never allowed to throw or block parsing. */
+    try {
+      const raw = window.localStorage ? localStorage.getItem('lemil_products') : null;
+      const cached = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(cached) && cached.length) window.__CACHED_PRODUCTS__ = cached;
+    } catch (e) {
+      console.warn('[Startup] Product cache unavailable:', e);
     }
+
+    /* Legacy instant renderer, if present. */
+    try {
+      if (window.__INSTANT_RENDER__) {
+        const run = () => {
+          const grid = document.getElementById('featured-grid');
+          if (!grid) return false;
+          try { window.__INSTANT_RENDER__(window.__CACHED_PRODUCTS__ || null); }
+          catch (e) { console.warn('[Startup] Instant render skipped:', e); }
+          return true;
+        };
+        if (!run()) {
+          const observer = new MutationObserver((_, obs) => { if (run()) obs.disconnect(); });
+          observer.observe(document.documentElement, { childList:true, subtree:true });
+          setTimeout(() => observer.disconnect(), 4000);
+        }
+      }
+    } catch (e) { console.warn('[Startup] Instant-render guard failed:', e); }
   })();
 </script>
 <!-- FLASH PROMO BAR -->
@@ -2873,8 +2852,7 @@ img,svg,video,iframe{max-width:100%}
               <div style="margin-top:8px"><label class="admin-label">Label (EN)</label><input class="admin-input" id="p-engraving-label-en" placeholder="Your personalized engraving"></div>
             </div>
             <div style="margin-top:18px;display:flex;gap:10px">
-              <label style="display:block;margin:16px 0;font-size:12px;color:var(--light)"><input type="checkbox" id="p-send-push" checked> Envoyer la notification Push aux abonnés lors de la publication</label>
-              <button id="save-product-btn" class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
+              <button class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
               <button class="admin-btn admin-btn-ghost" onclick="resetProductForm()">↩ Réinitialiser</button>
             </div>
           </div>
@@ -3088,31 +3066,36 @@ img,svg,video,iframe{max-width:100%}
         <div class="admin-section-title">Notifications Push OneSignal</div>
         <div style="max-width:900px">
           <div class="admin-about-section">
-            <div class="admin-about-section-title">Nouveau message automatique</div>
-            <div id="emil-notification-center" style="margin:0 0 18px;padding:16px;background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:8px">
-              <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:6px">Centre de Notifications</div>
-              <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:12px">Envoi sécurisé via <code>/api/notifications/product</code>. La clé REST OneSignal reste exclusivement sur le serveur.</p>
-              <div class="admin-form-grid">
-                <div><label class="admin-label">Titre *</label><input class="admin-input" id="center-push-title" value="Nouveauté exclusive disponible ! ✨"></div>
-                <div><label class="admin-label">Product ID</label><input class="admin-input" id="center-push-product-id" placeholder="Optionnel"></div>
-              </div>
-              <div style="margin-top:10px"><label class="admin-label">Message *</label><textarea class="admin-textarea" id="center-push-body" maxlength="240" placeholder="Votre message…"></textarea></div>
-              <div class="admin-form-grid" style="margin-top:10px">
-                <div><label class="admin-label">Image HTTPS</label><input class="admin-input" id="center-push-image" type="url" placeholder="https://…"></div>
-                <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="center-push-url" type="url" value="https://lempreinte-demil.onrender.com/"></div>
-              </div>
-              <div class="admin-form-grid" style="margin-top:14px">
-                <div><label class="admin-label">Relance 12h00 — titre</label><input class="admin-input" id="push-noon-title" value="Inspiration Senteur du jour 🌿"></div>
-                <div><label class="admin-label">Relance 19h00 — titre</label><input class="admin-input" id="push-evening-title" value="Sélection Exclusive 💎"></div>
-              </div>
-              <div class="admin-form-grid" style="margin-top:10px">
-                <div><label class="admin-label">Relance 12h00 — message</label><textarea class="admin-textarea" id="push-noon-body" maxlength="240">Trouvez le parfum qui correspond à votre style.</textarea></div>
-                <div><label class="admin-label">Relance 19h00 — message</label><textarea class="admin-textarea" id="push-evening-body" maxlength="240">Vos articles favoris vous attendent.</textarea></div>
-              </div>
-              <div style="display:flex;gap:10px;align-items:center;margin-top:10px"><button id="push-schedule-save" class="admin-btn admin-btn-ghost" type="button" onclick="savePushScheduleConfig()">Enregistrer les relances</button><span id="push-schedule-status" style="font-size:12px;color:var(--muted)"></span></div>
-              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button id="center-push-send" class="admin-btn" type="button" onclick="sendAdminOneSignalNotification()">Envoyer via OneSignal</button><span id="center-push-status" style="font-size:12px;color:var(--muted)"></span></div>
+            <div class="admin-about-section-title">Centre d’envoi Push OneSignal</div>
+            <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+              L’envoi passe exclusivement par le backend Render. Aucune clé REST OneSignal secrète n’est stockée dans ce fichier.
+            </p>
+            <div class="admin-form-grid">
+              <div><label class="admin-label">Titre *</label><input class="admin-input" id="push-send-title" maxlength="120" placeholder="L’Empreinte d’Emil"></div>
+              <div><label class="admin-label">URL de destination</label><input class="admin-input" id="push-send-url" type="url" placeholder="https://lempreinte-demil.onrender.com/"></div>
             </div>
-            <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">Les messages actifs sont utilisés aléatoirement par les envois programmés de 10h00, 16h00 et 20h00. La clé API OneSignal reste uniquement dans le backend.</p>            <input type="hidden" id="push-message-id">
+            <div style="margin-top:12px"><label class="admin-label">Corps de la notification *</label><textarea class="admin-textarea" id="push-send-body" maxlength="240" placeholder="Une nouvelle signature vous attend..."></textarea></div>
+            <div style="margin-top:12px"><label class="admin-label">Visuel HTTPS (optionnel)</label><input class="admin-input" id="push-send-image" type="url" placeholder="https://.../image.jpg"></div>
+
+            <div class="emil-push-preview-wrap">
+              <div class="emil-push-preview-label">Aperçu smartphone</div>
+              <div class="emil-phone-preview">
+                <div class="emil-phone-preview-head">L’Empreinte d’Emil</div>
+                <div class="emil-phone-notification">
+                  <img id="push-preview-image" src="https://i.postimg.cc/HLdg7Tb5/logo.png" alt="">
+                  <div><strong id="push-preview-title">L’Empreinte d’Emil</strong><p id="push-preview-body">Votre notification apparaîtra ici.</p></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
+              <button class="admin-btn" type="button" id="push-send-button" onclick="sendAdminPushNotification()">Envoyer la notification</button>
+              <span id="push-send-status" style="font-size:11px;color:var(--muted)" aria-live="polite"></span>
+            </div>
+          </div>
+
+          <div class="admin-about-section" style="margin-top:16px">
+            <div class="admin-about-section-title">Message automatique enregistré</div>
+            <input type="hidden" id="push-message-id">
             <div class="admin-form-grid">
               <div><label class="admin-label">Titre</label><input class="admin-input" id="push-message-title" placeholder="L’Empreinte d’Emil"></div>
               <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="push-message-url" type="url" placeholder="https://lempreinte-demil.onrender.com/"></div>
@@ -3120,6 +3103,7 @@ img,svg,video,iframe{max-width:100%}
             <div style="margin-top:12px"><label class="admin-label">Texte de notification *</label><textarea class="admin-textarea" id="push-message-text" maxlength="240" placeholder="Une nouvelle signature vous attend..."></textarea></div>
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px"><label style="font-size:12px;color:var(--light)"><input type="checkbox" id="push-message-enabled" checked> Utiliser dans les envois aléatoires</label><button class="admin-btn" onclick="savePushNotificationMessage()">Enregistrer</button><button class="admin-btn admin-btn-ghost" onclick="resetPushNotificationForm()">Annuler</button></div>
           </div>
+
           <div class="admin-toolbar"><h3>Messages enregistrés</h3><button class="admin-btn admin-btn-ghost admin-btn-sm" onclick="loadPushNotificationMessages()">Rafraîchir</button></div>
           <div id="push-notification-list"></div>
         </div>
@@ -4537,17 +4521,6 @@ const IMAGE_HOSTING_CONFIG = {
   imgbbApiKey: 'f9a5d4676da2957c171a035913a5de9a'
 };
 
-// La clé REST OneSignal doit rester dans le backend. Ces endpoints publics
-// reçoivent les requêtes authentifiées par le serveur de l'application.
-const ONESIGNAL_CONFIG = {
-  appId: 'cccbad22-afa2-422e-965e-f678ae3314b8',
-  iconUrl: 'https://i.postimg.cc/HLdg7Tb5/logo.png',
-  badgeUrl: 'https://i.postimg.cc/HLdg7Tb5/logo.png',
-  productNotificationEndpoint: '/api/notifications/product',
-  scheduleEndpoint: '/api/notifications/schedule',
-  shopUrl: 'https://lempreinte-demil.onrender.com/'
-};
-
 function loadSyncConfig() { /* Hardcoded */ }
 
 let firebaseApp = null;
@@ -4755,36 +4728,10 @@ function initFirebase() {
     
     // Les données générales restent fragmentées sous storedData/.
     SHARED_KEYS.forEach(key => {
-      if (key === 'products') return;
       firebaseDb.ref('storedData/' + key).on('value', (snapshot) => {
         const val = snapshot.val();
         if (val !== null) handleKeyUpdate(key, val);
       });
-    });
-
-    // Source unique de vérité du catalogue : chaque changement Firebase
-    // reconstruit la liste mémoire et déclenche le rendu, sans push local.
-    const productsRef = firebaseDb.ref('storedData/products');
-    productsRef.on('value', (snapshot) => {
-      const raw = snapshot.val() || {};
-      const entries = Array.isArray(raw) ? raw.map((value, key) => [String(key), value]) : Object.entries(raw);
-      const normalised = [];
-      const migrations = [];
-      entries.forEach(([key, value]) => {
-        if (!value || typeof value !== 'object') return;
-        const productId = String(value.productId || value.id || (key && !/^\d+$/.test(key) ? key : ''));
-        if (!productId) return;
-        const product = { ...value, id: productId, productId };
-        normalised.push(product);
-        if (key !== productId) migrations.push(productsRef.child(productId).set(product).then(() => productsRef.child(key).remove()));
-      });
-      handleKeyUpdate('products', normalised);
-      if (migrations.length) Promise.all(migrations).catch(error => console.warn('[Firebase] Migration produit:', error));
-      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('products');
-    }, error => {
-      console.error('[Firebase] Lecture des produits impossible :', error);
-      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('products');
-      setSyncStatus('offline');
     });
 
     // Les avis sont lus exclusivement sous storedData/reviews.
@@ -4828,7 +4775,7 @@ function handleKeyUpdate(key, value) {
   
   // Update global variables
   if (key === 'categories') categories = value;
-  else if (key === 'products') products = (Array.isArray(value) ? value : Object.values(value || {})).filter(p => p && p.id).map(p => ({...p, id:String(p.productId || p.id), productId:String(p.productId || p.id)}));
+  else if (key === 'products') products = value;
   else if (key === 'settings') settings = value;
   else if (key === 'reviews') {
     reviews = reviewRows(value);
@@ -4876,14 +4823,14 @@ function handleKeyUpdate(key, value) {
   }
   if (typeof applySavedColors === 'function') applySavedColors();
   
-  // Mise à jour ciblée : une micro-modification Firebase ne reconstruit plus toute la page.
-  if (key === 'products') {
-    try {
-      if (currentPage === 'home' && typeof renderHomePage === 'function') renderHomePage();
-      else if (currentPage === 'shop' && typeof renderShopPage === 'function') renderShopPage();
-      if (adminLoggedIn && typeof renderAdminProducts === 'function') renderAdminProducts();
-    } catch (error) { console.warn('[Render] Mise à jour catalogue ciblée ignorée.', error); }
+  // Re-render UI
+  if (typeof renderAll === 'function') {
+    // On force le rendu si on est sur la home ou si le catalogue vient d'arriver (hasProducts pass de 0 à >0)
+    if (currentPage === 'home' || !adminLoggedIn || (key === 'products' && value.length > 0)) {
+      renderAll();
+    }
   }
+  
   setSyncStatus('ok');
 }
 
@@ -5642,31 +5589,17 @@ function sanitizeData() {
 }
 
 // ============================================================
-function productImageUrl(product) {
-  if (!product || typeof product !== 'object') return '';
-  const candidates = [product.image, product.imageUrl, product.img, product.imgUrl, ...(Array.isArray(product.imgs) ? product.imgs : []), ...(Array.isArray(product.images) ? product.images : [])];
-  return candidates.find(url => typeof url === 'string' && /^https?:\/\//i.test(url.trim()))?.trim() || '';
-}
-function neutralImagePlaceholder() {
-  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800"><rect width="800" height="800" fill="#242424"/><path d="M260 560l110-130 90 95 70-80 110 115H260z" fill="#555"/><circle cx="500" cy="285" r="48" fill="#555"/><text x="400" y="665" text-anchor="middle" fill="#999" font-family="Arial,sans-serif" font-size="28">Image indisponible</text></svg>');
-}
-function productImageMarkup(product, className='prod-img-tag') {
-  const url = productImageUrl(product);
-  const alt = esc(prodName(product));
-  if (!url) return `<span class="product-image-empty" aria-label="Aucune image">${getCat(product.catId)?.icon || '📦'}</span>`;
-  const safeUrl = esc(url);
-  return `<img src="${safeUrl}" alt="${alt}" loading="lazy" style="width:100%;height:100%;object-fit:cover" class="${className}" onerror="this.onerror=null;this.src='${neutralImagePlaceholder()}';this.alt='Image indisponible';this.classList.add('product-image-error')">`;
-}
 function renderProductCard(p) {
   if (!p || typeof p !== 'object' || !p.id || !p.catId) return '';
   if (!p || typeof p !== 'object' || !p.catId) return '';
   const cat = getCat(p.catId);
   const isNew = products.slice(0,3).find(pp=>pp.id===p.id);
+  const firstImg = (Array.isArray(p.imgs) && p.imgs[0]) || p.image || p.img || p.imgUrl || p.imageUrl || '';
   return `
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${productImageMarkup(p)}
+        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" width="100%" height="auto" class="prod-img-tag" loading="eager" fetchpriority="high" decoding="sync">`:(cat?cat.icon:'📦')}
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -6828,7 +6761,6 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     <div class="thanks">© L'Empreinte D'Emil · ${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'}</div>
   </div>
 </div>
-
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -7307,17 +7239,49 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: match[1] });
 }
 
-async function uploadImageToFirebaseStorage(dataUrl, productId, index) {
-  if (typeof firebaseStorage === 'undefined' || !firebaseStorage) {
-    throw new Error('Firebase Storage est indisponible. Vérifiez la configuration et les règles Storage.');
+async function uploadImageToExternalHost(dataUrl, productId, index) {
+  const provider = String(IMAGE_HOSTING_CONFIG.provider || '').toLowerCase();
+  let publicUrl = '';
+
+  if (provider === 'cloudinary') {
+    const { cloudName, uploadPreset } = IMAGE_HOSTING_CONFIG;
+    if (!cloudName || cloudName === 'A_CONFIGURER' || !uploadPreset || uploadPreset === 'A_CONFIGURER') {
+      throw new Error('Cloudinary non configuré : renseignez cloudName et uploadPreset.');
+    }
+    const formData = new FormData();
+    formData.append('file', dataUrlToBlob(dataUrl), productId + '-' + index + '.webp');
+    formData.append('upload_preset', uploadPreset);
+    const response = await fetch('https://api.cloudinary.com/v1_1/' + encodeURIComponent(cloudName) + '/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.secure_url) {
+      throw new Error('Cloudinary upload failed: ' + (result.error?.message || response.status));
+    }
+    publicUrl = result.secure_url;
+  } else if (provider === 'imgbb') {
+    const apiKey = IMAGE_HOSTING_CONFIG.imgbbApiKey;
+    if (!apiKey || apiKey === 'A_CONFIGURER') {
+      throw new Error('ImgBB non configuré : renseignez imgbbApiKey.');
+    }
+    const formData = new FormData();
+    formData.append('key', apiKey);
+    formData.append('image', dataUrl.split(',')[1]);
+    const response = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: formData });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.success || !result.data?.display_url) {
+      throw new Error('ImgBB upload failed: ' + (result.error?.message || response.status));
+    }
+    publicUrl = result.data.display_url;
+  } else {
+    throw new Error('Fournisseur d’images inconnu : ' + provider);
   }
-  const blob = dataUrlToBlob(dataUrl);
-  const storageRef = firebaseStorage.ref().child(`products/${productId}/${Date.now()}-${index}.webp`);
-  const snapshot = await storageRef.put(blob, {
-    contentType: blob.type || 'image/webp',
-    cacheControl: 'public,max-age=31536000,immutable'
-  });
-  return snapshot.ref.getDownloadURL();
+
+  if (!/^https:\/\//i.test(publicUrl)) {
+    throw new Error('L’hébergeur n’a pas retourné une URL HTTPS publique.');
+  }
+  return publicUrl;
 }
 
 async function uploadProductImages(productId, imageSources) {
@@ -7325,85 +7289,100 @@ async function uploadProductImages(productId, imageSources) {
   const uploadedUrls = [];
   for (let index = 0; index < sources.length; index++) {
     const source = sources[index];
-    if (typeof source !== 'string') continue;
-    if (/^data:image\//i.test(source)) {
-      uploadedUrls.push(await uploadImageToFirebaseStorage(source, productId, index));
-    } else if (/^https:\/\//i.test(source)) {
-      uploadedUrls.push(source);
+    if (typeof source !== 'string' || !/^data:image\//i.test(source)) {
+      if (source && /^https:\/\//i.test(source)) uploadedUrls.push(source);
+      continue;
     }
+    uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
   }
   return uploadedUrls;
 }
 
 async function saveProduct() {
-  const button = document.getElementById('save-product-btn') || document.querySelector('#prod-add-tab button[onclick*="saveProduct"]');
-  if (window.__productSaveInFlight) return false;
-  window.__productSaveInFlight = true;
-  const originalLabel = button ? button.textContent : '';
-  if (button) { button.disabled = true; button.textContent = '⏳ Enregistrement en cours…'; }
-  try {
-    const nameFR = document.getElementById('p-name-fr')?.value.trim() || '';
-    const price = parseInt(document.getElementById('p-price')?.value, 10) || 0;
-    const catId = document.getElementById('p-cat')?.value || '';
-    if (!nameFR || price <= 0 || !catId) throw new Error('Le nom, la catégorie et un prix supérieur à zéro sont obligatoires.');
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database est indisponible.');
+  const nameFR = document.getElementById('p-name-fr').value.trim();
+  const price = parseInt(document.getElementById('p-price').value)||0;
+  if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return false; }
 
-    const editingId = editingProductId ? String(editingProductId) : '';
-    const productRef = editingId ? firebaseDb.ref('storedData/products/' + editingId) : firebaseDb.ref('storedData/products').push();
-    const productId = editingId || productRef.key;
-    if (!productId) throw new Error('Impossible de générer un identifiant produit unique.');
-    const existing = editingId ? (getValidProducts().find(product => String(product.id) === editingId) || {}) : {};
-    const product = {
-      ...existing,
-      id: productId,
-      productId,
-      nameFR,
-      nameEN: document.getElementById('p-name-en')?.value.trim() || '',
-      catId,
-      type: document.getElementById('p-type')?.value || 'single',
-      price,
-      stock: Math.max(0, parseInt(document.getElementById('p-stock')?.value, 10) || 0),
-      descFR: document.getElementById('p-desc-fr')?.value.trim() || '',
-      descEN: document.getElementById('p-desc-en')?.value.trim() || '',
-      bundleItems: (document.getElementById('p-bundle-items')?.value || '').split('\n').map(value => value.trim()).filter(Boolean),
-      isEssential: !!document.getElementById('p-is-essential')?.checked,
-      sizes: (document.getElementById('p-sizes')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
-      colors: (document.getElementById('p-colors')?.value || '').split(',').map(value => value.trim()).filter(Boolean),
-      volumes: (document.getElementById('p-volumes')?.value || '').split(',').map(value => {
-        const parts = value.split(':');
-        return parts.length > 1 && parts[0].trim() ? { name: parts[0].trim(), price: parseInt(parts[1], 10) || 0 } : null;
-      }).filter(Boolean),
-      engraving: {
-        enabled: !!document.getElementById('p-engraving-enabled')?.checked,
-        price: parseInt(document.getElementById('p-engraving-price')?.value, 10) || 0,
-        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value, 10) || 20,
-        labelFR: document.getElementById('p-engraving-label-fr')?.value || 'Votre gravure',
-        labelEN: document.getElementById('p-engraving-label-en')?.value || 'Your engraving'
-      },
-      updatedAt: new Date().toISOString()
-    };
-    if (!editingId) product.createdAt = product.updatedAt;
-    if (currentImgs.length) product.imgs = await uploadProductImages(productId, currentImgs);
-    else if (!Array.isArray(product.imgs)) product.imgs = [];
+  const data = {
+    nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
+    catId: document.getElementById('p-cat').value,
+    type: document.getElementById('p-type').value,
+    price, stock: parseInt(document.getElementById('p-stock').value)||0,
+    descFR: document.getElementById('p-desc-fr').value.trim(),
+    descEN: document.getElementById('p-desc-en').value.trim(),
+    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    isEssential: document.getElementById('p-is-essential').checked,
+    sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
+    colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
+    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
+      const parts = s.split(':');
+      if (parts.length < 2) return null;
+      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
+    }).filter(Boolean),
+  };
 
-    // Une seule écriture ciblée. Le listener Firebase mettra à jour le DOM.
-    await productRef.set(product);
-    const isNew = !editingId;
-    window.__lastSavedProductId = productId;
-    editingProductId = null;
-    window.__lastSaveWasNewProduct = isNew;
-    resetProductForm();
-    showToast(isNew ? 'Produit ajouté avec succès.' : 'Produit modifié avec succès.', '✅');
-    if (isNew && document.getElementById('p-send-push')?.checked && typeof window.emilPublishNewProduct === 'function') await window.emilPublishNewProduct(product);
-    return true;
-  } catch (error) {
-    console.error('[saveProduct] Échec :', error);
-    alert('Enregistrement impossible : ' + (error.message || 'une erreur Firebase est survenue.'));
+  // Firebase est la source distante principale : on refuse de confirmer
+  // l'enregistrement si la base n'est pas initialisée ou si l'écriture échoue.
+  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+    const error = new Error('Firebase Realtime Database non disponible.');
+    console.error('[saveProduct] Firebase indisponible :', error);
+    showToast('Échec Firebase : impossible d’enregistrer le produit.', '❌');
     return false;
-  } finally {
-    window.__productSaveInFlight = false;
-    if (button) { button.disabled = false; button.textContent = originalLabel || '💾 Enregistrer'; }
   }
+
+  let idx = -1;
+  let previousProduct = null;
+  let productToSave;
+  let isNewProduct = false;
+
+  if (editingProductId) {
+    idx = products.findIndex(p => p.id === editingProductId);
+    if (idx === -1) {
+      console.error('[saveProduct] Produit à modifier introuvable :', editingProductId);
+      showToast('Produit introuvable.', '❌');
+      return false;
+    }
+    previousProduct = products[idx];
+    productToSave = {...previousProduct, ...data};
+    if (currentImgs.length) productToSave.imgs = currentImgs;
+  } else {
+    isNewProduct = true;
+    idx = products.length;
+    productToSave = { id: 'p' + Date.now(), ...data, imgs: currentImgs.length ? currentImgs : [] };
+  }
+
+  try {
+    // Les aperçus Base64 restent uniquement en mémoire pendant l’édition.
+    // Avant toute écriture RTDB, ils sont remplacés par des URLs HTTPS externes.
+    productToSave.imgs = await uploadProductImages(productToSave.id, productToSave.imgs);
+
+    // Écriture explicite et ciblée dans Realtime Database. L'appel await
+    // garantit que le succès n'est annoncé qu'après résolution de Firebase.
+    await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
+  } catch (firebaseError) {
+    console.error('[saveProduct] Échec de l’upload externe ou de l’écriture RTDB pour le produit ' + productToSave.id + ':', firebaseError);
+    if (isNewProduct) {
+      products.splice(idx, 0);
+    } else if (previousProduct) {
+      products[idx] = previousProduct;
+    }
+    showToast('Échec : image non hébergée ou produit non enregistré. Vérifiez la configuration de l’hébergeur et la connexion.', '❌');
+    return false;
+  }
+
+  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; if (typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(productToSave); }
+  else products[idx] = productToSave;
+
+  editingProductId = null;
+  document.getElementById('edit-banner').style.display = 'none';
+
+  // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
+  cacheSet('products', products);
+
+  resetProductForm();
+  renderAdminProducts();
+  renderAdminDashboard();
+  return true;
 }
 
 function editProduct(id) {
@@ -7439,20 +7418,34 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-async function deleteProduct(productId) {
-  const id = String(productId || '').trim();
-  if (!id) { alert('Identifiant produit invalide.'); return false; }
-  if (!confirm('Supprimer définitivement ce produit ?')) return false;
-  try {
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database est indisponible.');
-    await firebaseDb.ref('storedData/products/' + id).remove();
-    showToast('Produit supprimé.', '🗑');
-    return true;
-  } catch (error) {
-    console.error('[deleteProduct] Échec :', error);
-    alert('Suppression impossible : ' + (error.message || 'erreur Firebase.'));
-    return false;
+function deleteProduct(id) {
+  if (!confirm('Supprimer ce produit ?')) return;
+  const idx = products.findIndex(p=>p.id===id);
+  if (idx > -1) {
+    products.splice(idx, 1);
+    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      // Suppression CIBLÉE : on supprime uniquement l'entrée du produit dans son
+      // nœud d'index (storedData/products/<idx>) au lieu de réécrire tout le
+      // catalogue avec .set(products). Un set() global sur un gros catalogue
+      // (images en base64, etc.) dépasse la taille de write autorisée par
+      // Firebase et déclenche l'erreur "INTERNAL ERROR ... Write too large".
+      // remove() ne touche que ce nœud précis, donc c'est instantané et léger,
+      // quelle que soit la taille du reste du catalogue.
+      firebaseDb.ref('storedData/products/' + idx).remove()
+        .catch(e => console.warn('[Firebase] Échec suppression ciblée du produit:', e && e.message));
+    }
   }
+  // Le cache local est mis à jour dans un bloc try/catch dédié : si le
+  // localStorage est saturé (QuotaExceededError), on ne bloque jamais
+  // l'interface — le produit reste supprimé visuellement et en mémoire,
+  // seul le cache hors-ligne peut rester légèrement désynchronisé.
+  try {
+    DB.set('products', products);
+  } catch(e) {
+    console.warn('[Cache] Échec DB.set("products") après suppression (quota ?):', e && e.message);
+  }
+  renderAdminProducts(); renderAdminDashboard();
+  showToast('Produit supprimé','🗑');
 }
 
 function resetProductForm() {
@@ -8379,7 +8372,7 @@ function renderLookbook() {
     const desc  = lang === 'fr' ? (v.descFR  || '') : (v.descEN  || v.descFR  || '');
     const media = v.videoType === 'youtube'
       ? `<iframe class="lookbook-video lookbook-embed" src="${v.videoUrl}" title="${title || 'Lookbook video'}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-      : `<video class="lookbook-video" data-src="${v.videoUrl}" ${v.posterUrl ? `poster="${v.posterUrl}"` : ''} muted loop playsinline preload="metadata" controls></video>`;
+      : `<video class="lookbook-video" data-src="${v.videoUrl}" ${v.posterUrl ? `poster="${v.posterUrl}"` : ''} muted loop playsinline preload="none" controls></video>`;
     return `
       <div class="lookbook-card">
         ${media}
@@ -9534,7 +9527,7 @@ function renderQuizResults(body) {
       <div class="quiz-result-products">
         ${prods.map(p => {
           const cat = getCat(p.catId);
-          const fi  = productImageUrl(p);
+          const fi  = p.imgs?.[0];
           return `
             <div class="quiz-result-product" onclick="openProduct('${p.id}');closeModal('quiz-modal');document.body.style.overflow=''">
               <div class="quiz-result-img">
@@ -10688,6 +10681,44 @@ function editProductGo(id) {
   switchProductTab(document.querySelectorAll('.tab-btn')[1], 'add');
 }
 
+// Patch saveProduct to save engraving config
+const _origSaveProduct = saveProduct;
+saveProduct = async function() {
+  // Conserver l'identifiant avant que la fonction principale ne réinitialise
+  // editingProductId, afin de mettre à jour le bon produit en mode édition.
+  const productIdBeingEdited = editingProductId;
+  const saved = await _origSaveProduct();
+  if (!saved) return false;
+
+  const enabled = document.getElementById('p-engraving-enabled')?.checked || false;
+  const targetId = productIdBeingEdited || products[products.length - 1]?.id;
+  if (targetId) {
+    const idx = products.findIndex(p => p.id === targetId);
+    if (idx > -1) {
+      products[idx].engraving = {
+        enabled,
+        price:    parseInt(document.getElementById('p-engraving-price')?.value)||0,
+        maxChars: parseInt(document.getElementById('p-engraving-chars')?.value)||20,
+        labelFR:  document.getElementById('p-engraving-label-fr')?.value||'Votre gravure',
+        labelEN:  document.getElementById('p-engraving-label-en')?.value||'Your engraving'
+      };
+      try {
+        // Cette seconde écriture est attendue avant la confirmation finale.
+        await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+      } catch (firebaseError) {
+        console.error('[saveProduct] Échec Firebase pour la configuration de gravure :', firebaseError);
+        showToast('Échec Firebase : la configuration du produit n’a pas été enregistrée.', '❌');
+        return false;
+      }
+      // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
+      cacheSet('products', products);
+    }
+  }
+
+  showToast('Produit enregistré !');
+  return true;
+};
+
 // Patch editProduct to load engraving fields
 const _origEditProduct = editProduct;
 editProduct = function(id) {
@@ -10984,20 +11015,34 @@ function renderStockNotifAdmin() {
   }
 }
 
-async function adjustProductStock(productId) {
-  const id = String(productId || '').trim();
-  const value = parseInt(document.getElementById('stock-adj-' + id)?.value, 10);
-  if (!id || isNaN(value) || value < 0) return false;
+async function adjustProductStock(id) {
+  const val = parseInt(document.getElementById('stock-adj-'+id)?.value);
+  if (isNaN(val) || val < 0) return false;
+  const idx = products.findIndex(p => p.id === id);
+  if (idx === -1) return false;
+  const previousProducts = products;
+  const nextProducts = products.map((product, productIndex) =>
+    productIndex === idx ? {...product, stock: val} : product
+  );
   try {
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
-    await firebaseDb.ref('storedData/products/' + id).update({ stock: value, updatedAt: new Date().toISOString() });
-    showToast(`Stock mis à jour : ${value} unité(s)`, '📦');
-    return true;
+    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
+      throw new Error('Firebase Realtime Database indisponible.');
+    }
+    await firebaseDb.ref('storedData/products/' + idx).update({ stock: val });
+    products = nextProducts;
+    cacheSet('products', products);
   } catch (error) {
-    console.error('[Stock] Échec :', error);
-    alert('Stock non enregistré : ' + (error.message || 'erreur Firebase.'));
+    console.error('[Stock] Échec de synchronisation Firebase :', error);
+    products = previousProducts;
+    showToast('Stock non enregistré : erreur de synchronisation Firebase.', '❌');
     return false;
   }
+  renderStockNotifAdmin();
+  renderAdminDashboard();
+  checkStockAlerts(false);
+  renderAdminProducts();
+  showToast(`Stock mis à jour: ${val} unité(s)`, '📦');
+  return true;
 }
 
 function runStockCheck(force) {
@@ -12112,7 +12157,7 @@ function emilShowProducts(prods, title) {
     const stars = revs.length ? '★'.repeat(Math.round(revs.reduce((s,r)=>s+(r.stars||0),0)/revs.length)) : '';
     card.innerHTML = `
       <div class="emil-product-img">
-        ${productImageMarkup(p, 'emil-product-img-tag')}
+        ${fi ? `<img src="${fi}" alt="${prodName(p)}" loading="eager" fetchpriority="high" decoding="sync">` : `<span>${cat?.icon||'📦'}</span>`}
       </div>
       <div class="emil-product-info">
         ${stars ? `<div style="font-size:11px;color:var(--gold);margin-bottom:3px">${stars}</div>` : ''}
@@ -13233,42 +13278,89 @@ function sanitizeData() {
 }
 
 // ============================================================
-function notificationMessagesRef() {
-  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
-  return firebaseDb.ref('storedData/notificationMessages');
-}
-function notificationScheduleRef() {
-  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
-  return firebaseDb.ref('storedData/notificationSchedule');
-}
+/* ============================================================
+   ADMIN PUSH CENTER — Realtime Database + Render API only
+   ============================================================ */
+const EMIL_PUSH_API_ENDPOINT = '/api/notifications/product';
+const EMIL_PUSH_MESSAGES_PATH = 'storedData/adminNotificationMessages';
+
 function escPush(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function validHttpsUrl(value){try{return new URL(String(value||'')).protocol==='https:';}catch(_){return false;}}
 function resetPushNotificationForm(){
   ['push-message-id','push-message-title','push-message-url','push-message-text'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const enabled=document.getElementById('push-message-enabled');if(enabled)enabled.checked=true;
 }
+function updatePushPreview(){
+  const title=document.getElementById('push-send-title')?.value.trim()||'L’Empreinte d’Emil';
+  const body=document.getElementById('push-send-body')?.value.trim()||'Votre notification apparaîtra ici.';
+  const image=document.getElementById('push-send-image')?.value.trim()||'https://i.postimg.cc/HLdg7Tb5/logo.png';
+  const t=document.getElementById('push-preview-title'),b=document.getElementById('push-preview-body'),i=document.getElementById('push-preview-image');
+  if(t)t.textContent=title;if(b)b.textContent=body;if(i)i.src=validHttpsUrl(image)?image:'https://i.postimg.cc/HLdg7Tb5/logo.png';
+}
+function pushAdminStatus(message,error=false){const el=document.getElementById('push-send-status');if(el){el.textContent=message;el.style.color=error?'var(--danger)':'var(--muted)';}}
+async function fetchWithTimeout(url,options={},timeout=12000){
+  const controller=typeof AbortController==='function'?new AbortController():null;let timer=null;
+  try{if(controller){options={...options,signal:controller.signal};timer=setTimeout(()=>controller.abort(),timeout);}return await fetch(url,options);}
+  finally{if(timer)clearTimeout(timer);}
+}
+async function sendAdminPushNotification(){
+  const button=document.getElementById('push-send-button');
+  const title=document.getElementById('push-send-title')?.value.trim()||'L’Empreinte d’Emil';
+  const body=document.getElementById('push-send-body')?.value.trim()||'';
+  const image=document.getElementById('push-send-image')?.value.trim()||'';
+  const url=document.getElementById('push-send-url')?.value.trim()||location.origin+'/';
+  if(!body){pushAdminStatus('Le corps de la notification est requis.',true);return false;}
+  if(image&&!validHttpsUrl(image)){pushAdminStatus('Le visuel doit être une URL HTTPS valide.',true);return false;}
+  if(url&&!/^https:\/\//i.test(url)){pushAdminStatus('L’URL de destination doit être HTTPS.',true);return false;}
+  updatePushPreview();
+  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Envoi…';}
+  pushAdminStatus('Connexion sécurisée au serveur…');
+  try{
+    const response=await fetchWithTimeout(EMIL_PUSH_API_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'same-origin',body:JSON.stringify({title,body,image:image||undefined,url,source:'admin'})},12000);
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.message||result.error||`Serveur indisponible (${response.status})`);
+    pushAdminStatus('Notification envoyée avec succès. ✓');if(typeof showToast==='function')showToast('Notification Push envoyée','✅');return true;
+  }catch(error){
+    console.error('[Push API] Send failed:',error);
+    const message=error?.name==='AbortError'?'Le serveur a mis trop de temps à répondre.':(error?.message||'Échec de l’envoi.');
+    pushAdminStatus(message,true);if(typeof showToast==='function')showToast('Notification non envoyée : '+message,'❌');return false;
+  }finally{if(button){button.disabled=false;button.textContent=button.dataset.originalText||'Envoyer la notification';}}
+}
+window.sendAdminPushNotification=sendAdminPushNotification;
+
 async function loadPushNotificationMessages(){
   const list=document.getElementById('push-notification-list');if(!list)return;
   list.innerHTML='<div style="color:var(--muted);font-size:12px">Chargement…</div>';
   try{
-    const snap=await notificationMessagesRef().once('value');
-    const entries=Object.entries(snap.val()||{}).sort((a,b)=>String(b[1]?.updatedAt||'').localeCompare(String(a[1]?.updatedAt||'')));
-    if(!entries.length){list.innerHTML='<div style="color:var(--muted);font-size:12px">Aucun message enregistré.</div>';return;}
-    list.innerHTML=entries.map(([id,m])=>`<div class="review-admin-card" style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong style="color:var(--gold)">${escPush(m.title||'L’Empreinte d’Emil')}</strong><div style="font-size:13px;margin-top:6px">${escPush(m.text||'')}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">${m.enabled?'Actif':'Désactivé'}${m.url?' · '+escPush(m.url):''}</div></div><div style="display:flex;gap:7px"><button class="admin-btn admin-btn-sm" onclick="editPushNotificationMessage('${id}')">Modifier</button><button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePushNotificationMessage('${id}')">Supprimer</button></div></div>`).join('');
-  }catch(e){console.warn('[Push admin] Realtime Database indisponible',e);list.innerHTML='<div style="color:var(--danger);font-size:12px">Impossible de charger les messages.</div>';}
+    if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');
+    const snap=await firebaseDb.ref(EMIL_PUSH_MESSAGES_PATH).once('value'),raw=snap.val();
+    const messages=Array.isArray(raw)?raw.filter(Boolean):Object.values(raw||{}).filter(Boolean);
+    if(!messages.length){list.innerHTML='<div style="color:var(--muted);font-size:12px">Aucun message enregistré.</div>';return;}
+    messages.sort((a,b)=>Number(b.updatedAt||0)-Number(a.updatedAt||0));
+    list.innerHTML=messages.map(m=>`<div class="review-admin-card" style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong style="color:var(--gold)">${escPush(m.title||'L’Empreinte d’Emil')}</strong><div style="font-size:13px;margin-top:6px">${escPush(m.text||m.body||'')}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">${m.enabled!==false?'Actif':'Désactivé'}${m.url?' · '+escPush(m.url):''}</div></div><div style="display:flex;gap:7px"><button class="admin-btn admin-btn-sm" onclick="editPushNotificationMessage('${escPush(m.id)}')">Modifier</button><button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePushNotificationMessage('${escPush(m.id)}')">Supprimer</button></div></div>`).join('');
+  }catch(e){console.error('[Push admin]',e);list.innerHTML='<div style="color:var(--danger);font-size:12px">Impossible de charger les messages. Vérifiez Firebase Realtime Database.</div>';}
 }
 async function editPushNotificationMessage(id){
-  try{const snap=await notificationMessagesRef().child(String(id)).once('value');const m=snap.val()||{};document.getElementById('push-message-id').value=id;document.getElementById('push-message-title').value=m.title||'';document.getElementById('push-message-url').value=m.url||'';document.getElementById('push-message-text').value=m.text||'';document.getElementById('push-message-enabled').checked=m.enabled!==false;}
-  catch(e){showToast('Message introuvable','❌');}
+  try{
+    if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Firebase indisponible.');
+    const snap=await firebaseDb.ref(EMIL_PUSH_MESSAGES_PATH+'/'+id).once('value'),m=snap.val();if(!m)throw new Error('Message introuvable');
+    document.getElementById('push-message-id').value=id;document.getElementById('push-message-title').value=m.title||'';document.getElementById('push-message-url').value=m.url||'';document.getElementById('push-message-text').value=m.text||m.body||'';document.getElementById('push-message-enabled').checked=m.enabled!==false;
+  }catch(e){if(typeof showToast==='function')showToast('Message introuvable','❌');}
 }
 async function savePushNotificationMessage(){
-  const id=document.getElementById('push-message-id')?.value;const text=document.getElementById('push-message-text')?.value.trim();if(!text){showToast('Le texte de notification est requis','⚠️');return;}
-  const data={title:document.getElementById('push-message-title')?.value.trim()||'L’Empreinte d’Emil',text,url:document.getElementById('push-message-url')?.value.trim()||'',enabled:document.getElementById('push-message-enabled')?.checked!==false,updatedAt:new Date().toISOString()};
-  try{const ref=id?notificationMessagesRef().child(String(id)):notificationMessagesRef().push();await ref.set({...data,id:ref.key});resetPushNotificationForm();await loadPushNotificationMessages();showToast('Message enregistré','✅');}catch(e){console.warn('[Push admin] sauvegarde refusée',e);showToast('Enregistrement refusé : Firebase indisponible','❌');}
+  const id=document.getElementById('push-message-id')?.value.trim(),text=document.getElementById('push-message-text')?.value.trim();
+  if(!text){showToast('Le texte de notification est requis','⚠️');return false;}
+  try{
+    if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');
+    const message={id:id||'msg_'+Date.now(),title:document.getElementById('push-message-title')?.value.trim()||'L’Empreinte d’Emil',text,body:text,url:document.getElementById('push-message-url')?.value.trim()||'',enabled:document.getElementById('push-message-enabled')?.checked!==false,updatedAt:Date.now()};
+    await firebaseDb.ref(EMIL_PUSH_MESSAGES_PATH+'/'+message.id).set(message);
+    resetPushNotificationForm();await loadPushNotificationMessages();showToast('Message enregistré','✅');return true;
+  }catch(e){console.error('[Push admin]',e);showToast('Enregistrement refusé : Firebase Realtime Database indisponible.','❌');return false;}
 }
-async function deletePushNotificationMessage(id){if(!confirm('Supprimer ce message ?'))return;try{await notificationMessagesRef().child(String(id)).remove();await loadPushNotificationMessages();showToast('Message supprimé','✅');}catch(e){showToast('Suppression refusée','❌');}}
-async function savePushScheduleConfig(){
-  const data={noon:{title:document.getElementById('push-noon-title')?.value.trim()||'Inspiration Senteur du jour 🌿',body:document.getElementById('push-noon-body')?.value.trim()||'Trouvez le parfum qui correspond à votre style.'},evening:{title:document.getElementById('push-evening-title')?.value.trim()||'Sélection Exclusive 💎',body:document.getElementById('push-evening-body')?.value.trim()||'Vos articles favoris vous attendent.'},updatedAt:new Date().toISOString()};
-  try{await notificationScheduleRef().set(data);const status=document.getElementById('push-schedule-status');if(status)status.textContent='Relances enregistrées dans Realtime Database.';showToast('Relances enregistrées','✅');}catch(e){showToast('Relances non enregistrées : Firebase indisponible','❌');}
+async function deletePushNotificationMessage(id){
+  if(!confirm('Supprimer ce message ?'))return false;
+  try{if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Firebase indisponible.');await firebaseDb.ref(EMIL_PUSH_MESSAGES_PATH+'/'+id).remove();await loadPushNotificationMessages();showToast('Message supprimé','✅');return true;}
+  catch(e){showToast('Suppression refusée','❌');return false;}
 }
 
 function getProductImageUrls(productList) {
@@ -13282,7 +13374,7 @@ function getProductImageUrls(productList) {
 function preloadProductImages(productList) {
   const cache = window.__LUXE_IMAGE_PRELOADS__ || (window.__LUXE_IMAGE_PRELOADS__ = new Map());
   const urls = getProductImageUrls(productList);
-  return Promise.allSettled(urls.map(src => {
+  return Promise.all(urls.map(src => {
     if (cache.has(src)) return cache.get(src);
     const promise = new Promise(resolve => {
       const img = new Image();
@@ -13330,9 +13422,7 @@ function renderAll() {
     if (typeof window.__markLuxeReady === 'function' && (validProducts.length || isInitialPullComplete)) {
       window.__markLuxeReady('products');
     }
-    try { await preloadProductImages(validProducts); } catch (error) {
-      console.warn('[Images] Préchargement ignoré pour certaines ressources :', error);
-    }
+    await preloadProductImages(validProducts);
     requestAnimationFrame(() => {
       if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('images');
       if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
@@ -13510,6 +13600,16 @@ function injectProductReview(productId) { const body = document.getElementById('
 })();
 
 
+window.addEventListener('load', () => setTimeout(() => {
+  const originalSaveProduct = window.saveProduct;
+  if (typeof originalSaveProduct !== 'function') return;
+  window.saveProduct = async function() {
+    const wasNew = window.isNewProduct !== false;
+    const result = await originalSaveProduct.apply(this, arguments);
+    if (wasNew && result !== false && window.__lastSavedProductId) { const product = Array.isArray(window.products) ? window.products.find(p => String(p.id) === String(window.__lastSavedProductId)) : null; if (typeof window.emilNotifyProduct === 'function') window.emilNotifyProduct(product); }
+    return result;
+  };
+}, 900));
 
 
 /* FINAL SPECIFICATIONS OVERRIDE — single-file deployment */
@@ -13701,6 +13801,11 @@ function injectProductReview(productId) { const body = document.getElementById('
     host.appendChild(root);
   }
   window.addEventListener('load',()=>{setTimeout(()=>{handleNotchPayReturn();installLuxuryReviewUpload();renderLiveAdminOps();renderAdminDetails();renderAdminDetailedViews();if('Notification' in window&&Notification.permission==='default')enableSmartPush();else if('Notification' in window&&Notification.permission==='granted')scheduleLocalNotifications();},900);});
+  try{
+    ['push-send-title','push-send-body','push-send-image'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',updatePushPreview,{passive:true});});
+    updatePushPreview();
+  }catch(e){console.warn('[Push preview] setup skipped:',e);}
+
   function bindPaymentScopeButtons(){ document.querySelectorAll('[data-payment-scope]').forEach(button=>{ if(button.dataset.clickBound) return; button.dataset.clickBound='1'; button.addEventListener('click',()=>updatePaymentScope(button.dataset.paymentScope)); }); }
   const _openCheckoutFinal=openCheckout; openCheckout=function(){_openCheckoutFinal(); setTimeout(()=>{bindPaymentScopeButtons(); const i=q('#promo-code'); if(i&&!i.dataset.bound){i.dataset.bound='1'; i.addEventListener('input',renderCheckoutPromo); i.addEventListener('blur',()=>{i.value=normalizePromoCode(i.value);renderCheckoutPromo();});} const country=q('#c-phone-country'); if(country&&!country.dataset.scopeBound){country.dataset.scopeBound='1'; country.addEventListener('change',syncPaymentScopeFromCountry);} updatePaymentScope('local'); bindCardNumberUX();},0);};
   document.addEventListener('click',e=>{if(e.target.closest('#admin-panel'))setTimeout(()=>{renderLiveAdminOps();renderOtpPromosAdmin();},250);});
@@ -13716,66 +13821,8 @@ function injectProductReview(productId) { const body = document.getElementById('
   const SEEN_KEY='emil:seen-product-events';
   const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('emil-shop-events'):null;
   const safeJson=(value,fallback)=>{try{return JSON.parse(value)}catch(_){return fallback}};
-  const safeStorage=(name)=>{try{const store=window[name];const probe='__emil_storage_probe__';store.setItem(probe,'1');store.removeItem(probe);return store}catch(error){console.warn('[Storage] '+name+' bloqué, état temporaire utilisé.',error);const memory={};return {getItem:k=>Object.prototype.hasOwnProperty.call(memory,k)?memory[k]:null,setItem:(k,v)=>{memory[k]=String(v)},removeItem:k=>{delete memory[k]}}}};
-  const localSafe=safeStorage('localStorage');
-  const sessionSafe=safeStorage('sessionStorage');
   const productTitle=p=>String(p?.nameFR||p?.name||p?.nameEN||'Nouvelle pièce');
   const productImage=p=>p?.imgs?.[0]||p?.image||p?.img||'https://i.postimg.cc/HLdg7Tb5/logo.png';
-  window.ONESIGNAL_CONFIG = window.ONESIGNAL_CONFIG || ONESIGNAL_CONFIG;
-  const oneSignalConfig = window.ONESIGNAL_CONFIG;
-  async function postOneSignal(endpoint, payload) {
-    if (!endpoint || location.protocol === 'file:') return { ok:false, skipped:true };
-    try {
-      const response = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body:JSON.stringify(payload) });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.message || result.error || 'Le serveur OneSignal a refusé la requête.');
-      return result;
-    } catch (error) {
-      console.warn('[OneSignal] API indisponible, site poursuivi normalement.', error);
-      return { ok:false, skipped:true, error:error?.message||'API indisponible' };
-    }
-  }
-  window.sendAdminOneSignalNotification = async function() {
-    const button = document.getElementById('center-push-send');
-    const status = document.getElementById('center-push-status');
-    if (button) { button.disabled = true; button.textContent = 'Envoi en cours…'; }
-    if (status) status.textContent = '';
-    try {
-      const title = document.getElementById('center-push-title')?.value.trim();
-      const body = document.getElementById('center-push-body')?.value.trim();
-      const image = document.getElementById('center-push-image')?.value.trim() || '';
-      const productId = document.getElementById('center-push-product-id')?.value.trim() || '';
-      const url = document.getElementById('center-push-url')?.value.trim() || oneSignalConfig.shopUrl;
-      if (!title || !body) throw new Error('Le titre et le message sont obligatoires.');
-      const result = await postOneSignal(oneSignalConfig.productNotificationEndpoint, { title, body, image, productId, url });
-      if (result.skipped) { if (status) status.textContent = 'Envoi ignoré : fichier local ou serveur indisponible.'; return false; }
-      if (status) status.textContent = 'Notification acceptée par le serveur.';
-      show('Notification envoyée via OneSignal.', '✅');
-    } catch (error) {
-      if (status) status.textContent = error.message || 'Échec de l’envoi.';
-      alert('Notification non envoyée : ' + (error.message || 'erreur serveur.'));
-    } finally {
-      if (button) { button.disabled = false; button.textContent = 'Envoyer via OneSignal'; }
-    }
-  };
-  window.emilSendOneSignalProduct = async function(product) {
-    if (!product || !product.id) return false;
-    const name = productTitle(product), image = productImage(product);
-    try {
-      const result = await postOneSignal(oneSignalConfig.productNotificationEndpoint, {
-        appId: oneSignalConfig.appId,
-        title: 'Nouveauté exclusive disponible ! ✨',
-        body: 'Découvrez ' + name + ' disponible dès maintenant sur L’Empreinte d’Emil.',
-        image,
-        productId: String(product.id),
-        url: oneSignalConfig.shopUrl + '#product-' + encodeURIComponent(product.id)
-      });
-      return !result.skipped;
-    } catch (error) {
-      console.warn('[OneSignal] notification produit non envoyée:', error.message);
-      return false;
-    }
-  };
   const show=(message,icon='✦')=>{if(typeof window.showToast==='function')window.showToast(message,icon);};
   function browserNotice(title,body,image,tag){
     if(!('Notification' in window)||Notification.permission!=='granted')return false;
@@ -13784,17 +13831,16 @@ function injectProductReview(productId) { const body = document.getElementById('
   function eventId(p){return String(p?.id||'')+'|'+String(p?.updatedAt||p?.createdAt||'');}
   function announceProduct(p,remote){
     if(!p||!p.id)return;
-    const id=eventId(p),seen=safeJson(localSafe.getItem(SEEN_KEY)||'[]',[]);
+    const id=eventId(p),seen=safeJson(localStorage.getItem(SEEN_KEY)||'[]',[]);
     if(seen.includes(id))return;
-    seen.push(id);localSafe.setItem(SEEN_KEY,JSON.stringify(seen.slice(-30)));
+    seen.push(id);localStorage.setItem(SEEN_KEY,JSON.stringify(seen.slice(-30)));
     const title=productTitle(p),body='L’Empreinte d’Emil : Nouveau produit disponible ! Venez découvrir '+title+'.';
     show(title+' est maintenant disponible.','✦');
     browserNotice('L’Empreinte d’Emil',body,productImage(p),'emil-product-'+p.id);
   }
   window.emilPublishNewProduct=function(product){
-    window.emilSendOneSignalProduct(product);
     const event={type:'new-product',product,at:Date.now()};
-    try{localSafe.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
+    try{localStorage.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
     if(channel)try{channel.postMessage(event)}catch(_){ }
     announceProduct(product,false);
   };
@@ -13803,49 +13849,60 @@ function injectProductReview(productId) { const body = document.getElementById('
   window.addEventListener('storage',e=>{if(e.key===PRODUCT_EVENT_KEY&&e.newValue)onEvent(safeJson(e.newValue,null))});
 
   function cartCount(){return Array.isArray(window.cart)?window.cart.reduce((sum,item)=>sum+Math.max(0,Number(item?.qty)||0),0):0}
-  function markCart(){const count=cartCount();if(count){localSafe.setItem(CART_MARK_KEY,JSON.stringify({count,at:Date.now()}))}else{localSafe.removeItem(CART_MARK_KEY)}}
+  function markCart(){const count=cartCount();if(count){localStorage.setItem(CART_MARK_KEY,JSON.stringify({count,at:Date.now()}))}else{localStorage.removeItem(CART_MARK_KEY)}}
   function remindCart(){
-    const data=safeJson(localSafe.getItem(CART_MARK_KEY)||'null',null);if(!data||!data.count)return;
+    const data=safeJson(localStorage.getItem(CART_MARK_KEY)||'null',null);if(!data||!data.count)return;
     const age=Date.now()-Number(data.at||0),day=86400000;
     if(age<45*60*1000||age>7*day)return;
-    const key='emil:cart-reminded:'+new Date().toISOString().slice(0,10);if(localSafe.getItem(key))return;
-    localSafe.setItem(key,'1');show('Votre sélection vous attend dans le panier.','🛍');
+    const key='emil:cart-reminded:'+new Date().toISOString().slice(0,10);if(localStorage.getItem(key))return;
+    localStorage.setItem(key,'1');show('Votre sélection vous attend dans le panier.','🛍');
     browserNotice('Votre sélection vous attend','Finalisez votre commande quand vous êtes prêt(e).','https://i.postimg.cc/HLdg7Tb5/logo.png','emil-cart-reminder');
   }
   function peakCollectionReminder(){
     const h=new Date().getHours();if(![12,18,20].includes(h))return;
-    const key='emil:collection-reminder:'+new Date().toISOString().slice(0,13);if(localSafe.getItem(key))return;
-    localSafe.setItem(key,'1');show('Découvrez nos pièces signature.','✦');
+    const key='emil:collection-reminder:'+new Date().toISOString().slice(0,13);if(localStorage.getItem(key))return;
+    localStorage.setItem(key,'1');show('Découvrez nos pièces signature.','✦');
   }
   function wire(){
-    if(typeof window.saveCart==='function'&&!window.saveCart.__emilWrapped){
-      const original=window.saveCart;
-      const wrapped=function(){const result=original.apply(this,arguments);markCart();return result};
-      wrapped.__emilWrapped=true;window.saveCart=wrapped;
-    }
-    markCart();remindCart();peakCollectionReminder();
-    setInterval(()=>{markCart();remindCart();peakCollectionReminder()},5*60*1000);
+    try{
+      if(typeof window.saveCart==='function'&&!window.saveCart.__emilWrapped){
+        const original=window.saveCart;
+        const wrapped=function(){let result;try{result=original.apply(this,arguments)}catch(e){console.warn('[Cart] saveCart failed:',e)}try{markCart()}catch(e){}return result};
+        wrapped.__emilWrapped=true;window.saveCart=wrapped;
+      }
+    }catch(e){console.warn('[Cart] wrapper skipped:',e);}
+    try{markCart()}catch(e){}try{remindCart()}catch(e){}try{peakCollectionReminder()}catch(e){}
+    setInterval(()=>{try{markCart()}catch(e){}try{remindCart()}catch(e){}try{peakCollectionReminder()}catch(e){}},5*60*1000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(wire,100));else setTimeout(wire,100);
-  // Service Worker OneSignal désactivé par défaut : aucun appel /sw.js ne part automatiquement.
-  // L’activation est opt-in et protégée, afin qu’un 404 ne puisse jamais toucher le site principal.
-  window.registerOptionalServiceWorker = function(){
-    try {
-      if (!window.__EMIL_ENABLE_SW__ || !window.isSecureContext || !('serviceWorker' in navigator)) return Promise.resolve(null);
-      return navigator.serviceWorker.register('/sw.js').catch(function(){ return null; });
-    } catch (error) {
-      console.warn('[Service Worker] désactivé sans impact sur la boutique.', error);
-      return Promise.resolve(null);
-    }
-  };
+  // Optional enhancement: use a deployed same-origin Service Worker when one exists.
+  if('serviceWorker' in navigator&&window.isSecureContext){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 })();
 </script>
 <!-- EMIL FINAL RELIABILITY PATCH: one source of truth for startup and reviews -->
 <style>
 #luxe-splash.fade-out{pointer-events:none}
+#luxe-splash.splash-disabled,
+#luxe-splash.fade-out{
+  display:none !important;
+  visibility:hidden !important;
+  opacity:0 !important;
+  pointer-events:none !important;
+  z-index:-1 !important;
+}
+
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
 .review-photo{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:6px;margin:0 0 12px;border:1px solid rgba(201,168,76,.18)}
 .emil-review-image-field{margin:0 0 14px}.emil-review-image-field input{width:100%}
+.emil-push-preview-wrap{margin-top:16px;padding:14px;background:var(--dark-2);border:1px solid rgba(201,168,76,.12);border-radius:8px}
+.emil-push-preview-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.emil-phone-preview{max-width:360px;margin:auto;border:1px solid rgba(245,240,232,.12);border-radius:22px;padding:14px;background:#111;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.emil-phone-preview-head{text-align:center;font-size:10px;color:var(--muted);margin-bottom:12px}
+.emil-phone-notification{display:flex;gap:10px;align-items:flex-start;background:#202020;border:1px solid rgba(245,240,232,.08);border-radius:12px;padding:12px}
+.emil-phone-notification img{width:38px;height:38px;border-radius:9px;object-fit:cover;background:#2a2a2a;flex-shrink:0}
+.emil-phone-notification strong{display:block;font-size:12px;color:var(--light);margin-bottom:3px}
+.emil-phone-notification p{margin:0;font-size:11px;line-height:1.4;color:var(--muted);word-break:break-word}
+
 </style>
 <script>
 (function(){'use strict';
@@ -13918,64 +13975,59 @@ function injectProductReview(productId) { const body = document.getElementById('
   window.renderProductReviews=async function(productId,target){const list=allReviews().filter(r=>isApproved(r)&&r.productId===productId);if(target)target.innerHTML=list.length?list.map(publicCard).join(''):'<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'};
 
   async function criticalStartup(){
-    const ready=window.__SPLASH_READY_STATE__||{products:false,images:false,reviews:false};
-    const mark=k=>{if(typeof window.__markLuxeReady==='function')window.__markLuxeReady(k);else ready[k]=true};
+    const mark=k=>{try{if(typeof window.__markLuxeReady==='function')window.__markLuxeReady(k);}catch(e){}};
     try{
-      if(typeof initFirebase==='function')initFirebase();
-      if(typeof firebaseDb==='undefined'||!firebaseDb){mark('products');mark('images');mark('reviews');return}
-      const [productsSnap,reviewsSnap]=await Promise.all([firebaseDb.ref('storedData/products').once('value'),firebaseDb.ref('storedData/reviews').once('value')]);
-      const remoteProducts=rows(productsSnap.val()).filter(p=>p&&p.id);
-      const remoteReviews=normalise(reviewsSnap.val());
-      if(typeof products!=='undefined')products=remoteProducts;
-      window.reviews=remoteReviews;window.pendingReviews=remoteReviews.filter(isPending);
-      if(typeof reviews!=='undefined')reviews=remoteReviews;
-      if(typeof pendingReviews!=='undefined')pendingReviews=remoteReviews.filter(isPending);
-      if(typeof saveLocal==='function')saveLocal();
-      if(typeof renderAll==='function')renderAll(); else renderPublicReviews();
+      if(typeof initFirebase==='function'){try{initFirebase();}catch(e){console.warn('[Startup] Firebase init failed:',e);}}
+      if(typeof firebaseDb==='undefined'||!firebaseDb){mark('products');mark('images');mark('reviews');return;}
+
+      let remoteProducts=[];
+      try{
+        const snap=await Promise.race([
+          firebaseDb.ref('storedData/products').once('value'),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Product query timeout')),3000))
+        ]);
+        remoteProducts=rows(snap.val()).filter(p=>p&&p.id).map(p=>{
+          const fallbackImage=[p.image,p.img,p.imgUrl,p.imageUrl]
+            .find(v=>typeof v==='string'&&/^https:\/\//i.test(v));
+          return {...p,imgs:Array.isArray(p.imgs)&&p.imgs.length?p.imgs:(fallbackImage?[fallbackImage]:[])};
+        });
+      }catch(e){console.warn('[Startup] Remote product fetch failed; keeping local catalogue:',e);}
+
+      if(remoteProducts.length){
+        if(typeof products!=='undefined')products=remoteProducts;
+        try{if(typeof saveLocal==='function')saveLocal();}catch(e){console.warn('[Startup] Local cache update skipped:',e);}
+        try{if(typeof renderAll==='function')renderAll();else if(typeof renderHomeReviews==='function')renderHomeReviews();}catch(e){console.error('[Startup] Product render failed:',e);}
+      }
+
+      /* Unlock immediately after the product DOM render. */
       mark('products');
-      if(typeof preloadProductImages==='function')await preloadProductImages(remoteProducts); else await Promise.all([]);
-      mark('images');renderPublicReviews();mark('reviews');
-    }catch(error){console.error('[Startup] critical Firebase preload failed:',error);mark('products');mark('images');mark('reviews')}
+
+      /* Reviews and images are background enhancements. */
+      setTimeout(async()=>{
+        try{
+          const snap=await Promise.race([
+            firebaseDb.ref('storedData/reviews').once('value'),
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Review query timeout')),3000))
+          ]);
+          const remoteReviews=normalise(snap.val());
+          if(typeof reviews!=='undefined')reviews=remoteReviews;
+          window.reviews=remoteReviews;window.pendingReviews=remoteReviews.filter(isPending);
+          try{if(typeof renderPublicReviews==='function')renderPublicReviews();}catch(e){}
+        }catch(e){console.warn('[Startup] Reviews background load failed:',e);}
+        mark('reviews');
+      },0);
+
+      setTimeout(async()=>{
+        try{if(typeof preloadProductImages==='function')await preloadProductImages(Array.isArray(products)?products:[]);}
+        catch(e){console.warn('[Startup] Image preload skipped:',e);}
+        mark('images');
+      },0);
+    }catch(error){console.error('[Startup] Critical startup guard failed:',error);mark('products');mark('images');mark('reviews');}
   }
-  function finishSplashWhenReady(){
-    const splash=$('#luxe-splash'); if(!splash)return;
-    const started=Number(window.__LUXE_SPLASH_STARTED_AT__||performance.now());
-    const remaining=Math.max(0,2500-(performance.now()-started));
-    setTimeout(()=>{ if(typeof window.closeLuxeSplash==='function') window.closeLuxeSplash(); }, remaining);
-  }
-  function init(){
-    ensureReviewFields();
-    Promise.resolve().then(()=>criticalStartup()).catch(error=>{
-      console.warn('[Startup] Firebase indisponible, affichage de secours activé :', error);
-    }).finally(finishSplashWhenReady);
-  }
+  function finishSplashWhenReady(){try{if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash();}catch(e){console.warn('[Startup] Splash close failed:',e);}}
+  function init(){ensureReviewFields();criticalStartup().finally(finishSplashWhenReady)}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-})();
-</script>
-<script id="emil-nonblocking-videos">
-(function(){
-  'use strict';
-  function hardenVideos(){
-    try {
-      document.querySelectorAll('video').forEach(function(video){
-        if (!video.hasAttribute('preload') || video.getAttribute('preload') === 'none') video.setAttribute('preload','metadata');
-        video.setAttribute('playsinline','');
-        video.addEventListener('error', function(){
-          video.dataset.loadError='1';
-          video.pause();
-          // Une vidéo défaillante ne doit jamais bloquer le rendu ni remonter comme exception.
-        }, {once:true});
-        video.addEventListener('stalled', function(){
-          video.dataset.stalled='1';
-        }, {once:true});
-      });
-    } catch (error) {
-      console.warn('[Video] Ressource vidéo ignorée :', error);
-    }
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hardenVideos,{once:true});
-  else hardenVideos();
-  window.addEventListener('load',hardenVideos,{once:true});
+  try{window.OneSignalDeferred=window.OneSignalDeferred||[];if(location.protocol==='https:'&&location.hostname!=='localhost'&&!window.__EMIL_ONESIGNAL_INIT__){window.__EMIL_ONESIGNAL_INIT__=true;window.OneSignalDeferred.push(async function(OneSignal){try{await OneSignal.init({appId:'cccbad22-afa2-422e-965e-f678ae3314b8',notifyButton:{enable:false}});}catch(e){console.warn('[OneSignal] initialization skipped:',e);}});}}catch(e){console.warn('[OneSignal] guard failed:',e);}
 })();
 </script>
 </body>
