@@ -2187,17 +2187,72 @@ img,svg,video,iframe{max-width:100%}
 <!-- OneSignal Web SDK v16 -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script id="onesignal-v16-init">
+  /*
+   * OneSignal Web SDK v16
+   * - exactly one init
+   * - explicit service worker path
+   * - automatic subscription prompt for first-time visitors
+   * - exposes the current browser Subscription ID for diagnostics/testing
+   */
   window.OneSignalDeferred = window.OneSignalDeferred || [];
-  try {
-    if (location.protocol === 'https:' && location.hostname !== 'localhost') {
-      OneSignalDeferred.push(async function(OneSignal) {
-        if (window.__EMIL_ONESIGNAL_INIT__) return;
-        window.__EMIL_ONESIGNAL_INIT__ = true;
-        try { await OneSignal.init({appId:"cccbad22-afa2-422e-965e-f678ae3314b8"}); }
-        catch (e) { console.warn('[OneSignal] initialization skipped:', e); }
+  OneSignalDeferred.push(async function(OneSignal) {
+    if (location.protocol !== 'https:' || location.hostname === 'localhost') return;
+    if (window.__EMIL_ONESIGNAL_INIT__) return;
+    window.__EMIL_ONESIGNAL_INIT__ = true;
+
+    try {
+      await OneSignal.init({
+        appId: 'cccbad22-afa2-422e-965e-f678ae3314b8',
+        serviceWorkerPath: 'OneSignalSDKWorker.js',
+        serviceWorkerParam: { scope: '/' },
+        autoResubscribe: true,
+        promptOptions: {
+          slidedown: {
+            prompts: [{
+              type: 'push',
+              autoPrompt: true,
+              delay: { pageViews: 1, timeDelay: 3 },
+              text: {
+                actionMessage: 'Recevez nos nouveautés, offres et avantages exclusifs.',
+                acceptButton: 'Autoriser',
+                cancelButton: 'Plus tard'
+              }
+            }]
+          }
+        }
       });
+
+      window.__EMIL_ONESIGNAL_INSTANCE__ = OneSignal;
+
+      const updateSubscriptionId = function() {
+        try {
+          window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__ =
+            OneSignal.User?.PushSubscription?.id || null;
+          window.__EMIL_ONESIGNAL_SUBSCRIBED__ =
+            !!OneSignal.User?.PushSubscription?.optedIn;
+          console.info('[OneSignal] Push subscription:', {
+            id: window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__,
+            subscribed: window.__EMIL_ONESIGNAL_SUBSCRIBED__
+          });
+        } catch (e) {
+          console.warn('[OneSignal] Subscription state unavailable:', e);
+        }
+      };
+
+      updateSubscriptionId();
+
+      try {
+        OneSignal.User.PushSubscription.addEventListener(
+          'change',
+          updateSubscriptionId
+        );
+      } catch (e) {
+        console.warn('[OneSignal] Subscription listener unavailable:', e);
+      }
+    } catch (e) {
+      console.warn('[OneSignal] initialization failed:', e);
     }
-  } catch (e) { console.warn('[OneSignal] setup skipped:', e); }
+  });
 </script>
 </head>
 <body>
@@ -2215,8 +2270,12 @@ img,svg,video,iframe{max-width:100%}
   /* EMIL STARTUP GUARD — the splash can NEVER block the UI */
   (function () {
     'use strict';
-    const ready = window.__SPLASH_READY_STATE__ = { products:false, images:false, reviews:false };
+    // The splash is released only when the animation has finished AND the
+    // initial visible UI has been rendered with its critical images decoded.
+    // This prevents the "blank/late paint" effect after the animation.
+    const ready = window.__SPLASH_READY_STATE__ = { products:false, images:false, reviews:false, animation:false };
     window.__LUXE_SPLASH_STARTED_AT__ = performance.now();
+    window.__LUXE_SPLASH_ANIMATION_MS__ = 2300;
 
     function hardDisableSplash() {
       const splash = document.getElementById('luxe-splash');
@@ -2240,13 +2299,30 @@ img,svg,video,iframe{max-width:100%}
     };
     window.closeSplash = window.closeLuxeSplash;
 
-    window.__markLuxeReady = function (part) {
-      if (Object.prototype.hasOwnProperty.call(ready, part)) ready[part] = true;
-      /* Products being rendered is the critical condition. */
-      if (part === 'products' && typeof window.closeLuxeSplash === 'function') {
-        window.closeLuxeSplash();
+    window.__maybeCloseLuxeSplash = function () {
+      try {
+        // If there are no product images, products=true + images=true is still
+        // valid. Otherwise we wait until the initial images are decoded.
+        if (ready.animation && ready.products && ready.images) {
+          window.closeLuxeSplash();
+        }
+      } catch (e) {
+        console.warn('[Startup] Splash readiness check failed:', e);
       }
     };
+
+    window.__markLuxeReady = function (part) {
+      if (Object.prototype.hasOwnProperty.call(ready, part)) ready[part] = true;
+      window.__maybeCloseLuxeSplash();
+    };
+
+    // The visible splash animation is 1.15s x 2 = 2.3s. We do not close it
+    // before that point. If data/images need a little longer, the splash stays
+    // up until they are ready. The separate 4s guard is the absolute fallback.
+    setTimeout(() => {
+      ready.animation = true;
+      window.__maybeCloseLuxeSplash();
+    }, window.__LUXE_SPLASH_ANIMATION_MS__);
 
     /* Absolute maximum: 4 seconds, regardless of Firebase/network/image state. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
@@ -3762,7 +3838,7 @@ Action: Immediate restocking required.</textarea></div>
   <!-- HOME -->
   <div class="page active" id="page-home">
     <section id="hero">
-      <video id="hero-video-bg" autoplay muted loop playsinline style="display:none"></video>
+      <video id="hero-video-bg" autoplay muted loop playsinline preload="none" style="display:none"></video>
       <div class="hero-bg"></div><div class="hero-grid"></div>
       <div class="container hero-content">
         <div class="hero-eyebrow" data-i18n="hero_eyebrow">Douala, Cameroun</div>
@@ -10352,11 +10428,28 @@ function applyHeroVideo() {
   const opacity = FT.get('hero-video-opacity')||0.18;
   if (!video) return;
   if (enabled && url) {
-    video.src = url;
+    video.preload = 'none';
     video.style.opacity = opacity;
     video.style.display = 'block';
+    // Do not make the MP4 part of the first-paint critical path.
+    // It starts only after the initial UI has been painted.
+    const startVideo=()=>{
+      try{
+        if(video.getAttribute('data-src')!==url){
+          video.setAttribute('data-src',url);
+          video.src=url;
+          video.load();
+        }
+        video.muted=true;video.loop=true;video.autoplay=true;video.playsInline=true;
+        video.play().catch(()=>{});
+      }catch(e){}
+    };
+    if(typeof requestIdleCallback==='function')requestIdleCallback(startVideo,{timeout:1500});
+    else setTimeout(startVideo,700);
   } else {
     video.style.display = 'none';
+    video.removeAttribute('src');
+    video.removeAttribute('data-src');
   }
 }
 
@@ -13309,22 +13402,124 @@ async function sendAdminPushNotification(){
   const body=document.getElementById('push-send-body')?.value.trim()||'';
   const image=document.getElementById('push-send-image')?.value.trim()||'';
   const url=document.getElementById('push-send-url')?.value.trim()||location.origin+'/';
+
   if(!body){pushAdminStatus('Le corps de la notification est requis.',true);return false;}
   if(image&&!validHttpsUrl(image)){pushAdminStatus('Le visuel doit être une URL HTTPS valide.',true);return false;}
   if(url&&!/^https:\/\//i.test(url)){pushAdminStatus('L’URL de destination doit être HTTPS.',true);return false;}
+
   updatePushPreview();
   if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Envoi…';}
   pushAdminStatus('Connexion sécurisée au serveur…');
+
   try{
-    const response=await fetchWithTimeout(EMIL_PUSH_API_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},credentials:'same-origin',body:JSON.stringify({title,body,image:image||undefined,url,source:'admin'})},12000);
+    const subscriptionId=window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__||'';
+    const payload={
+      title,
+      body,
+      image:image||undefined,
+      url,
+      source:'admin'
+    };
+
+    // When this browser is subscribed, target it directly for a deterministic
+    // admin test. Otherwise the server targets all subscribed users.
+    if(subscriptionId) payload.subscriptionId=subscriptionId;
+
+    const response=await fetchWithTimeout(
+      EMIL_PUSH_API_ENDPOINT,
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        credentials:'same-origin',
+        body:JSON.stringify(payload)
+      },
+      15000
+    );
+
     const result=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(result.message||result.error||`Serveur indisponible (${response.status})`);
-    pushAdminStatus('Notification envoyée avec succès. ✓');if(typeof showToast==='function')showToast('Notification Push envoyée','✅');return true;
+    if(!response.ok){
+      throw new Error(result.error||result.message||`Serveur indisponible (${response.status})`);
+    }
+
+    const messageId=result?.data?.id;
+    if(!messageId){
+      throw new Error('OneSignal n’a créé aucun message. Vérifiez qu’un abonnement Push est actif.');
+    }
+
+    pushAdminStatus('Notification acceptée par OneSignal. Vérification de livraison…');
+
+    // Delivery statistics are eventually consistent. Poll briefly so the
+    // admin UI does not claim success before OneSignal has processed the message.
+    let lastStatus=null;
+    for(let attempt=0;attempt<5;attempt++){
+      await new Promise(resolve=>setTimeout(resolve,1500));
+      try{
+        const statusResponse=await fetchWithTimeout(
+          `/api/notifications/status/${encodeURIComponent(messageId)}`,
+          {headers:{'Accept':'application/json'},credentials:'same-origin'},
+          8000
+        );
+        const statusResult=await statusResponse.json().catch(()=>({}));
+        if(statusResponse.ok&&statusResult?.status){
+          lastStatus=statusResult.status;
+          const successful=Number(lastStatus.successful||0);
+          const received=Number(lastStatus.received||0);
+          const failed=Number(lastStatus.failed||0);
+          const errored=Number(lastStatus.errored||0);
+          const remaining=lastStatus.remaining;
+
+          if(received>0){
+            pushAdminStatus(`Notification reçue ✓ — ${received} appareil(s) confirmé(s).`);
+            if(typeof showToast==='function')showToast('Notification reçue avec succès','✅');
+            return true;
+          }
+
+          if(successful>0){
+            pushAdminStatus(`Notification envoyée ✓ — ${successful} livraison(s) acceptée(s), confirmation en attente.`);
+          }else if(failed>0||errored>0){
+            pushAdminStatus(`Échec de livraison : ${failed} échouée(s), ${errored} erreur(s).`,true);
+            if(typeof showToast==='function')showToast('Échec de livraison Push','❌');
+            return false;
+          }else if(remaining===0){
+            pushAdminStatus('OneSignal n’a trouvé aucun abonnement Push actif.',true);
+            if(typeof showToast==='function')showToast('Aucun abonnement Push actif','⚠️');
+            return false;
+          }else{
+            pushAdminStatus('OneSignal traite encore la notification…');
+          }
+        }
+      }catch(statusError){
+        console.warn('[Push API] Delivery status check failed:',statusError);
+      }
+    }
+
+    if(lastStatus){
+      const successful=Number(lastStatus.successful||0);
+      pushAdminStatus(
+        successful>0
+          ? `Notification envoyée ✓ — ${successful} livraison(s) acceptée(s).`
+          : 'Notification créée par OneSignal, mais la confirmation de réception est encore en attente.'
+      );
+    }else{
+      pushAdminStatus('Notification créée par OneSignal. Consultez le statut dans OneSignal.',false);
+    }
+
+    if(typeof showToast==='function')showToast('Notification Push envoyée','✅');
+    return true;
   }catch(error){
     console.error('[Push API] Send failed:',error);
-    const message=error?.name==='AbortError'?'Le serveur a mis trop de temps à répondre.':(error?.message||'Échec de l’envoi.');
-    pushAdminStatus(message,true);if(typeof showToast==='function')showToast('Notification non envoyée : '+message,'❌');return false;
-  }finally{if(button){button.disabled=false;button.textContent=button.dataset.originalText||'Envoyer la notification';}}
+    const message=error?.name==='AbortError'
+      ? 'Le serveur a mis trop de temps à répondre.'
+      : (error?.message||'Échec de l’envoi.');
+    pushAdminStatus(message,true);
+    if(typeof showToast==='function')showToast('Notification non envoyée : '+message,'❌');
+    return false;
+  }finally{
+    if(button){
+      button.disabled=false;
+      button.textContent=button.dataset.originalText||'Envoyer la notification';
+    }
+  }
 }
 window.sendAdminPushNotification=sendAdminPushNotification;
 
@@ -13416,18 +13611,11 @@ function renderAll() {
     console.error('[Render] renderAll failed', e);
   }
 
-  // ── PRÉCHARGEMENT DU CATALOGUE AVANT LA FIN DU SPLASH ──
-  (async function() {
-    const validProducts = getValidProducts();
-    if (typeof window.__markLuxeReady === 'function' && (validProducts.length || isInitialPullComplete)) {
-      window.__markLuxeReady('products');
-    }
-    await preloadProductImages(validProducts);
-    requestAnimationFrame(() => {
-      if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('images');
-      if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
-    });
-  })();
+  // Do not start a second full-catalogue preload from renderAll(). Startup has
+  // one coordinator that decides exactly which first-paint assets are critical.
+  // Keeping this here would otherwise compete with the critical requests and
+  // could recreate the short blank/loading gap we are eliminating.
+
 }
 
 
@@ -13770,8 +13958,50 @@ window.addEventListener('load', () => setTimeout(() => {
   function notifyLocal(kind='idle', product){ if(!('Notification' in window)||Notification.permission!=='granted') return; const title='L’Empreinte d’Emil'; const body=product?`${product.name||'Nouveauté'} — découvrez-la maintenant.`:pick(notifTexts[kind]||notifTexts.idle); const n=new Notification(title,{body,icon:product?.image||'https://i.postimg.cc/HLdg7Tb5/logo.png',badge:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-'+kind}); n.onclick=()=>{window.focus();n.close();}; }
   window.emilNotifyProduct = product => notifyLocal('afternoon', product);
   function scheduleLocalNotifications(){ const now=new Date(), key=now.toISOString().slice(0,10), sent=JSON.parse(localStorage.getItem('emil-notif-day')||'{}'); [['morning',9],['noon',12],['afternoon',15],['evening',18],['evening',21]].forEach(([kind,h],i)=>{const t=new Date(now);t.setHours(h,0,0,0);if(t<=now)t.setDate(t.getDate()+1);const id=key+'-'+h;if(!sent[id])setTimeout(()=>{notifyLocal(kind);sent[id]=1;localStorage.setItem('emil-notif-day',JSON.stringify(sent));},Math.min(2147483647,Math.max(1000,t-now)));}); setTimeout(()=>notifyLocal('idle'),30*60*1000); }
-  async function enableSmartPush(){ if(!('Notification' in window)) return; try{const permission=await Notification.requestPermission(); if(permission==='granted') scheduleLocalNotifications(); renderLiveAdminOps();}catch(e){console.warn('[Push]',e);} }
-  window.enableSmartPush=enableSmartPush;
+  async function enableSmartPush(){
+  try{
+    if(window.__EMIL_ONESIGNAL_INSTANCE__){
+      const OneSignal=window.__EMIL_ONESIGNAL_INSTANCE__;
+      if(await OneSignal.Notifications.isPushSupported()){
+        await OneSignal.User.PushSubscription.optIn();
+        window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__=
+          OneSignal.User?.PushSubscription?.id||null;
+        window.__EMIL_ONESIGNAL_SUBSCRIBED__=
+          !!OneSignal.User?.PushSubscription?.optedIn;
+      }
+    }else{
+      window.OneSignalDeferred=window.OneSignalDeferred||[];
+      OneSignalDeferred.push(async function(OneSignal){
+        try{
+          if(await OneSignal.Notifications.isPushSupported()){
+            await OneSignal.User.PushSubscription.optIn();
+            window.__EMIL_ONESIGNAL_INSTANCE__=OneSignal;
+            window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__=
+              OneSignal.User?.PushSubscription?.id||null;
+            window.__EMIL_ONESIGNAL_SUBSCRIBED__=
+              !!OneSignal.User?.PushSubscription?.optedIn;
+          }
+        }catch(e){console.warn('[OneSignal] opt-in failed:',e);}
+      });
+    }
+
+    // Keep the existing browser-local notification capability as a fallback.
+    if('Notification' in window && Notification.permission!=='granted'){
+      try{await Notification.requestPermission();}catch(_){}
+    }
+
+    renderLiveAdminOps();
+    pushAdminStatus(
+      window.__EMIL_ONESIGNAL_SUBSCRIBED__
+        ? 'Notifications Push activées sur ce navigateur ✓'
+        : 'Autorisation demandée. Vérifiez le statut du navigateur.'
+    );
+  }catch(e){
+    console.warn('[Push] activation failed:',e);
+    pushAdminStatus('Impossible d’activer les notifications Push.',true);
+  }
+}
+window.enableSmartPush=enableSmartPush;
   function base64UrlToBytes(v){const pad='='.repeat((4-v.length%4)%4);const raw=atob((v+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(Array.from(raw).map(c=>c.charCodeAt(0)));}
   function monitoringOrders(){ return Array.isArray(window.orders)?window.orders:(typeof orders!=='undefined'&&Array.isArray(orders)?orders:[]); }
   function monitoringMethod(o){ if(o.method==='mtn_momo') return 'MTN Mobile Money'; if(o.method==='orange_money') return 'Orange Money'; if(o.method==='card') return 'Carte bancaire'+(o.cardLast4?' •••• '+String(o.cardLast4).slice(-4):''); return o.method||'—'; }
@@ -13875,8 +14105,6 @@ window.addEventListener('load', () => setTimeout(() => {
     setInterval(()=>{try{markCart()}catch(e){}try{remindCart()}catch(e){}try{peakCollectionReminder()}catch(e){}},5*60*1000);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(wire,100));else setTimeout(wire,100);
-  // Optional enhancement: use a deployed same-origin Service Worker when one exists.
-  if('serviceWorker' in navigator&&window.isSecureContext){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
 })();
 </script>
 <!-- EMIL FINAL RELIABILITY PATCH: one source of truth for startup and reviews -->
@@ -13974,60 +14202,134 @@ window.addEventListener('load', () => setTimeout(() => {
   function ensureReviewFields(){const text=$('#pub-rv-text');if(text&&!$('#pub-rv-photo')){const wrap=document.createElement('div');wrap.className='emil-review-image-field';wrap.innerHTML='<label class="form-label" for="pub-rv-photo">Photo optionnelle</label><input class="form-input" id="pub-rv-photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif">';text.closest('div')?.after(wrap)}const adminText=$('#rv-text-fr');if(adminText&&!$('#rv-image-url')){const wrap=document.createElement('div');wrap.className='emil-review-image-field';wrap.innerHTML='<label class="form-label" for="rv-image-url">URL de l’image (optionnelle)</label><input class="form-input" id="rv-image-url" type="url" placeholder="https://…">';adminText.closest('div')?.after(wrap)}}
   window.renderProductReviews=async function(productId,target){const list=allReviews().filter(r=>isApproved(r)&&r.productId===productId);if(target)target.innerHTML=list.length?list.map(publicCard).join(''):'<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>'};
 
+  function normaliseStartupProducts(value){
+    return rows(value).filter(p=>p&&typeof p==='object'&&p.id).map(p=>{
+      const urls=[...(Array.isArray(p.imgs)?p.imgs:[]),...(Array.isArray(p.images)?p.images:[]),p.image,p.img,p.imgUrl,p.imageUrl]
+        .filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
+      return {...p,imgs:urls};
+    });
+  }
+
+  async function preloadCriticalViewport(productList){
+    const urls = new Set();
+    const add = v => { if(typeof v==='string' && /^https?:\/\//i.test(v)) urls.add(v); };
+
+    // Splash logo is itself a visible critical asset.
+    add('https://i.postimg.cc/HLdg7Tb5/logo.png');
+
+    // Only preload what is actually visible in the first paint. This avoids
+    // downloading every catalogue image before the customer can interact.
+    const visibleProducts = (Array.isArray(productList)?productList:[]).slice(0,8);
+    visibleProducts.forEach(p => {
+      const list = Array.isArray(p?.imgs) ? p.imgs : [];
+      add(list[0]);
+    });
+
+    // Approved review photos can appear on the home page as well.
+    try {
+      const rs = Array.isArray(window.reviews) ? window.reviews : [];
+      rs.filter(r => r && r.approved !== false && r.pending !== true).slice(0,4).forEach(r=>add(r.imageUrl||r.photoUrl));
+    } catch(e) {}
+
+    const tasks=[...urls].map(src=>new Promise(resolve=>{
+      const img=new Image();
+      img.decoding='async';
+      try{img.fetchPriority='high';}catch(e){}
+      let done=false;
+      const finish=ok=>{if(done)return;done=true;resolve(ok);};
+      img.onload=async()=>{
+        try{if(typeof img.decode==='function')await img.decode();}catch(e){}
+        finish(true);
+      };
+      img.onerror=()=>finish(false);
+      img.src=src;
+      if(img.complete){
+        Promise.resolve().then(async()=>{
+          try{if(img.naturalWidth&&typeof img.decode==='function')await img.decode();}catch(e){}
+          finish(img.naturalWidth>0);
+        });
+      }
+      setTimeout(()=>finish(false),2200);
+    }));
+
+    if(!tasks.length)return true;
+    await Promise.all(tasks);
+    return true;
+  }
+
   async function criticalStartup(){
     const mark=k=>{try{if(typeof window.__markLuxeReady==='function')window.__markLuxeReady(k);}catch(e){}};
     try{
-      if(typeof initFirebase==='function'){try{initFirebase();}catch(e){console.warn('[Startup] Firebase init failed:',e);}}
-      if(typeof firebaseDb==='undefined'||!firebaseDb){mark('products');mark('images');mark('reviews');return;}
-
-      let remoteProducts=[];
+      // 1) Render cached/default data immediately. Nothing waits for Firebase.
       try{
-        const snap=await Promise.race([
-          firebaseDb.ref('storedData/products').once('value'),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Product query timeout')),3000))
-        ]);
-        remoteProducts=rows(snap.val()).filter(p=>p&&p.id).map(p=>{
-          const fallbackImage=[p.image,p.img,p.imgUrl,p.imageUrl]
-            .find(v=>typeof v==='string'&&/^https:\/\//i.test(v));
-          return {...p,imgs:Array.isArray(p.imgs)&&p.imgs.length?p.imgs:(fallbackImage?[fallbackImage]:[])};
-        });
-      }catch(e){console.warn('[Startup] Remote product fetch failed; keeping local catalogue:',e);}
+        if(typeof sanitizeData==='function')sanitizeData();
+        if(typeof renderAll==='function')renderAll();
+      }catch(e){console.error('[Startup] Initial local render failed:',e);}
 
-      if(remoteProducts.length){
-        if(typeof products!=='undefined')products=remoteProducts;
-        try{if(typeof saveLocal==='function')saveLocal();}catch(e){console.warn('[Startup] Local cache update skipped:',e);}
-        try{if(typeof renderAll==='function')renderAll();else if(typeof renderHomeReviews==='function')renderHomeReviews();}catch(e){console.error('[Startup] Product render failed:',e);}
-      }
-
-      /* Unlock immediately after the product DOM render. */
+      const localProducts = Array.isArray(products)?products:[];
       mark('products');
 
-      /* Reviews and images are background enhancements. */
-      setTimeout(async()=>{
-        try{
-          const snap=await Promise.race([
-            firebaseDb.ref('storedData/reviews').once('value'),
-            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Review query timeout')),3000))
-          ]);
-          const remoteReviews=normalise(snap.val());
-          if(typeof reviews!=='undefined')reviews=remoteReviews;
-          window.reviews=remoteReviews;window.pendingReviews=remoteReviews.filter(isPending);
-          try{if(typeof renderPublicReviews==='function')renderPublicReviews();}catch(e){}
-        }catch(e){console.warn('[Startup] Reviews background load failed:',e);}
-        mark('reviews');
-      },0);
+      // 2) Start Firebase refresh IN PARALLEL with the critical image preload.
+      // This removes the previous 3-second Firebase timeout from the first paint.
+      let remotePromise = Promise.resolve(null);
+      try{
+        if(typeof initFirebase==='function')initFirebase();
+      }catch(e){console.warn('[Startup] Firebase init failed:',e);}
 
-      setTimeout(async()=>{
-        try{if(typeof preloadProductImages==='function')await preloadProductImages(Array.isArray(products)?products:[]);}
-        catch(e){console.warn('[Startup] Image preload skipped:',e);}
-        mark('images');
-      },0);
-    }catch(error){console.error('[Startup] Critical startup guard failed:',error);mark('products');mark('images');mark('reviews');}
+      if(typeof firebaseDb!=='undefined'&&firebaseDb){
+        remotePromise = Promise.race([
+          firebaseDb.ref('storedData/products').once('value'),
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Remote product refresh timeout')),1800))
+        ]).then(snap=>normaliseStartupProducts(snap.val())).catch(e=>{
+          console.warn('[Startup] Remote product refresh skipped:',e);
+          return [];
+        });
+      }
+
+      // 3) Prepare the currently visible catalogue immediately.
+      const localImagePromise = preloadCriticalViewport(localProducts).catch(e=>{
+        console.warn('[Startup] Critical local image preload failed:',e);
+      });
+
+      // If Firebase returns quickly, switch to the real remote catalogue and
+      // make its first visible images ready before releasing the splash.
+      const remoteProducts = await remotePromise;
+      if(Array.isArray(remoteProducts) && remoteProducts.length){
+        products=remoteProducts;
+        try{saveLocal();}catch(e){}
+        try{renderAll();}catch(e){console.warn('[Startup] Remote product render failed:',e);}
+        try{await preloadCriticalViewport(remoteProducts);}catch(e){console.warn('[Startup] Remote image preload failed:',e);}
+      } else {
+        // No remote response: keep the already-rendered local catalogue.
+        await localImagePromise;
+      }
+      mark('images');
+
+      // 4) Reviews are non-critical and never hold the splash.
+      if(typeof firebaseDb!=='undefined'&&firebaseDb){
+        setTimeout(()=>{
+          firebaseDb.ref('storedData/reviews').once('value').then(snap=>{
+            const remoteReviews=normalise(snap.val());
+            if(typeof reviews!=='undefined')reviews=remoteReviews;
+            window.reviews=remoteReviews;
+            window.pendingReviews=remoteReviews.filter(isPending);
+            try{renderPublicReviews();}catch(e){}
+          }).catch(e=>console.warn('[Startup] Reviews background load skipped:',e));
+        },0);
+      }
+    }catch(error){
+      console.error('[Startup] Startup coordinator failed:',error);
+      mark('products');
+      mark('images');
+    }
   }
-  function finishSplashWhenReady(){try{if(typeof window.closeLuxeSplash==='function')window.closeLuxeSplash();}catch(e){console.warn('[Startup] Splash close failed:',e);}}
-  function init(){ensureReviewFields();criticalStartup().finally(finishSplashWhenReady)}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-  try{window.OneSignalDeferred=window.OneSignalDeferred||[];if(location.protocol==='https:'&&location.hostname!=='localhost'&&!window.__EMIL_ONESIGNAL_INIT__){window.__EMIL_ONESIGNAL_INIT__=true;window.OneSignalDeferred.push(async function(OneSignal){try{await OneSignal.init({appId:'cccbad22-afa2-422e-965e-f678ae3314b8',notifyButton:{enable:false}});}catch(e){console.warn('[OneSignal] initialization skipped:',e);}});}}catch(e){console.warn('[OneSignal] guard failed:',e);}
+
+  function initReliabilityStartup(){
+    try{ensureReviewFields();}catch(e){console.warn('[Startup] Review fields setup skipped:',e);}
+    criticalStartup();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initReliabilityStartup,{once:true});else initReliabilityStartup();
+
 })();
 </script>
 </body>
