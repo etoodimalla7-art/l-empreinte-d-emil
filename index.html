@@ -97,7 +97,7 @@ function esc(str) {
 
 </script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-storage-compat.js"></script><script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-storage-compat.js"></script>
 <!-- OneSignal is initialized once by the guarded initializer below. -->
 
 <!-- Fonts -->
@@ -2269,10 +2269,10 @@ img,svg,video,iframe{max-width:100%}
     
     const hasCache = productsCache && productsCache.length > 0;
     
-    // 2. TIMEOUT DE SÉCURITÉ : jamais plus de 2 secondes.
+    // 2. TIMEOUT DE SÉCURITÉ : le splash ne bloque jamais plus de 2,5 secondes.
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 45000);
+    }, 2500);
 
     // 3. FONCTION GLOBALE POUR FERMER LE SPLASH (Sera appelée après rendu réel)
     window.closeLuxeSplash = function() {
@@ -2873,6 +2873,7 @@ img,svg,video,iframe{max-width:100%}
               <div style="margin-top:8px"><label class="admin-label">Label (EN)</label><input class="admin-input" id="p-engraving-label-en" placeholder="Your personalized engraving"></div>
             </div>
             <div style="margin-top:18px;display:flex;gap:10px">
+              <label style="display:block;margin:16px 0;font-size:12px;color:var(--light)"><input type="checkbox" id="p-send-push" checked> Envoyer la notification Push aux abonnés lors de la publication</label>
               <button id="save-product-btn" class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
               <button class="admin-btn admin-btn-ghost" onclick="resetProductForm()">↩ Réinitialiser</button>
             </div>
@@ -3100,6 +3101,15 @@ img,svg,video,iframe{max-width:100%}
                 <div><label class="admin-label">Image HTTPS</label><input class="admin-input" id="center-push-image" type="url" placeholder="https://…"></div>
                 <div><label class="admin-label">Lien de destination</label><input class="admin-input" id="center-push-url" type="url" value="https://lempreinte-demil.onrender.com/"></div>
               </div>
+              <div class="admin-form-grid" style="margin-top:14px">
+                <div><label class="admin-label">Relance 12h00 — titre</label><input class="admin-input" id="push-noon-title" value="Inspiration Senteur du jour 🌿"></div>
+                <div><label class="admin-label">Relance 19h00 — titre</label><input class="admin-input" id="push-evening-title" value="Sélection Exclusive 💎"></div>
+              </div>
+              <div class="admin-form-grid" style="margin-top:10px">
+                <div><label class="admin-label">Relance 12h00 — message</label><textarea class="admin-textarea" id="push-noon-body" maxlength="240">Trouvez le parfum qui correspond à votre style.</textarea></div>
+                <div><label class="admin-label">Relance 19h00 — message</label><textarea class="admin-textarea" id="push-evening-body" maxlength="240">Vos articles favoris vous attendent.</textarea></div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;margin-top:10px"><button id="push-schedule-save" class="admin-btn admin-btn-ghost" type="button" onclick="savePushScheduleConfig()">Enregistrer les relances</button><span id="push-schedule-status" style="font-size:12px;color:var(--muted)"></span></div>
               <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px"><button id="center-push-send" class="admin-btn" type="button" onclick="sendAdminOneSignalNotification()">Envoyer via OneSignal</button><span id="center-push-status" style="font-size:12px;color:var(--muted)"></span></div>
             </div>
             <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">Les messages actifs sont utilisés aléatoirement par les envois programmés de 10h00, 16h00 et 20h00. La clé API OneSignal reste uniquement dans le backend.</p>            <input type="hidden" id="push-message-id">
@@ -6804,6 +6814,7 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     <div class="thanks">© L'Empreinte D'Emil · ${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'}</div>
   </div>
 </div>
+
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -7369,7 +7380,7 @@ async function saveProduct() {
     window.__lastSaveWasNewProduct = isNew;
     resetProductForm();
     showToast(isNew ? 'Produit ajouté avec succès.' : 'Produit modifié avec succès.', '✅');
-    if (isNew && typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(product);
+    if (isNew && document.getElementById('p-send-push')?.checked && typeof window.emilPublishNewProduct === 'function') await window.emilPublishNewProduct(product);
     return true;
   } catch (error) {
     console.error('[saveProduct] Échec :', error);
@@ -8354,7 +8365,7 @@ function renderLookbook() {
     const desc  = lang === 'fr' ? (v.descFR  || '') : (v.descEN  || v.descFR  || '');
     const media = v.videoType === 'youtube'
       ? `<iframe class="lookbook-video lookbook-embed" src="${v.videoUrl}" title="${title || 'Lookbook video'}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-      : `<video class="lookbook-video" data-src="${v.videoUrl}" ${v.posterUrl ? `poster="${v.posterUrl}"` : ''} muted loop playsinline preload="none" controls></video>`;
+      : `<video class="lookbook-video" data-src="${v.videoUrl}" ${v.posterUrl ? `poster="${v.posterUrl}"` : ''} muted loop playsinline preload="metadata" controls></video>`;
     return `
       <div class="lookbook-card">
         ${media}
@@ -13208,9 +13219,13 @@ function sanitizeData() {
 }
 
 // ============================================================
-async function getPushNotificationFirestore() {
-  if (typeof firebase === 'undefined' || !initFirebase()) throw new Error('Firebase indisponible.');
-  return firebase.firestore(firebaseApp);
+function notificationMessagesRef() {
+  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
+  return firebaseDb.ref('storedData/notificationMessages');
+}
+function notificationScheduleRef() {
+  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Firebase Realtime Database indisponible.');
+  return firebaseDb.ref('storedData/notificationSchedule');
 }
 function escPush(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function resetPushNotificationForm(){
@@ -13221,21 +13236,26 @@ async function loadPushNotificationMessages(){
   const list=document.getElementById('push-notification-list');if(!list)return;
   list.innerHTML='<div style="color:var(--muted);font-size:12px">Chargement…</div>';
   try{
-    const snap=await (await getPushNotificationFirestore()).collection('adminNotificationMessages').orderBy('updatedAt','desc').get();
-    if(snap.empty){list.innerHTML='<div style="color:var(--muted);font-size:12px">Aucun message enregistré.</div>';return;}
-    list.innerHTML=snap.docs.map(doc=>{const m=doc.data();return `<div class="review-admin-card" style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong style="color:var(--gold)">${escPush(m.title||'L’Empreinte d’Emil')}</strong><div style="font-size:13px;margin-top:6px">${escPush(m.text)}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">${m.enabled?'Actif':'Désactivé'}${m.url?' · '+escPush(m.url):''}</div></div><div style="display:flex;gap:7px"><button class="admin-btn admin-btn-sm" onclick="editPushNotificationMessage('${doc.id}')">Modifier</button><button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePushNotificationMessage('${doc.id}')">Supprimer</button></div></div>`;}).join('');
-  }catch(e){console.error('[Push admin]',e);list.innerHTML='<div style="color:var(--danger);font-size:12px">Impossible de charger les messages. Vérifiez la connexion et les droits admin.</div>';}
+    const snap=await notificationMessagesRef().once('value');
+    const entries=Object.entries(snap.val()||{}).sort((a,b)=>String(b[1]?.updatedAt||'').localeCompare(String(a[1]?.updatedAt||'')));
+    if(!entries.length){list.innerHTML='<div style="color:var(--muted);font-size:12px">Aucun message enregistré.</div>';return;}
+    list.innerHTML=entries.map(([id,m])=>`<div class="review-admin-card" style="display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:240px"><strong style="color:var(--gold)">${escPush(m.title||'L’Empreinte d’Emil')}</strong><div style="font-size:13px;margin-top:6px">${escPush(m.text||'')}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">${m.enabled?'Actif':'Désactivé'}${m.url?' · '+escPush(m.url):''}</div></div><div style="display:flex;gap:7px"><button class="admin-btn admin-btn-sm" onclick="editPushNotificationMessage('${id}')">Modifier</button><button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deletePushNotificationMessage('${id}')">Supprimer</button></div></div>`).join('');
+  }catch(e){console.warn('[Push admin] Realtime Database indisponible',e);list.innerHTML='<div style="color:var(--danger);font-size:12px">Impossible de charger les messages.</div>';}
 }
 async function editPushNotificationMessage(id){
-  try{const doc=await (await getPushNotificationFirestore()).collection('adminNotificationMessages').doc(id).get();const m=doc.data()||{};document.getElementById('push-message-id').value=id;document.getElementById('push-message-title').value=m.title||'';document.getElementById('push-message-url').value=m.url||'';document.getElementById('push-message-text').value=m.text||'';document.getElementById('push-message-enabled').checked=m.enabled!==false;}
+  try{const snap=await notificationMessagesRef().child(String(id)).once('value');const m=snap.val()||{};document.getElementById('push-message-id').value=id;document.getElementById('push-message-title').value=m.title||'';document.getElementById('push-message-url').value=m.url||'';document.getElementById('push-message-text').value=m.text||'';document.getElementById('push-message-enabled').checked=m.enabled!==false;}
   catch(e){showToast('Message introuvable','❌');}
 }
 async function savePushNotificationMessage(){
   const id=document.getElementById('push-message-id')?.value;const text=document.getElementById('push-message-text')?.value.trim();if(!text){showToast('Le texte de notification est requis','⚠️');return;}
-  const data={title:document.getElementById('push-message-title')?.value.trim()||'L’Empreinte d’Emil',text,url:document.getElementById('push-message-url')?.value.trim()||'',enabled:document.getElementById('push-message-enabled')?.checked!==false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
-  try{const col=(await getPushNotificationFirestore()).collection('adminNotificationMessages');if(id)await col.doc(id).update(data);else await col.add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()});resetPushNotificationForm();await loadPushNotificationMessages();showToast('Message enregistré','✅');}catch(e){console.error('[Push admin]',e);showToast('Enregistrement refusé : droits admin ou Firebase indisponible','❌');}
+  const data={title:document.getElementById('push-message-title')?.value.trim()||'L’Empreinte d’Emil',text,url:document.getElementById('push-message-url')?.value.trim()||'',enabled:document.getElementById('push-message-enabled')?.checked!==false,updatedAt:new Date().toISOString()};
+  try{const ref=id?notificationMessagesRef().child(String(id)):notificationMessagesRef().push();await ref.set({...data,id:ref.key});resetPushNotificationForm();await loadPushNotificationMessages();showToast('Message enregistré','✅');}catch(e){console.warn('[Push admin] sauvegarde refusée',e);showToast('Enregistrement refusé : Firebase indisponible','❌');}
 }
-async function deletePushNotificationMessage(id){if(!confirm('Supprimer ce message ?'))return;try{await (await getPushNotificationFirestore()).collection('adminNotificationMessages').doc(id).delete();await loadPushNotificationMessages();showToast('Message supprimé','✅');}catch(e){showToast('Suppression refusée','❌');}}
+async function deletePushNotificationMessage(id){if(!confirm('Supprimer ce message ?'))return;try{await notificationMessagesRef().child(String(id)).remove();await loadPushNotificationMessages();showToast('Message supprimé','✅');}catch(e){showToast('Suppression refusée','❌');}}
+async function savePushScheduleConfig(){
+  const data={noon:{title:document.getElementById('push-noon-title')?.value.trim()||'Inspiration Senteur du jour 🌿',body:document.getElementById('push-noon-body')?.value.trim()||'Trouvez le parfum qui correspond à votre style.'},evening:{title:document.getElementById('push-evening-title')?.value.trim()||'Sélection Exclusive 💎',body:document.getElementById('push-evening-body')?.value.trim()||'Vos articles favoris vous attendent.'},updatedAt:new Date().toISOString()};
+  try{await notificationScheduleRef().set(data);const status=document.getElementById('push-schedule-status');if(status)status.textContent='Relances enregistrées dans Realtime Database.';showToast('Relances enregistrées','✅');}catch(e){showToast('Relances non enregistrées : Firebase indisponible','❌');}
+}
 
 function getProductImageUrls(productList) {
   return [...new Set((Array.isArray(productList) ? productList : []).flatMap(product => [
@@ -13248,7 +13268,7 @@ function getProductImageUrls(productList) {
 function preloadProductImages(productList) {
   const cache = window.__LUXE_IMAGE_PRELOADS__ || (window.__LUXE_IMAGE_PRELOADS__ = new Map());
   const urls = getProductImageUrls(productList);
-  return Promise.all(urls.map(src => {
+  return Promise.allSettled(urls.map(src => {
     if (cache.has(src)) return cache.get(src);
     const promise = new Promise(resolve => {
       const img = new Image();
@@ -13296,7 +13316,9 @@ function renderAll() {
     if (typeof window.__markLuxeReady === 'function' && (validProducts.length || isInitialPullComplete)) {
       window.__markLuxeReady('products');
     }
-    await preloadProductImages(validProducts);
+    try { await preloadProductImages(validProducts); } catch (error) {
+      console.warn('[Images] Préchargement ignoré pour certaines ressources :', error);
+    }
     requestAnimationFrame(() => {
       if (typeof window.__markLuxeReady === 'function') window.__markLuxeReady('images');
       if (typeof window.closeSplash === 'undefined') window.closeSplash = window.closeLuxeSplash;
@@ -13680,16 +13702,24 @@ function injectProductReview(productId) { const body = document.getElementById('
   const SEEN_KEY='emil:seen-product-events';
   const channel=typeof BroadcastChannel==='function'?new BroadcastChannel('emil-shop-events'):null;
   const safeJson=(value,fallback)=>{try{return JSON.parse(value)}catch(_){return fallback}};
+  const safeStorage=(name)=>{try{const store=window[name];const probe='__emil_storage_probe__';store.setItem(probe,'1');store.removeItem(probe);return store}catch(error){console.warn('[Storage] '+name+' bloqué, état temporaire utilisé.',error);const memory={};return {getItem:k=>Object.prototype.hasOwnProperty.call(memory,k)?memory[k]:null,setItem:(k,v)=>{memory[k]=String(v)},removeItem:k=>{delete memory[k]}}}};
+  const localSafe=safeStorage('localStorage');
+  const sessionSafe=safeStorage('sessionStorage');
   const productTitle=p=>String(p?.nameFR||p?.name||p?.nameEN||'Nouvelle pièce');
   const productImage=p=>p?.imgs?.[0]||p?.image||p?.img||'https://i.postimg.cc/HLdg7Tb5/logo.png';
   window.ONESIGNAL_CONFIG = window.ONESIGNAL_CONFIG || ONESIGNAL_CONFIG;
   const oneSignalConfig = window.ONESIGNAL_CONFIG;
   async function postOneSignal(endpoint, payload) {
-    if (!endpoint) throw new Error('Endpoint OneSignal non configuré.');
-    const response = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body:JSON.stringify(payload) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.message || 'Le serveur OneSignal a refusé la requête.');
-    return result;
+    if (!endpoint || location.protocol === 'file:') return { ok:false, skipped:true };
+    try {
+      const response = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body:JSON.stringify(payload) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || result.error || 'Le serveur OneSignal a refusé la requête.');
+      return result;
+    } catch (error) {
+      console.warn('[OneSignal] API indisponible, site poursuivi normalement.', error);
+      return { ok:false, skipped:true, error:error?.message||'API indisponible' };
+    }
   }
   window.sendAdminOneSignalNotification = async function() {
     const button = document.getElementById('center-push-send');
@@ -13703,7 +13733,8 @@ function injectProductReview(productId) { const body = document.getElementById('
       const productId = document.getElementById('center-push-product-id')?.value.trim() || '';
       const url = document.getElementById('center-push-url')?.value.trim() || oneSignalConfig.shopUrl;
       if (!title || !body) throw new Error('Le titre et le message sont obligatoires.');
-      await postOneSignal(oneSignalConfig.productNotificationEndpoint, { title, body, image, productId, url });
+      const result = await postOneSignal(oneSignalConfig.productNotificationEndpoint, { title, body, image, productId, url });
+      if (result.skipped) { if (status) status.textContent = 'Envoi ignoré : fichier local ou serveur indisponible.'; return false; }
       if (status) status.textContent = 'Notification acceptée par le serveur.';
       show('Notification envoyée via OneSignal.', '✅');
     } catch (error) {
@@ -13717,7 +13748,7 @@ function injectProductReview(productId) { const body = document.getElementById('
     if (!product || !product.id) return false;
     const name = productTitle(product), image = productImage(product);
     try {
-      await postOneSignal(oneSignalConfig.productNotificationEndpoint, {
+      const result = await postOneSignal(oneSignalConfig.productNotificationEndpoint, {
         appId: oneSignalConfig.appId,
         title: 'Nouveauté exclusive disponible ! ✨',
         body: 'Découvrez ' + name + ' disponible dès maintenant sur L’Empreinte d’Emil.',
@@ -13725,7 +13756,7 @@ function injectProductReview(productId) { const body = document.getElementById('
         productId: String(product.id),
         url: oneSignalConfig.shopUrl + '#product-' + encodeURIComponent(product.id)
       });
-      return true;
+      return !result.skipped;
     } catch (error) {
       console.warn('[OneSignal] notification produit non envoyée:', error.message);
       return false;
@@ -13739,9 +13770,9 @@ function injectProductReview(productId) { const body = document.getElementById('
   function eventId(p){return String(p?.id||'')+'|'+String(p?.updatedAt||p?.createdAt||'');}
   function announceProduct(p,remote){
     if(!p||!p.id)return;
-    const id=eventId(p),seen=safeJson(localStorage.getItem(SEEN_KEY)||'[]',[]);
+    const id=eventId(p),seen=safeJson(localSafe.getItem(SEEN_KEY)||'[]',[]);
     if(seen.includes(id))return;
-    seen.push(id);localStorage.setItem(SEEN_KEY,JSON.stringify(seen.slice(-30)));
+    seen.push(id);localSafe.setItem(SEEN_KEY,JSON.stringify(seen.slice(-30)));
     const title=productTitle(p),body='L’Empreinte d’Emil : Nouveau produit disponible ! Venez découvrir '+title+'.';
     show(title+' est maintenant disponible.','✦');
     browserNotice('L’Empreinte d’Emil',body,productImage(p),'emil-product-'+p.id);
@@ -13749,7 +13780,7 @@ function injectProductReview(productId) { const body = document.getElementById('
   window.emilPublishNewProduct=function(product){
     window.emilSendOneSignalProduct(product);
     const event={type:'new-product',product,at:Date.now()};
-    try{localStorage.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
+    try{localSafe.setItem(PRODUCT_EVENT_KEY,JSON.stringify(event))}catch(_){ }
     if(channel)try{channel.postMessage(event)}catch(_){ }
     announceProduct(product,false);
   };
@@ -13758,19 +13789,19 @@ function injectProductReview(productId) { const body = document.getElementById('
   window.addEventListener('storage',e=>{if(e.key===PRODUCT_EVENT_KEY&&e.newValue)onEvent(safeJson(e.newValue,null))});
 
   function cartCount(){return Array.isArray(window.cart)?window.cart.reduce((sum,item)=>sum+Math.max(0,Number(item?.qty)||0),0):0}
-  function markCart(){const count=cartCount();if(count){localStorage.setItem(CART_MARK_KEY,JSON.stringify({count,at:Date.now()}))}else{localStorage.removeItem(CART_MARK_KEY)}}
+  function markCart(){const count=cartCount();if(count){localSafe.setItem(CART_MARK_KEY,JSON.stringify({count,at:Date.now()}))}else{localSafe.removeItem(CART_MARK_KEY)}}
   function remindCart(){
-    const data=safeJson(localStorage.getItem(CART_MARK_KEY)||'null',null);if(!data||!data.count)return;
+    const data=safeJson(localSafe.getItem(CART_MARK_KEY)||'null',null);if(!data||!data.count)return;
     const age=Date.now()-Number(data.at||0),day=86400000;
     if(age<45*60*1000||age>7*day)return;
-    const key='emil:cart-reminded:'+new Date().toISOString().slice(0,10);if(localStorage.getItem(key))return;
-    localStorage.setItem(key,'1');show('Votre sélection vous attend dans le panier.','🛍');
+    const key='emil:cart-reminded:'+new Date().toISOString().slice(0,10);if(localSafe.getItem(key))return;
+    localSafe.setItem(key,'1');show('Votre sélection vous attend dans le panier.','🛍');
     browserNotice('Votre sélection vous attend','Finalisez votre commande quand vous êtes prêt(e).','https://i.postimg.cc/HLdg7Tb5/logo.png','emil-cart-reminder');
   }
   function peakCollectionReminder(){
     const h=new Date().getHours();if(![12,18,20].includes(h))return;
-    const key='emil:collection-reminder:'+new Date().toISOString().slice(0,13);if(localStorage.getItem(key))return;
-    localStorage.setItem(key,'1');show('Découvrez nos pièces signature.','✦');
+    const key='emil:collection-reminder:'+new Date().toISOString().slice(0,13);if(localSafe.getItem(key))return;
+    localSafe.setItem(key,'1');show('Découvrez nos pièces signature.','✦');
   }
   function wire(){
     if(typeof window.saveCart==='function'&&!window.saveCart.__emilWrapped){
@@ -13883,9 +13914,45 @@ function injectProductReview(productId) { const body = document.getElementById('
       mark('images');renderPublicReviews();mark('reviews');
     }catch(error){console.error('[Startup] critical Firebase preload failed:',error);mark('products');mark('images');mark('reviews')}
   }
-  function finishSplashWhenReady(){const splash=$('#luxe-splash');if(!splash)return;const started=Number(window.__LUXE_SPLASH_STARTED_AT__||performance.now()),wait=Math.max(0,2500-(performance.now()-started));setTimeout(()=>{const state=window.__SPLASH_READY_STATE__;if(state&&state.products&&state.images&&state.reviews&&typeof window.closeLuxeSplash==='function')window.closeLuxeSplash()},wait)}
-  function init(){ensureReviewFields();criticalStartup().finally(finishSplashWhenReady)}
+  function finishSplashWhenReady(){
+    const splash=$('#luxe-splash'); if(!splash)return;
+    const started=Number(window.__LUXE_SPLASH_STARTED_AT__||performance.now());
+    const remaining=Math.max(0,2500-(performance.now()-started));
+    setTimeout(()=>{ if(typeof window.closeLuxeSplash==='function') window.closeLuxeSplash(); }, remaining);
+  }
+  function init(){
+    ensureReviewFields();
+    Promise.resolve().then(()=>criticalStartup()).catch(error=>{
+      console.warn('[Startup] Firebase indisponible, affichage de secours activé :', error);
+    }).finally(finishSplashWhenReady);
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
+<script id="emil-nonblocking-videos">
+(function(){
+  'use strict';
+  function hardenVideos(){
+    try {
+      document.querySelectorAll('video').forEach(function(video){
+        if (!video.hasAttribute('preload') || video.getAttribute('preload') === 'none') video.setAttribute('preload','metadata');
+        video.setAttribute('playsinline','');
+        video.addEventListener('error', function(){
+          video.dataset.loadError='1';
+          video.pause();
+          // Une vidéo défaillante ne doit jamais bloquer le rendu ni remonter comme exception.
+        }, {once:true});
+        video.addEventListener('stalled', function(){
+          video.dataset.stalled='1';
+        }, {once:true});
+      });
+    } catch (error) {
+      console.warn('[Video] Ressource vidéo ignorée :', error);
+    }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',hardenVideos,{once:true});
+  else hardenVideos();
+  window.addEventListener('load',hardenVideos,{once:true});
 })();
 </script>
 </body>
