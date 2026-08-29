@@ -546,69 +546,52 @@ function getProductImage(product) {
    ========================================================= */
 
 function notificationPayload(eventData) {
-  const product =
-    eventProduct(eventData);
+  const product = eventProduct(eventData);
 
-  const title =
+  const title = cleanText(
+    eventData?.title,
     cleanText(
-      eventData?.title,
+      product?.title,
       cleanText(
-        product?.title,
-        cleanText(
-          product?.nameFR,
-          cleanText(
-            product?.name,
-            'Nouvelle signature disponible'
-          )
-        )
+        product?.nameFR,
+        cleanText(product?.name, 'Nouvelle signature disponible')
       )
-    );
+    )
+  );
 
-  const body =
+  const body = cleanText(
+    eventData?.body,
     cleanText(
-      eventData?.body,
+      product?.body,
+      `Découvrez ${title} chez L’Empreinte d’Emil.`
+    )
+  );
+
+  const image = cleanText(
+    eventData?.image,
+    cleanText(
+      product?.image,
       cleanText(
-        product?.body,
-        `Découvrez ${title} chez L’Empreinte d’Emil.`
+        product?.imageUrl,
+        Array.isArray(product?.imgs)
+          ? cleanText(product.imgs[0])
+          : ''
       )
-    );
+    )
+  );
 
-  const image =
-    cleanText(
-      eventData?.image,
-      getProductImage(product)
-    );
+  const url = cleanText(
+    eventData?.url,
+    'https://lempreinte-demil.onrender.com/'
+  );
 
-  const url =
-    cleanText(
-      eventData?.url,
-      'https://lempreinte-demil.onrender.com/'
-    );
-
-  /*
-   * IMPORTANT:
-   *
-   * If the frontend sends a specific OneSignal
-   * subscription ID, we target that browser directly.
-   *
-   * Otherwise we send to the "Subscribed Users"
-   * segment.
-   */
-
-  const subscriptionId =
-    cleanText(
-      eventData?.subscriptionId,
-      cleanText(
-        eventData?.subscription_id
-      )
-    );
+  const subscriptionId = cleanText(
+    eventData?.subscriptionId,
+    cleanText(eventData?.subscription_id)
+  );
 
   const payload = {
-    app_id:
-      requiredEnv('ONESIGNAL_APP_ID'),
-
-    target_channel:
-      'push',
+    app_id: requiredEnv('ONESIGNAL_APP_ID'),
 
     headings: {
       fr: title,
@@ -624,52 +607,37 @@ function notificationPayload(eventData) {
 
     data: {
       type: 'new-product',
-
-      productId:
-        cleanText(
-          eventData?.productId,
-          cleanText(product?.id)
-        ),
-
+      productId: cleanText(eventData?.productId, cleanText(product?.id)),
       image: image || ''
     }
   };
 
-
-  /*
-   * DIRECT TARGET
-   */
-
-  if (subscriptionId) {
-    payload.include_subscription_ids =
-      [subscriptionId];
-  }
-
-  /*
-   * FALLBACK TARGET
-   */
-
-  else {
-    payload.included_segments =
-      ['Subscribed Users'];
-  }
-
-
-  /*
-   * Images are added only if they are
-   * real HTTPS URLs.
-   *
-   * OneSignal should not receive
-   * invalid data URLs here.
-   */
-
-  if (
-    image &&
-    /^https:\/\//i.test(image)
-  ) {
+  if (image) {
     payload.big_picture = image;
     payload.chrome_web_image = image;
     payload.large_icon = image;
+  }
+
+  /*
+   * If a specific subscription ID is supplied,
+   * send only to that browser subscription.
+   */
+  if (subscriptionId) {
+    payload.include_subscription_ids = [subscriptionId];
+
+    console.log(
+      `[OneSignal] Targeting subscription: ${subscriptionId}`
+    );
+  } else {
+    /*
+     * No specific subscription supplied:
+     * send to all eligible subscribed users.
+     */
+    payload.included_segments = ['All'];
+
+    console.log(
+      '[OneSignal] Targeting all eligible subscribed users.'
+    );
   }
 
   return payload;
