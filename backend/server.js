@@ -7,10 +7,10 @@ import { createClient } from '@supabase/supabase-js';
 |--------------------------------------------------------------------------
 | L'EMPREINTE D'EMIL — BACKEND / SERVER
 |--------------------------------------------------------------------------
-| - Express
-| - Supabase pour le stockage principal
-| - Firebase Realtime Database pour la compatibilité historique
-| - OneSignal pour les notifications Push
+| Express
+| Supabase
+| Firebase Realtime Database
+| OneSignal Push Notifications
 |--------------------------------------------------------------------------
 */
 
@@ -35,7 +35,7 @@ const SUPABASE_TABLE =
 */
 
 const ONESIGNAL_URL =
-  'https://api.onesignal.com/notifications?c=push';
+  'https://api.onesignal.com/notifications';
 
 const ONESIGNAL_APP_ID =
   String(process.env.ONESIGNAL_APP_ID || '').trim();
@@ -47,22 +47,22 @@ const ONESIGNAL_REST_API_KEY =
 |--------------------------------------------------------------------------
 | TEST SUBSCRIPTION
 |--------------------------------------------------------------------------
-| Pour notre premier test, tu peux mettre ton Subscription ID dans
-| Render > Environment Variables :
+| Render Environment Variable:
 |
 | ONESIGNAL_TEST_SUBSCRIPTION_ID
 |
-| Exemple :
+| Value:
 | 2115f28d-a830-4155-bd15-fadb80ff40ab
-|
-| Nous ne mettons PAS cet ID directement dans le code.
 |--------------------------------------------------------------------------
 */
 
 const ONESIGNAL_TEST_SUBSCRIPTION_ID =
-  String(process.env.ONESIGNAL_TEST_SUBSCRIPTION_ID || '').trim();
+  String(
+    process.env.ONESIGNAL_TEST_SUBSCRIPTION_ID || ''
+  ).trim();
 
-const EVENTS_PATH = 'storedData/pushEvents';
+const EVENTS_PATH =
+  'storedData/pushEvents';
 
 /*
 |--------------------------------------------------------------------------
@@ -70,7 +70,8 @@ const EVENTS_PATH = 'storedData/pushEvents';
 |--------------------------------------------------------------------------
 */
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_UPLOAD_BYTES =
+  2 * 1024 * 1024;
 
 /*
 |--------------------------------------------------------------------------
@@ -79,9 +80,13 @@ const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 */
 
 function requiredEnv(name) {
-  const value = process.env[name];
+  const value =
+    process.env[name];
 
-  if (!value || !String(value).trim()) {
+  if (
+    !value ||
+    !String(value).trim()
+  ) {
     throw new Error(
       `Variable d’environnement manquante : ${name}`
     );
@@ -97,34 +102,49 @@ function requiredEnv(name) {
 */
 
 function normalizePrivateKey(rawValue) {
-  let key = String(rawValue || '')
-    .replace(/^\uFEFF/, '')
-    .trim();
+  let key =
+    String(rawValue || '')
+      .replace(/^\uFEFF/, '')
+      .trim();
 
-  if (key.startsWith('"') && key.endsWith('"')) {
+  if (
+    key.startsWith('"') &&
+    key.endsWith('"')
+  ) {
     try {
-      const parsed = JSON.parse(key);
+      const parsed =
+        JSON.parse(key);
 
-      if (typeof parsed === 'string') {
+      if (
+        typeof parsed === 'string'
+      ) {
         key = parsed;
       }
     } catch {
-      key = key.slice(1, -1);
+      key =
+        key.slice(1, -1);
     }
   }
 
-  key = key
-    .replace(/\\+r\\+n/g, '\n')
-    .replace(/\\+n/g, '\n')
-    .replace(/\\+r/g, '\n')
-    .replace(/[\t ]+$/gm, '')
-    .trim();
+  key =
+    key
+      .replace(/\\+r\\+n/g, '\n')
+      .replace(/\\+n/g, '\n')
+      .replace(/\\+r/g, '\n')
+      .replace(/[\t ]+$/gm, '')
+      .trim();
 
-  const begin = '-----BEGIN PRIVATE KEY-----';
-  const end = '-----END PRIVATE KEY-----';
+  const begin =
+    '-----BEGIN PRIVATE KEY-----';
 
-  const beginIndex = key.indexOf(begin);
-  const endIndex = key.indexOf(end);
+  const end =
+    '-----END PRIVATE KEY-----';
+
+  const beginIndex =
+    key.indexOf(begin);
+
+  const endIndex =
+    key.indexOf(end);
 
   if (
     beginIndex < 0 ||
@@ -136,9 +156,13 @@ function normalizePrivateKey(rawValue) {
     );
   }
 
-  key = key
-    .slice(beginIndex, endIndex + end.length)
-    .trim();
+  key =
+    key
+      .slice(
+        beginIndex,
+        endIndex + end.length
+      )
+      .trim();
 
   try {
     cryptoModule.createPrivateKey({
@@ -162,28 +186,36 @@ function normalizePrivateKey(rawValue) {
 */
 
 function parseServiceAccountJson() {
-  const raw = requiredEnv(
-    'FIREBASE_SERVICE_ACCOUNT_JSON'
-  );
+  const raw =
+    requiredEnv(
+      'FIREBASE_SERVICE_ACCOUNT_JSON'
+    );
 
   let json = raw;
 
-  if (raw.startsWith('"') && raw.endsWith('"')) {
+  if (
+    raw.startsWith('"') &&
+    raw.endsWith('"')
+  ) {
     try {
-      json = JSON.parse(raw);
+      json =
+        JSON.parse(raw);
     } catch {
-      // On tente le parsing direct plus bas.
+      // Parsing direct ci-dessous.
     }
   }
 
   try {
-    const account = JSON.parse(json);
+    const account =
+      JSON.parse(json);
 
     if (
       !account ||
       typeof account !== 'object'
     ) {
-      throw new Error('objet JSON attendu');
+      throw new Error(
+        'objet JSON attendu'
+      );
     }
 
     return account;
@@ -202,12 +234,25 @@ function parseServiceAccountJson() {
 
 function buildFirebaseCredential() {
   const account =
-    process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
+    process.env
+      .FIREBASE_SERVICE_ACCOUNT_JSON
+      ?.trim()
       ? parseServiceAccountJson()
       : {
-          project_id: requiredEnv('FIREBASE_PROJECT_ID'),
-          client_email: requiredEnv('FIREBASE_CLIENT_EMAIL'),
-          private_key: requiredEnv('FIREBASE_PRIVATE_KEY')
+          project_id:
+            requiredEnv(
+              'FIREBASE_PROJECT_ID'
+            ),
+
+          client_email:
+            requiredEnv(
+              'FIREBASE_CLIENT_EMAIL'
+            ),
+
+          private_key:
+            requiredEnv(
+              'FIREBASE_PRIVATE_KEY'
+            )
         };
 
   const projectId =
@@ -224,12 +269,16 @@ function buildFirebaseCredential() {
       ''
     ).trim();
 
-  const privateKey = normalizePrivateKey(
-    account.private_key ||
-    account.privateKey
-  );
+  const privateKey =
+    normalizePrivateKey(
+      account.private_key ||
+      account.privateKey
+    );
 
-  if (!projectId || !clientEmail) {
+  if (
+    !projectId ||
+    !clientEmail
+  ) {
     throw new Error(
       'Le compte de service Firebase doit contenir project_id et client_email.'
     );
@@ -249,13 +298,18 @@ function buildFirebaseCredential() {
 */
 
 function initFirebaseAdmin() {
-  if (admin.apps.length) {
+  if (
+    admin.apps.length
+  ) {
     return admin.app();
   }
 
   return admin.initializeApp({
-    credential: buildFirebaseCredential(),
-    databaseURL: DATABASE_URL
+    credential:
+      buildFirebaseCredential(),
+
+    databaseURL:
+      DATABASE_URL
   });
 }
 
@@ -278,8 +332,11 @@ function getSupabaseClient() {
     SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false
+        persistSession:
+          false,
+
+        autoRefreshToken:
+          false
       }
     }
   );
@@ -291,19 +348,31 @@ function getSupabaseClient() {
 |--------------------------------------------------------------------------
 */
 
-function storeKeyFromPath(pathValue) {
-  let decoded = String(pathValue || '');
+function storeKeyFromPath(
+  pathValue
+) {
+  let decoded =
+    String(pathValue || '');
 
   try {
-    decoded = decodeURIComponent(decoded);
+    decoded =
+      decodeURIComponent(
+        decoded
+      );
   } catch {
-    // Conserver la valeur brute.
+    // Conserver valeur brute.
   }
 
   const normalized =
     decoded
-      .replace(/^\/+|\/+$/g, '')
-      .replace(/^storedData\//, '');
+      .replace(
+        /^\/+|\/+$/g,
+        ''
+      )
+      .replace(
+        /^storedData\//,
+        ''
+      );
 
   const parts =
     normalized
@@ -311,13 +380,21 @@ function storeKeyFromPath(pathValue) {
       .filter(Boolean);
 
   return {
-    key: parts.shift() || '',
+    key:
+      parts.shift() || '',
+
     parts
   };
 }
 
-function setNestedValue(root, parts, value) {
-  if (!parts.length) {
+function setNestedValue(
+  root,
+  parts,
+  value
+) {
+  if (
+    !parts.length
+  ) {
     return value;
   }
 
@@ -327,58 +404,77 @@ function setNestedValue(root, parts, value) {
       ? structuredClone(root)
       : {};
 
-  let cursor = next;
+  let cursor =
+    next;
 
   parts
     .slice(0, -1)
     .forEach(part => {
       if (
         !cursor[part] ||
-        typeof cursor[part] !== 'object'
+        typeof cursor[part] !==
+          'object'
       ) {
         cursor[part] = {};
       }
 
-      cursor = cursor[part];
+      cursor =
+        cursor[part];
     });
 
-  cursor[parts.at(-1)] = value;
+  cursor[parts.at(-1)] =
+    value;
 
   return next;
 }
 
-function getNestedValue(root, parts) {
+function getNestedValue(
+  root,
+  parts
+) {
   return parts.reduce(
-    (value, part) =>
+    (
+      value,
+      part
+    ) =>
       value == null
         ? null
         : value[part],
+
     root
   );
 }
 
-function emptyStoreValue(pathValue) {
+function emptyStoreValue(
+  pathValue
+) {
   const {
     key,
     parts
-  } = storeKeyFromPath(pathValue);
+  } =
+    storeKeyFromPath(
+      pathValue
+    );
 
-  if (parts.length) {
+  if (
+    parts.length
+  ) {
     return {};
   }
 
-  const collectionKeys = new Set([
-    'products',
-    'categories',
-    'reviews',
-    'orders',
-    'transactions',
-    'payments',
-    'lookbook',
-    'promoCodes',
-    'pushEvents',
-    'customers'
-  ]);
+  const collectionKeys =
+    new Set([
+      'products',
+      'categories',
+      'reviews',
+      'orders',
+      'transactions',
+      'payments',
+      'lookbook',
+      'promoCodes',
+      'pushEvents',
+      'customers'
+    ]);
 
   return collectionKeys.has(key)
     ? []
@@ -391,7 +487,9 @@ function neutralizeStoreValue(
 ) {
   return value === null ||
     value === undefined
-    ? emptyStoreValue(pathValue)
+    ? emptyStoreValue(
+        pathValue
+      )
     : value;
 }
 
@@ -401,7 +499,9 @@ function neutralizeStoreValue(
 |--------------------------------------------------------------------------
 */
 
-async function readStoreValue(pathValue) {
+async function readStoreValue(
+  pathValue
+) {
   const client =
     getSupabaseClient();
 
@@ -414,7 +514,10 @@ async function readStoreValue(pathValue) {
   const {
     key,
     parts
-  } = storeKeyFromPath(pathValue);
+  } =
+    storeKeyFromPath(
+      pathValue
+    );
 
   if (!key) {
     return {};
@@ -423,11 +526,17 @@ async function readStoreValue(pathValue) {
   const {
     data,
     error
-  } = await client
-    .from(SUPABASE_TABLE)
-    .select('value')
-    .eq('key', key)
-    .maybeSingle();
+  } =
+    await client
+      .from(
+        SUPABASE_TABLE
+      )
+      .select('value')
+      .eq(
+        'key',
+        key
+      )
+      .maybeSingle();
 
   if (error) {
     throw error;
@@ -438,6 +547,7 @@ async function readStoreValue(pathValue) {
 
   return neutralizeStoreValue(
     pathValue,
+
     getNestedValue(
       storedValue,
       parts
@@ -468,7 +578,10 @@ async function writeStoreValue(
   const {
     key,
     parts
-  } = storeKeyFromPath(pathValue);
+  } =
+    storeKeyFromPath(
+      pathValue
+    );
 
   if (!key) {
     throw new Error(
@@ -476,16 +589,21 @@ async function writeStoreValue(
     );
   }
 
-  let nextValue = value;
+  let nextValue =
+    value;
 
   if (
     parts.length ||
     mode === 'update'
   ) {
     const current =
-      await readStoreValue(key);
+      await readStoreValue(
+        key
+      );
 
-    if (parts.length) {
+    if (
+      parts.length
+    ) {
       nextValue =
         setNestedValue(
           current,
@@ -495,11 +613,14 @@ async function writeStoreValue(
     } else {
       nextValue = {
         ...(current &&
-        typeof current === 'object'
+        typeof current ===
+          'object'
           ? current
           : {}),
+
         ...(value &&
-        typeof value === 'object'
+        typeof value ===
+          'object'
           ? value
           : {})
       };
@@ -509,23 +630,32 @@ async function writeStoreValue(
   const {
     data,
     error
-  } = await client
-    .from(SUPABASE_TABLE)
-    .upsert(
-      {
-        key,
-        value: nextValue,
-        updated_at:
-          new Date().toISOString()
-      },
-      {
-        onConflict: 'key'
-      }
-    )
-    .select(
-      'key,value,updated_at'
-    )
-    .single();
+  } =
+    await client
+      .from(
+        SUPABASE_TABLE
+      )
+      .upsert(
+        {
+          key,
+
+          value:
+            nextValue,
+
+          updated_at:
+            new Date()
+              .toISOString()
+        },
+
+        {
+          onConflict:
+            'key'
+        }
+      )
+      .select(
+        'key,value,updated_at'
+      )
+      .single();
 
   if (error) {
     throw error;
@@ -544,8 +674,11 @@ function cleanText(
   value,
   fallback = ''
 ) {
-  return typeof value === 'string' &&
+  return (
+    typeof value ===
+      'string' &&
     value.trim()
+  )
     ? value.trim()
     : fallback;
 }
@@ -556,40 +689,57 @@ function cleanText(
 |--------------------------------------------------------------------------
 */
 
-function eventProduct(eventData) {
+function eventProduct(
+  eventData
+) {
   return eventData?.product &&
-    typeof eventData.product === 'object'
+    typeof eventData.product ===
+      'object'
     ? eventData.product
     : eventData;
 }
 
 /*
 |--------------------------------------------------------------------------
-| IMAGE URL
+| IMAGE
 |--------------------------------------------------------------------------
 */
 
-function getNotificationImage(eventData) {
+function getNotificationImage(
+  eventData
+) {
   const product =
-    eventProduct(eventData);
+    eventProduct(
+      eventData
+    );
 
   const candidates = [
     eventData?.image,
     eventData?.imageUrl,
     product?.image,
     product?.imageUrl,
-    Array.isArray(product?.imgs)
+
+    Array.isArray(
+      product?.imgs
+    )
       ? product.imgs[0]
       : ''
   ];
 
-  for (const candidate of candidates) {
+  for (
+    const candidate of
+    candidates
+  ) {
     const value =
-      cleanText(candidate);
+      cleanText(
+        candidate
+      );
 
     if (
       value &&
-      /^https?:\/\//i.test(value)
+      /^https?:\/\//i.test(
+        value
+      )
     ) {
       return value;
     }
@@ -611,7 +761,8 @@ function getSubscriptionIds(
 
   const add = value => {
     if (
-      typeof value !== 'string'
+      typeof value !==
+      'string'
     ) {
       return;
     }
@@ -623,10 +774,22 @@ function getSubscriptionIds(
       return;
     }
 
-    if (!ids.includes(cleaned)) {
-      ids.push(cleaned);
+    if (
+      !ids.includes(
+        cleaned
+      )
+    ) {
+      ids.push(
+        cleaned
+      );
     }
   };
+
+  /*
+  |--------------------------------------------------------------------------
+  | ARRAY
+  |--------------------------------------------------------------------------
+  */
 
   if (
     Array.isArray(
@@ -645,6 +808,12 @@ function getSubscriptionIds(
     eventData.subscription_ids
       .forEach(add);
   }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SINGLE ID
+  |--------------------------------------------------------------------------
+  */
 
   add(
     eventData.subscriptionId
@@ -678,53 +847,78 @@ function getSubscriptionIds(
 |--------------------------------------------------------------------------
 */
 
-function notificationPayload(eventData) {
-  const product = eventProduct(eventData);
+function notificationPayload(
+  eventData = {}
+) {
+  const product =
+    eventProduct(
+      eventData
+    );
 
-  const title = cleanText(
-    eventData?.title,
+  const title =
     cleanText(
-      product?.title,
+      eventData?.title,
+
       cleanText(
-        product?.nameFR,
-        cleanText(product?.name, 'Nouvelle signature disponible')
+        product?.title,
+
+        cleanText(
+          product?.nameFR,
+
+          cleanText(
+            product?.name,
+            'Nouvelle signature disponible'
+          )
+        )
       )
-    )
-  );
+    );
 
-  const body = cleanText(
-    eventData?.body,
+  const body =
     cleanText(
-      product?.body,
-      `Découvrez ${title} chez L’Empreinte d’Emil.`
-    )
-  );
+      eventData?.body,
 
-  const image = cleanText(
-    eventData?.image,
-    cleanText(
-      product?.image,
       cleanText(
-        product?.imageUrl,
-        Array.isArray(product?.imgs)
-          ? cleanText(product.imgs[0])
-          : ''
+        product?.body,
+
+        `Découvrez ${title} chez L’Empreinte d’Emil.`
       )
-    )
-  );
+    );
 
-  const url = cleanText(
-    eventData?.url,
-    'https://l-empreinte-d-emil-1.onrender.com/'
-  );
+  const image =
+    getNotificationImage(
+      eventData
+    );
 
-  const subscriptionId = cleanText(
-    eventData?.subscriptionId,
-    ''
-  );
+  const url =
+    cleanText(
+      eventData?.url,
+
+      'https://l-empreinte-d-emil-1.onrender.com/'
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | TARGET SUBSCRIPTIONS
+  |--------------------------------------------------------------------------
+  */
+
+  const subscriptionIds =
+    getSubscriptionIds(
+      eventData
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | PAYLOAD
+  |--------------------------------------------------------------------------
+  */
 
   const payload = {
-    app_id: requiredEnv('ONESIGNAL_APP_ID'),
+    app_id:
+      ONESIGNAL_APP_ID,
+
+    target_channel:
+      'push',
 
     headings: {
       fr: title,
@@ -739,34 +933,71 @@ function notificationPayload(eventData) {
     url,
 
     data: {
-      type: 'new-product',
-      productId: cleanText(
-        eventData?.productId,
-        cleanText(product?.id)
-      ),
-      image: image || ''
+      type:
+        'new-product',
+
+      productId:
+        cleanText(
+          eventData?.productId,
+          cleanText(
+            product?.id
+          )
+        ),
+
+      image:
+        image || ''
     }
   };
 
+  /*
+  |--------------------------------------------------------------------------
+  | IMAGE
+  |--------------------------------------------------------------------------
+  */
+
   if (image) {
-    payload.big_picture = image;
-    payload.chrome_web_image = image;
-    payload.large_icon = image;
+    payload.big_picture =
+      image;
+
+    payload.chrome_web_image =
+      image;
+
+    payload.large_icon =
+      image;
   }
 
   /*
-   * If a specific subscription ID was supplied,
-   * target ONLY that subscription.
-   */
-  if (subscriptionId) {
-    payload.include_subscription_ids = [
-      subscriptionId
-    ];
+  |--------------------------------------------------------------------------
+  | TARGETING
+  |--------------------------------------------------------------------------
+  |
+  | FIRST PRIORITY:
+  | Specific Subscription IDs.
+  |
+  | SECOND PRIORITY:
+  | Subscribed Users.
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  if (
+    subscriptionIds.length
+  ) {
+    payload.include_subscription_ids =
+      subscriptionIds;
+
+    console.log(
+      '[OneSignal] Target Subscription IDs:',
+      subscriptionIds
+    );
   } else {
-    /*
-     * Otherwise use the normal OneSignal audience.
-     */
-    payload.included_segments = ['All'];
+    payload.included_segments = [
+      'Subscribed Users'
+    ];
+
+    console.log(
+      '[OneSignal] Target: Subscribed Users'
+    );
   }
 
   return payload;
@@ -798,23 +1029,26 @@ async function sendOneSignalNotification(
 
   /*
   |--------------------------------------------------------------------------
-  | SÉCURITÉ
-  |--------------------------------------------------------------------------
-  | Nous refusons d'envoyer une notification sans destinataire.
+  | VALIDATE TARGET
   |--------------------------------------------------------------------------
   */
 
-  const hasSubscriptionTarget =
+  const subscriptionIds =
     Array.isArray(
       payload.include_subscription_ids
-    ) &&
-    payload.include_subscription_ids.length > 0;
+    )
+      ? payload.include_subscription_ids
+      : [];
+
+  const hasSubscriptionTarget =
+    subscriptionIds.length > 0;
 
   const hasSegmentTarget =
     Array.isArray(
       payload.included_segments
     ) &&
-    payload.included_segments.length > 0;
+    payload.included_segments.length >
+      0;
 
   if (
     !hasSubscriptionTarget &&
@@ -831,43 +1065,109 @@ async function sendOneSignalNotification(
     throw error;
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | LOG
+  |--------------------------------------------------------------------------
+  */
+
   console.log(
-    '[OneSignal] Envoi notification',
-    {
-      appId,
-      target:
-        payload.include_subscription_ids ||
-        payload.included_segments,
-      title:
-        payload.headings?.fr,
-      body:
-        payload.contents?.fr
-    }
+    '=================================================='
   );
 
-  const response =
-    await fetch(
-      ONESIGNAL_URL,
-      {
-        method: 'POST',
+  console.log(
+    '[OneSignal] PREPARATION ENVOI'
+  );
 
-        headers: {
-          Authorization:
-            `Key ${apiKey}`,
+  console.log(
+    '[OneSignal] App ID:',
+    appId
+  );
 
-          'Content-Type':
-            'application/json',
+  console.log(
+    '[OneSignal] URL:',
+    ONESIGNAL_URL
+  );
 
-          Accept:
-            'application/json'
-        },
+  console.log(
+    '[OneSignal] Subscription IDs:',
+    payload.include_subscription_ids ||
+      'none'
+  );
 
-        body:
-          JSON.stringify(
-            payload
-          )
-      }
-    );
+  console.log(
+    '[OneSignal] Segments:',
+    payload.included_segments ||
+      'none'
+  );
+
+  console.log(
+    '[OneSignal] Title:',
+    payload.headings?.fr
+  );
+
+  console.log(
+    '[OneSignal] Body:',
+    payload.contents?.fr
+  );
+
+  console.log(
+    '=================================================='
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | REQUEST
+  |--------------------------------------------------------------------------
+  */
+
+  let response;
+
+  try {
+    response =
+      await fetch(
+        ONESIGNAL_URL,
+        {
+          method:
+            'POST',
+
+          headers: {
+            Authorization:
+              `Key ${apiKey}`,
+
+            'Content-Type':
+              'application/json',
+
+            Accept:
+              'application/json'
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
+  } catch (networkError) {
+    const error =
+      new Error(
+        `Impossible de contacter OneSignal : ${networkError.message}`
+      );
+
+    error.code =
+      'ONESIGNAL_NETWORK_ERROR';
+
+    error.details =
+      networkError;
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | READ RESPONSE
+  |--------------------------------------------------------------------------
+  */
 
   const responseText =
     await response.text();
@@ -888,10 +1188,35 @@ async function sendOneSignalNotification(
     };
   }
 
+  console.log(
+    '[OneSignal] HTTP STATUS:',
+    response.status
+  );
+
+  console.log(
+    '[OneSignal] RAW RESPONSE:',
+    responseData
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | HTTP ERROR
+  |--------------------------------------------------------------------------
+  */
+
   if (!response.ok) {
+    const errorMessage =
+      responseData?.errors
+        ? JSON.stringify(
+            responseData.errors
+          )
+        : responseData?.message ||
+          responseText ||
+          'Erreur inconnue OneSignal';
+
     const error =
       new Error(
-        `OneSignal HTTP ${response.status}`
+        `OneSignal HTTP ${response.status}: ${errorMessage}`
       );
 
     error.status =
@@ -901,24 +1226,86 @@ async function sendOneSignalNotification(
       responseData;
 
     console.error(
-      '[OneSignal] API ERROR',
-      {
-        status:
-          response.status,
-        details:
-          responseData
-      }
+      '[OneSignal] API ERROR:',
+      error.details
     );
 
     throw error;
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | MESSAGE ID
+  |--------------------------------------------------------------------------
+  |
+  | OneSignal normally returns:
+  |
+  | {
+  |   "id": "xxxxxxxx"
+  | }
+  |
+  | If there is no ID, OneSignal accepted the HTTP
+  | request but did not create a message.
+  |--------------------------------------------------------------------------
+  */
+
+  const messageId =
+    responseData?.id ||
+    responseData?.message_id ||
+    null;
+
+  if (!messageId) {
+    const error =
+      new Error(
+        `OneSignal a accepté la requête HTTP ${response.status}, mais n'a créé aucun message. Vérifiez que la Subscription ID est valide et active. Réponse: ${JSON.stringify(responseData)}`
+      );
+
+    error.status =
+      response.status;
+
+    error.code =
+      'ONESIGNAL_NO_MESSAGE_ID';
+
+    error.details =
+      responseData;
+
+    console.error(
+      '[OneSignal] NO MESSAGE ID:',
+      responseData
+    );
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | SUCCESS
+  |--------------------------------------------------------------------------
+  */
+
   console.log(
-    '[OneSignal] SUCCESS',
-    responseData
+    '=================================================='
   );
 
-  return responseData;
+  console.log(
+    '[OneSignal] SUCCESS'
+  );
+
+  console.log(
+    '[OneSignal] Message ID:',
+    messageId
+  );
+
+  console.log(
+    '=================================================='
+  );
+
+  return {
+    ...responseData,
+
+    id:
+      messageId
+  };
 }
 
 /*
@@ -948,7 +1335,8 @@ async function claimEvent(
             true,
 
           processingAt:
-            admin.database.ServerValue
+            admin.database
+              .ServerValue
               .TIMESTAMP
         };
       }
@@ -999,22 +1387,23 @@ async function processPushEvent(
         false,
 
       processedAt:
-        admin.database.ServerValue
+        admin.database
+          .ServerValue
           .TIMESTAMP,
 
       oneSignalNotificationId:
-        result.id || null,
+        result.id,
 
       lastError:
         null
     });
 
     console.log(
-      `[Push] Notification envoyée pour ${eventId}`
+      `[Push] Notification envoyée pour ${eventId}. Message ID: ${result.id}`
     );
   } catch (error) {
     console.error(
-      `[Push] Échec pour ${eventId}`,
+      `[Push] Échec pour ${eventId}:`,
       error?.details ||
         error
     );
@@ -1030,21 +1419,22 @@ async function processPushEvent(
         lastError:
           String(
             error?.message ||
-            error
+              error
           ).slice(
             0,
             1000
           ),
 
         lastErrorAt:
-          admin.database.ServerValue
+          admin.database
+            .ServerValue
             .TIMESTAMP
       });
     } catch (
       updateError
     ) {
       console.error(
-        '[Push] Impossible d’enregistrer l’erreur',
+        '[Push] Impossible d’enregistrer l’erreur:',
         updateError
       );
     }
@@ -1068,7 +1458,7 @@ function startPushEventListener(
       ).catch(
         error => {
           console.error(
-            `[Push] Erreur non interceptée pour ${snapshot.key}`,
+            `[Push] Erreur non interceptée pour ${snapshot.key}:`,
             error
           );
         }
@@ -1077,7 +1467,7 @@ function startPushEventListener(
 
     error => {
       console.error(
-        `[Firebase] Listener ${EVENTS_PATH} interrompu`,
+        `[Firebase] Listener ${EVENTS_PATH} interrompu:`,
         error
       );
     }
@@ -1114,8 +1504,14 @@ function validateBase64Image(
 
   const normalizedPayload =
     match[2]
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
+      .replace(
+        /-/g,
+        '+'
+      )
+      .replace(
+        /_/g,
+        '/'
+      );
 
   const buffer =
     Buffer.from(
@@ -1152,7 +1548,7 @@ function allowedOrigin(
   const configured =
     String(
       process.env.FRONTEND_ORIGINS ||
-      ''
+        ''
     )
       .split(',')
       .map(
@@ -1265,7 +1661,8 @@ function createServer() {
 
   app.use(
     express.json({
-      limit: '12mb'
+      limit:
+        '12mb'
     })
   );
 
@@ -1301,7 +1698,7 @@ function createServer() {
             configured:
               Boolean(
                 ONESIGNAL_APP_ID &&
-                ONESIGNAL_REST_API_KEY
+                  ONESIGNAL_REST_API_KEY
               ),
 
             app_id_configured:
@@ -1319,7 +1716,8 @@ function createServer() {
           },
 
           timestamp:
-            new Date().toISOString()
+            new Date()
+              .toISOString()
         });
     }
   );
@@ -1339,7 +1737,7 @@ function createServer() {
       const configured =
         Boolean(
           ONESIGNAL_APP_ID &&
-          ONESIGNAL_REST_API_KEY
+            ONESIGNAL_REST_API_KEY
         );
 
       response.json({
@@ -1372,7 +1770,8 @@ function createServer() {
             : 'OneSignal n’est pas correctement configuré. Vérifiez ONESIGNAL_APP_ID et ONESIGNAL_REST_API_KEY.',
 
         timestamp:
-          new Date().toISOString()
+          new Date()
+            .toISOString()
       });
     }
   );
@@ -1405,13 +1804,14 @@ function createServer() {
         const {
           data,
           error
-        } = await client
-          .from(
-            SUPABASE_TABLE
-          )
-          .select(
-            'key,value,updated_at'
-          );
+        } =
+          await client
+            .from(
+              SUPABASE_TABLE
+            )
+            .select(
+              'key,value,updated_at'
+            );
 
         if (error) {
           throw error;
@@ -1442,7 +1842,9 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
+
           data:
             normalized
         });
@@ -1450,7 +1852,7 @@ function createServer() {
         error
       ) {
         console.error(
-          '[Supabase] Lecture globale impossible :',
+          '[Supabase] Lecture globale impossible:',
           error
         );
 
@@ -1514,14 +1916,16 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
+
           rows
         });
       } catch (
         error
       ) {
         console.error(
-          '[Supabase] Mise à jour globale impossible :',
+          '[Supabase] Mise à jour globale impossible:',
           error
         );
 
@@ -1559,7 +1963,8 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
 
           path,
 
@@ -1573,7 +1978,7 @@ function createServer() {
         error
       ) {
         console.error(
-          '[Supabase] Lecture de chemin impossible :',
+          '[Supabase] Lecture de chemin impossible:',
           error
         );
 
@@ -1607,7 +2012,8 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
 
           path,
 
@@ -1621,7 +2027,7 @@ function createServer() {
         error
       ) {
         console.error(
-          '[Supabase] Écriture de chemin impossible :',
+          '[Supabase] Écriture de chemin impossible:',
           error
         );
 
@@ -1694,6 +2100,15 @@ function createServer() {
               ''
           );
 
+        if (!key) {
+          return response
+            .status(400)
+            .json({
+              error:
+                'Clé obligatoire.'
+            });
+        }
+
         const {
           error
         } =
@@ -1712,13 +2127,14 @@ function createServer() {
         }
 
         return response.json({
-          ok: true
+          ok:
+            true
         });
       } catch (
         error
       ) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression impossible:',
           error
         );
 
@@ -1752,7 +2168,8 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
 
           key:
             request.params.key,
@@ -1767,7 +2184,7 @@ function createServer() {
         error
       ) {
         console.error(
-          '[Supabase] Lecture impossible :',
+          '[Supabase] Lecture impossible:',
           error
         );
 
@@ -1803,14 +2220,16 @@ function createServer() {
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
+
           ...row
         });
       } catch (
         error
       ) {
         console.error(
-          '[Supabase] Écriture impossible :',
+          '[Supabase] Écriture impossible:',
           error
         );
 
@@ -1841,20 +2260,24 @@ function createServer() {
         const row =
           await writeStoreValue(
             request.params.key,
+
             request.body?.value ||
               {},
+
             'update'
           );
 
         return response.json({
-          ok: true,
+          ok:
+            true,
+
           ...row
         });
       } catch (
         error
       ) {
         console.error(
-          '[Supabase] Mise à jour impossible :',
+          '[Supabase] Mise à jour impossible:',
           error
         );
 
@@ -1914,13 +2337,14 @@ function createServer() {
         }
 
         return response.json({
-          ok: true
+          ok:
+            true
         });
       } catch (
         error
       ) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression impossible:',
           error
         );
 
@@ -1949,20 +2373,35 @@ function createServer() {
     ) => {
       try {
         const body =
-          request.body || {};
+          request.body ||
+          {};
 
         const result =
           await sendOneSignalNotification(
             body
           );
 
+        /*
+        |--------------------------------------------------------------------------
+        | IMPORTANT:
+        | ID IS RETURNED AT TOP LEVEL.
+        |--------------------------------------------------------------------------
+        */
+
         return response
-          .status(202)
+          .status(200)
           .json({
-            ok: true,
+            ok:
+              true,
 
             handled:
               true,
+
+            id:
+              result.id,
+
+            message_id:
+              result.id,
 
             data:
               result
@@ -1977,9 +2416,15 @@ function createServer() {
         );
 
         return response
-          .status(502)
+          .status(
+            error?.status >= 400 &&
+              error?.status < 600
+              ? error.status
+              : 502
+          )
           .json({
-            ok: false,
+            ok:
+              false,
 
             handled:
               false,
@@ -2019,13 +2464,26 @@ function createServer() {
               {}
           );
 
+        /*
+        |--------------------------------------------------------------------------
+        | SAME IMPORTANT FIX
+        |--------------------------------------------------------------------------
+        */
+
         return response
-          .status(202)
+          .status(200)
           .json({
-            ok: true,
+            ok:
+              true,
 
             handled:
               true,
+
+            id:
+              result.id,
+
+            message_id:
+              result.id,
 
             data:
               result
@@ -2034,15 +2492,21 @@ function createServer() {
         error
       ) {
         console.error(
-          '[OneSignal] Événement push impossible :',
+          '[OneSignal] Événement push impossible:',
           error?.details ||
             error
         );
 
         return response
-          .status(502)
+          .status(
+            error?.status >= 400 &&
+              error?.status < 600
+              ? error.status
+              : 502
+          )
           .json({
-            ok: false,
+            ok:
+              false,
 
             handled:
               false,
@@ -2080,7 +2544,8 @@ function createServer() {
           dataUrl,
           folder
         } =
-          request.body || {};
+          request.body ||
+          {};
 
         if (!dataUrl) {
           return response
@@ -2105,7 +2570,8 @@ function createServer() {
 
         const expectedToken =
           String(
-            process.env.UPLOAD_TOKEN ||
+            process.env
+              .UPLOAD_TOKEN ||
               ''
           ).trim();
 
@@ -2131,7 +2597,8 @@ function createServer() {
         return response
           .status(201)
           .json({
-            ok: true,
+            ok:
+              true,
 
             url:
               normalizedDataUrl,
@@ -2152,7 +2619,7 @@ function createServer() {
         error
       ) {
         console.error(
-          '[Upload] Échec validation Base64 :',
+          '[Upload] Échec validation Base64:',
           error
         );
 
@@ -2238,7 +2705,7 @@ async function main() {
         .catch(
           error => {
             console.warn(
-              '[Firebase] Vérification initiale indisponible :',
+              '[Firebase] Vérification initiale indisponible:',
               error.message
             );
           }
@@ -2251,7 +2718,7 @@ async function main() {
       error
     ) {
       console.warn(
-        '[Firebase] Worker historique non démarré :',
+        '[Firebase] Worker historique non démarré:',
         error.message
       );
     }
@@ -2284,7 +2751,7 @@ async function main() {
       .catch(
         error => {
           console.warn(
-            '[Firebase] Vérification initiale indisponible :',
+            '[Firebase] Vérification initiale indisponible:',
             error.message
           );
         }
@@ -2310,23 +2777,23 @@ async function main() {
       );
 
       console.log(
-        `[OneSignal] API : ${ONESIGNAL_URL}`
+        `[OneSignal] API: ${ONESIGNAL_URL}`
       );
 
       console.log(
-        `[OneSignal] App ID configuré : ${Boolean(
+        `[OneSignal] App ID configuré: ${Boolean(
           ONESIGNAL_APP_ID
         )}`
       );
 
       console.log(
-        `[OneSignal] REST API Key configurée : ${Boolean(
+        `[OneSignal] REST API Key configurée: ${Boolean(
           ONESIGNAL_REST_API_KEY
         )}`
       );
 
       console.log(
-        `[OneSignal] Test Subscription configuré : ${Boolean(
+        `[OneSignal] Test Subscription configuré: ${Boolean(
           ONESIGNAL_TEST_SUBSCRIPTION_ID
         )}`
       );
@@ -2343,7 +2810,7 @@ async function main() {
 main().catch(
   error => {
     console.error(
-      '[Startup] Démarrage impossible',
+      '[Startup] Démarrage impossible:',
       error
     );
 
