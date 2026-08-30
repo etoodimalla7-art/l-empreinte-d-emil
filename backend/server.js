@@ -678,141 +678,95 @@ function getSubscriptionIds(
 |--------------------------------------------------------------------------
 */
 
-function notificationPayload(
-  eventData = {}
-) {
-  const product =
-    eventProduct(eventData);
+function notificationPayload(eventData) {
+  const product = eventProduct(eventData);
 
-  const title =
+  const title = cleanText(
+    eventData?.title,
     cleanText(
-      eventData?.title,
+      product?.title,
       cleanText(
-        product?.title,
-        cleanText(
-          product?.nameFR,
-          cleanText(
-            product?.name,
-            'Nouvelle signature disponible'
-          )
-        )
+        product?.nameFR,
+        cleanText(product?.name, 'Nouvelle signature disponible')
       )
-    );
+    )
+  );
 
-  const body =
+  const body = cleanText(
+    eventData?.body,
     cleanText(
-      eventData?.body,
+      product?.body,
+      `Découvrez ${title} chez L’Empreinte d’Emil.`
+    )
+  );
+
+  const image = cleanText(
+    eventData?.image,
+    cleanText(
+      product?.image,
       cleanText(
-        product?.body,
-        `Découvrez ${title} chez L’Empreinte d’Emil.`
+        product?.imageUrl,
+        Array.isArray(product?.imgs)
+          ? cleanText(product.imgs[0])
+          : ''
       )
-    );
+    )
+  );
 
-  const image =
-    getNotificationImage(
-      eventData
-    );
+  const url = cleanText(
+    eventData?.url,
+    'https://l-empreinte-d-emil-1.onrender.com/'
+  );
 
-  const url =
-    cleanText(
-      eventData?.url,
-      'https://l-empreinte-d-emil-1.onrender.com/'
-    );
-
-  const subscriptionIds =
-    getSubscriptionIds(
-      eventData
-    );
-
-  /*
-  |--------------------------------------------------------------------------
-  | DESTINATION
-  |--------------------------------------------------------------------------
-  */
+  const subscriptionId = cleanText(
+    eventData?.subscriptionId,
+    ''
+  );
 
   const payload = {
-    app_id:
-      requiredEnv(
-        'ONESIGNAL_APP_ID'
-      ),
-
-    target_channel:
-      'push',
+    app_id: requiredEnv('ONESIGNAL_APP_ID'),
 
     headings: {
-      en: title,
-      fr: title
+      fr: title,
+      en: title
     },
 
     contents: {
-      en: body,
-      fr: body
+      fr: body,
+      en: body
     },
 
     url,
 
     data: {
-      type:
-        cleanText(
-          eventData?.type,
-          'admin-notification'
-        ),
-
-      productId:
-        cleanText(
-          eventData?.productId,
-          cleanText(
-            product?.id,
-            ''
-          )
-        ),
-
+      type: 'new-product',
+      productId: cleanText(
+        eventData?.productId,
+        cleanText(product?.id)
+      ),
       image: image || ''
     }
   };
 
-  /*
-  |--------------------------------------------------------------------------
-  | CIBLE PRÉCISE
-  |--------------------------------------------------------------------------
-  */
-
-  if (subscriptionIds.length > 0) {
-    payload.include_subscription_ids =
-      subscriptionIds;
-  } else {
-    /*
-    |--------------------------------------------------------------------------
-    | FALLBACK GLOBAL
-    |--------------------------------------------------------------------------
-    | Seulement si explicitement demandé.
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      eventData.sendToAll === true ||
-      eventData.send_to_all === true
-    ) {
-      payload.included_segments =
-        ['Total Subscriptions'];
-    }
+  if (image) {
+    payload.big_picture = image;
+    payload.chrome_web_image = image;
+    payload.large_icon = image;
   }
 
   /*
-  |--------------------------------------------------------------------------
-  | IMAGES WEB
-  |--------------------------------------------------------------------------
-  */
-
-  if (image) {
-    payload.chrome_web_image =
-      image;
-
-    payload.chrome_web_icon =
-      image;
-
-    payload.big_picture =
-      image;
+   * If a specific subscription ID was supplied,
+   * target ONLY that subscription.
+   */
+  if (subscriptionId) {
+    payload.include_subscription_ids = [
+      subscriptionId
+    ];
+  } else {
+    /*
+     * Otherwise use the normal OneSignal audience.
+     */
+    payload.included_segments = ['All'];
   }
 
   return payload;
