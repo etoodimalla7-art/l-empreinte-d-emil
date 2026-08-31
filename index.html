@@ -13403,114 +13403,136 @@ async function sendAdminPushNotification(){
   const image=document.getElementById('push-send-image')?.value.trim()||'';
   const url=document.getElementById('push-send-url')?.value.trim()||location.origin+'/';
 
-  if(!body){pushAdminStatus('Le corps de la notification est requis.',true);return false;}
-  if(image&&!validHttpsUrl(image)){pushAdminStatus('Le visuel doit être une URL HTTPS valide.',true);return false;}
-  if(url&&!/^https:\/\//i.test(url)){pushAdminStatus('L’URL de destination doit être HTTPS.',true);return false;}
+  if(!body){
+    pushAdminStatus('Le corps de la notification est requis.',true);
+    return false;
+  }
+  if(image&&!validHttpsUrl(image)){
+    pushAdminStatus('Le visuel doit être une URL HTTPS valide.',true);
+    return false;
+  }
+  if(url&&!/^https:\/\//i.test(url)){
+    pushAdminStatus('L’URL de destination doit être HTTPS.',true);
+    return false;
+  }
 
   updatePushPreview();
-  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent='Envoi…';}
-  pushAdminStatus('Connexion sécurisée au serveur…');
+  if(button){
+    button.disabled=true;
+    button.dataset.originalText=button.textContent;
+    button.textContent='Envoi…';
+  }
+  pushAdminStatus('Vérification de l’abonnement Push…');
 
   try{
-    const subscriptionId=window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__||'';
+    /*
+     * IMPORTANT:
+     * Always read the subscription ID from the live OneSignal SDK at the
+     * moment of sending. Do not rely only on the cached global variable.
+     */
+    const oneSignal=window.__EMIL_ONESIGNAL_INSTANCE__||window.OneSignal;
+    let subscriptionId='';
+
+    if(oneSignal?.User?.PushSubscription){
+      try{
+        const pushSubscription=oneSignal.User.PushSubscription;
+
+        if(typeof pushSubscription.optIn==='function' && !pushSubscription.optedIn){
+          await pushSubscription.optIn();
+        }
+
+        subscriptionId=String(pushSubscription.id||'').trim();
+
+        window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__=subscriptionId||null;
+        window.__EMIL_ONESIGNAL_SUBSCRIBED__=!!pushSubscription.optedIn;
+      }catch(subscriptionError){
+        console.warn('[OneSignal] Impossible de lire/activer l’abonnement:',subscriptionError);
+      }
+    }
+
+    /* Fall back to the ID captured by the OneSignal initializer. */
+    if(!subscriptionId){
+      subscriptionId=String(window.__EMIL_ONESIGNAL_SUBSCRIPTION_ID__||'').trim();
+    }
+
+    if(!subscriptionId){
+      pushAdminStatus('Aucun abonnement OneSignal actif sur ce navigateur. Autorisez les notifications puis réessayez.',true);
+      if(typeof showToast==='function')showToast('Aucun abonnement Push actif','⚠️');
+      return false;
+    }
+
     const payload={
       title,
       body,
-      image:image||undefined,
       url,
-      source:'admin'
+      source:'admin',
+      subscriptionId
     };
 
-    // When this browser is subscribed, target it directly for a deterministic
-    // admin test. Otherwise the server targets all subscribed users.
-    if(subscriptionId) payload.subscriptionId=subscriptionId;
+    if(image)payload.image=image;
+
+    console.info('[OneSignal] Envoi direct vers la subscription:',subscriptionId);
+    pushAdminStatus('Envoi de la notification à OneSignal…');
 
     const response=await fetchWithTimeout(
       EMIL_PUSH_API_ENDPOINT,
       {
         method:'POST',
-        headers:{'Content-Type':'application/json','Accept':'application/json'},
+        headers:{
+          'Content-Type':'application/json',
+          'Accept':'application/json'
+        },
         credentials:'same-origin',
         body:JSON.stringify(payload)
       },
-      15000
+      20000
     );
 
-    const result=await response.json().catch(()=>({}));
+    const responseText=await response.text();
+    let result={};
+    try{
+      result=responseText?JSON.parse(responseText):{};
+    }catch(_){
+      result={raw:responseText};
+    }
+
     if(!response.ok){
-      throw new Error(result.error||result.message||`Serveur indisponible (${response.status})`);
-    }
-
-    const messageId=result?.data?.id;
-    if(!messageId){
-      throw new Error('OneSignal n’a créé aucun message. Vérifiez qu’un abonnement Push est actif.');
-    }
-
-    pushAdminStatus('Notification acceptée par OneSignal. Vérification de livraison…');
-
-    // Delivery statistics are eventually consistent. Poll briefly so the
-    // admin UI does not claim success before OneSignal has processed the message.
-    let lastStatus=null;
-    for(let attempt=0;attempt<5;attempt++){
-      await new Promise(resolve=>setTimeout(resolve,1500));
-      try{
-        const statusResponse=await fetchWithTimeout(
-          `/api/notifications/status/${encodeURIComponent(messageId)}`,
-          {headers:{'Accept':'application/json'},credentials:'same-origin'},
-          8000
-        );
-        const statusResult=await statusResponse.json().catch(()=>({}));
-        if(statusResponse.ok&&statusResult?.status){
-          lastStatus=statusResult.status;
-          const successful=Number(lastStatus.successful||0);
-          const received=Number(lastStatus.received||0);
-          const failed=Number(lastStatus.failed||0);
-          const errored=Number(lastStatus.errored||0);
-          const remaining=lastStatus.remaining;
-
-          if(received>0){
-            pushAdminStatus(`Notification reçue ✓ — ${received} appareil(s) confirmé(s).`);
-            if(typeof showToast==='function')showToast('Notification reçue avec succès','✅');
-            return true;
-          }
-
-          if(successful>0){
-            pushAdminStatus(`Notification envoyée ✓ — ${successful} livraison(s) acceptée(s), confirmation en attente.`);
-          }else if(failed>0||errored>0){
-            pushAdminStatus(`Échec de livraison : ${failed} échouée(s), ${errored} erreur(s).`,true);
-            if(typeof showToast==='function')showToast('Échec de livraison Push','❌');
-            return false;
-          }else if(remaining===0){
-            pushAdminStatus('OneSignal n’a trouvé aucun abonnement Push actif.',true);
-            if(typeof showToast==='function')showToast('Aucun abonnement Push actif','⚠️');
-            return false;
-          }else{
-            pushAdminStatus('OneSignal traite encore la notification…');
-          }
-        }
-      }catch(statusError){
-        console.warn('[Push API] Delivery status check failed:',statusError);
-      }
-    }
-
-    if(lastStatus){
-      const successful=Number(lastStatus.successful||0);
-      pushAdminStatus(
-        successful>0
-          ? `Notification envoyée ✓ — ${successful} livraison(s) acceptée(s).`
-          : 'Notification créée par OneSignal, mais la confirmation de réception est encore en attente.'
+      const serverError=result?.error||result?.message||result?.details?.errors||result?.details?.message||responseText;
+      throw new Error(
+        typeof serverError==='string'
+          ? serverError
+          : JSON.stringify(serverError)
       );
-    }else{
-      pushAdminStatus('Notification créée par OneSignal. Consultez le statut dans OneSignal.',false);
     }
 
-    if(typeof showToast==='function')showToast('Notification Push envoyée','✅');
+    /*
+     * The backend already waits for a successful HTTP response from
+     * OneSignal. Different OneSignal/API versions can expose the message ID
+     * at different response levels, so do NOT reject a successful send merely
+     * because the frontend cannot find an ID in one exact property.
+     */
+    const messageId=
+      result?.data?.id||
+      result?.id||
+      result?.data?.notification_id||
+      result?.notification_id||
+      null;
+
+    if(messageId){
+      console.info('[OneSignal] Notification créée:',messageId);
+      pushAdminStatus('Notification envoyée avec succès ✓');
+    }else{
+      console.info('[OneSignal] Serveur a confirmé l’envoi:',result);
+      pushAdminStatus('Notification envoyée à OneSignal ✓');
+    }
+
+    if(typeof showToast==='function')showToast('Notification Push envoyée avec succès','✅');
     return true;
   }catch(error){
     console.error('[Push API] Send failed:',error);
     const message=error?.name==='AbortError'
       ? 'Le serveur a mis trop de temps à répondre.'
-      : (error?.message||'Échec de l’envoi.');
+      : (error?.message||'Échec de l’envoi de la notification.');
     pushAdminStatus(message,true);
     if(typeof showToast==='function')showToast('Notification non envoyée : '+message,'❌');
     return false;
