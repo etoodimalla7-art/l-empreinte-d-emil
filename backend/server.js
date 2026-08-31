@@ -38,23 +38,13 @@ const SUPABASE_TABLE =
 |--------------------------------------------------------------------------
 | ONESIGNAL
 |--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| We use the current OneSignal API:
-|
-| POST https://api.onesignal.com/notifications
-|
-| NOT:
-| https://api.onesignal.com/notifications?c=push
-|
-|--------------------------------------------------------------------------
 */
 
-const ONESIGNAL_BASE_URL =
-  'https://api.onesignal.com';
-
 const ONESIGNAL_URL =
-  `${ONESIGNAL_BASE_URL}/notifications`;
+  'https://api.onesignal.com/notifications?c=push';
+
+const ONESIGNAL_API_BASE =
+  'https://api.onesignal.com';
 
 const ONESIGNAL_APP_ID =
   String(process.env.ONESIGNAL_APP_ID || '').trim();
@@ -62,16 +52,16 @@ const ONESIGNAL_APP_ID =
 const ONESIGNAL_REST_API_KEY =
   String(process.env.ONESIGNAL_REST_API_KEY || '').trim();
 
+/*
+|--------------------------------------------------------------------------
+| TEST SUBSCRIPTION
+|--------------------------------------------------------------------------
+*/
+
 const ONESIGNAL_TEST_SUBSCRIPTION_ID =
   String(
     process.env.ONESIGNAL_TEST_SUBSCRIPTION_ID || ''
   ).trim();
-
-/*
-|--------------------------------------------------------------------------
-| FIREBASE PUSH EVENTS
-|--------------------------------------------------------------------------
-*/
 
 const EVENTS_PATH =
   'storedData/pushEvents';
@@ -92,13 +82,9 @@ const MAX_UPLOAD_BYTES =
 */
 
 function requiredEnv(name) {
-  const value =
-    process.env[name];
+  const value = process.env[name];
 
-  if (
-    !value ||
-    !String(value).trim()
-  ) {
+  if (!value || !String(value).trim()) {
     throw new Error(
       `Variable d’environnement manquante : ${name}`
     );
@@ -114,10 +100,9 @@ function requiredEnv(name) {
 */
 
 function normalizePrivateKey(rawValue) {
-  let key =
-    String(rawValue || '')
-      .replace(/^\uFEFF/, '')
-      .trim();
+  let key = String(rawValue || '')
+    .replace(/^\uFEFF/, '')
+    .trim();
 
   if (
     key.startsWith('"') &&
@@ -138,13 +123,12 @@ function normalizePrivateKey(rawValue) {
     }
   }
 
-  key =
-    key
-      .replace(/\\+r\\+n/g, '\n')
-      .replace(/\\+n/g, '\n')
-      .replace(/\\+r/g, '\n')
-      .replace(/[\t ]+$/gm, '')
-      .trim();
+  key = key
+    .replace(/\\+r\\+n/g, '\n')
+    .replace(/\\+n/g, '\n')
+    .replace(/\\+r/g, '\n')
+    .replace(/[\t ]+$/gm, '')
+    .trim();
 
   const begin =
     '-----BEGIN PRIVATE KEY-----';
@@ -193,7 +177,7 @@ function normalizePrivateKey(rawValue) {
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE SERVICE ACCOUNT JSON
+| FIREBASE SERVICE ACCOUNT
 |--------------------------------------------------------------------------
 */
 
@@ -203,8 +187,7 @@ function parseServiceAccountJson() {
       'FIREBASE_SERVICE_ACCOUNT_JSON'
     );
 
-  let json =
-    raw;
+  let json = raw;
 
   if (
     raw.startsWith('"') &&
@@ -247,9 +230,7 @@ function parseServiceAccountJson() {
 
 function buildFirebaseCredential() {
   const account =
-    process.env
-      .FIREBASE_SERVICE_ACCOUNT_JSON
-      ?.trim()
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim()
       ? parseServiceAccountJson()
       : {
           project_id:
@@ -311,9 +292,7 @@ function buildFirebaseCredential() {
 */
 
 function initFirebaseAdmin() {
-  if (
-    admin.apps.length
-  ) {
+  if (admin.apps.length) {
     return admin.app();
   }
 
@@ -328,7 +307,7 @@ function initFirebaseAdmin() {
 
 /*
 |--------------------------------------------------------------------------
-| SUPABASE CLIENT
+| SUPABASE
 |--------------------------------------------------------------------------
 */
 
@@ -371,7 +350,7 @@ function storeKeyFromPath(pathValue) {
         decoded
       );
   } catch {
-    // Valeur brute conservée.
+    // Conserver la valeur brute.
   }
 
   const normalized =
@@ -398,20 +377,12 @@ function storeKeyFromPath(pathValue) {
   };
 }
 
-/*
-|--------------------------------------------------------------------------
-| SET NESTED VALUE
-|--------------------------------------------------------------------------
-*/
-
 function setNestedValue(
   root,
   parts,
   value
 ) {
-  if (
-    !parts.length
-  ) {
+  if (!parts.length) {
     return value;
   }
 
@@ -429,7 +400,8 @@ function setNestedValue(
     .forEach(part => {
       if (
         !cursor[part] ||
-        typeof cursor[part] !== 'object'
+        typeof cursor[part] !==
+          'object'
       ) {
         cursor[part] = {};
       }
@@ -440,17 +412,10 @@ function setNestedValue(
 
   cursor[
     parts.at(-1)
-  ] =
-    value;
+  ] = value;
 
   return next;
 }
-
-/*
-|--------------------------------------------------------------------------
-| GET NESTED VALUE
-|--------------------------------------------------------------------------
-*/
 
 function getNestedValue(
   root,
@@ -468,12 +433,6 @@ function getNestedValue(
   );
 }
 
-/*
-|--------------------------------------------------------------------------
-| EMPTY STORE VALUE
-|--------------------------------------------------------------------------
-*/
-
 function emptyStoreValue(
   pathValue
 ) {
@@ -485,9 +444,7 @@ function emptyStoreValue(
       pathValue
     );
 
-  if (
-    parts.length
-  ) {
+  if (parts.length) {
     return {};
   }
 
@@ -505,18 +462,10 @@ function emptyStoreValue(
       'customers'
     ]);
 
-  return collectionKeys.has(
-    key
-  )
+  return collectionKeys.has(key)
     ? []
     : {};
 }
-
-/*
-|--------------------------------------------------------------------------
-| NEUTRALIZE STORE VALUE
-|--------------------------------------------------------------------------
-*/
 
 function neutralizeStoreValue(
   pathValue,
@@ -568,9 +517,7 @@ async function readStoreValue(
       .from(
         SUPABASE_TABLE
       )
-      .select(
-        'value'
-      )
+      .select('value')
       .eq(
         'key',
         key
@@ -639,9 +586,7 @@ async function writeStoreValue(
         key
       );
 
-    if (
-      parts.length
-    ) {
+    if (parts.length) {
       nextValue =
         setNestedValue(
           current,
@@ -651,12 +596,14 @@ async function writeStoreValue(
     } else {
       nextValue = {
         ...(current &&
-        typeof current === 'object'
+        typeof current ===
+          'object'
           ? current
           : {}),
 
         ...(value &&
-        typeof value === 'object'
+        typeof value ===
+          'object'
           ? value
           : {})
       };
@@ -679,7 +626,8 @@ async function writeStoreValue(
             nextValue,
 
           updated_at:
-            new Date().toISOString()
+            new Date()
+              .toISOString()
         },
         {
           onConflict:
@@ -708,7 +656,8 @@ function cleanText(
   value,
   fallback = ''
 ) {
-  return typeof value === 'string' &&
+  return typeof value ===
+    'string' &&
     value.trim()
     ? value.trim()
     : fallback;
@@ -724,7 +673,8 @@ function eventProduct(
   eventData
 ) {
   return eventData?.product &&
-    typeof eventData.product === 'object'
+    typeof eventData.product ===
+      'object'
     ? eventData.product
     : eventData;
 }
@@ -745,8 +695,11 @@ function getNotificationImage(
 
   const candidates = [
     eventData?.image,
+
     eventData?.imageUrl,
+
     product?.image,
+
     product?.imageUrl,
 
     Array.isArray(
@@ -787,8 +740,7 @@ function getNotificationImage(
 function getSubscriptionIds(
   eventData = {}
 ) {
-  const ids =
-    [];
+  const ids = [];
 
   const add =
     value => {
@@ -857,6 +809,370 @@ function getSubscriptionIds(
 
 /*
 |--------------------------------------------------------------------------
+| ONESIGNAL SUBSCRIPTION API
+|--------------------------------------------------------------------------
+|
+| This verifies the Subscription before sending.
+|
+| We first resolve:
+|
+| Subscription ID
+|       ↓
+| OneSignal User identity
+|       ↓
+| OneSignal User
+|       ↓
+| subscriptions[]
+|
+|--------------------------------------------------------------------------
+*/
+
+async function getOneSignalSubscription(
+  subscriptionId
+) {
+  const appId =
+    requiredEnv(
+      'ONESIGNAL_APP_ID'
+    );
+
+  const apiKey =
+    requiredEnv(
+      'ONESIGNAL_REST_API_KEY'
+    );
+
+  const cleanedId =
+    cleanText(
+      subscriptionId
+    );
+
+  if (!cleanedId) {
+    const error =
+      new Error(
+        'Subscription ID OneSignal manquant.'
+      );
+
+    error.code =
+      'ONESIGNAL_SUBSCRIPTION_ID_MISSING';
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | STEP 1 — FIND USER ID FROM SUBSCRIPTION
+  |--------------------------------------------------------------------------
+  */
+
+  const identityUrl =
+    `${ONESIGNAL_API_BASE}/apps/${encodeURIComponent(
+      appId
+    )}/subscriptions/${encodeURIComponent(
+      cleanedId
+    )}/user/identity`;
+
+  const identityResponse =
+    await fetch(
+      identityUrl,
+      {
+        method:
+          'GET',
+
+        headers: {
+          Authorization:
+            `Key ${apiKey}`,
+
+          Accept:
+            'application/json'
+        }
+      }
+    );
+
+  const identityText =
+    await identityResponse.text();
+
+  let identityData =
+    {};
+
+  try {
+    identityData =
+      identityText
+        ? JSON.parse(
+            identityText
+          )
+        : {};
+  } catch {
+    identityData = {
+      raw:
+        identityText
+    };
+  }
+
+  if (
+    !identityResponse.ok
+  ) {
+    const error =
+      new Error(
+        `OneSignal subscription identity HTTP ${identityResponse.status}: ${JSON.stringify(
+          identityData
+        )}`
+      );
+
+    error.status =
+      identityResponse.status;
+
+    error.details =
+      identityData;
+
+    throw error;
+  }
+
+  const oneSignalId =
+    cleanText(
+      identityData?.identity
+        ?.onesignal_id
+    );
+
+  if (!oneSignalId) {
+    const error =
+      new Error(
+        `Impossible de trouver le OneSignal ID pour la Subscription ${cleanedId}.`
+      );
+
+    error.code =
+      'ONESIGNAL_USER_ID_NOT_FOUND';
+
+    error.details =
+      identityData;
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | STEP 2 — FETCH USER
+  |--------------------------------------------------------------------------
+  */
+
+  const userUrl =
+    `${ONESIGNAL_API_BASE}/apps/${encodeURIComponent(
+      appId
+    )}/users/by/onesignal_id/${encodeURIComponent(
+      oneSignalId
+    )}`;
+
+  const userResponse =
+    await fetch(
+      userUrl,
+      {
+        method:
+          'GET',
+
+        headers: {
+          Authorization:
+            `Key ${apiKey}`,
+
+          Accept:
+            'application/json'
+        }
+      }
+    );
+
+  const userText =
+    await userResponse.text();
+
+  let userData =
+    {};
+
+  try {
+    userData =
+      userText
+        ? JSON.parse(
+            userText
+          )
+        : {};
+  } catch {
+    userData = {
+      raw:
+        userText
+    };
+  }
+
+  if (!userResponse.ok) {
+    const error =
+      new Error(
+        `OneSignal user HTTP ${userResponse.status}: ${JSON.stringify(
+          userData
+        )}`
+      );
+
+    error.status =
+      userResponse.status;
+
+    error.details =
+      userData;
+
+    throw error;
+  }
+
+  const subscriptions =
+    Array.isArray(
+      userData?.subscriptions
+    )
+      ? userData.subscriptions
+      : [];
+
+  const subscription =
+    subscriptions.find(
+      item =>
+        item &&
+        String(
+          item.id || ''
+        ).trim() ===
+          cleanedId
+    );
+
+  if (!subscription) {
+    const error =
+      new Error(
+        `La Subscription ${cleanedId} n'existe pas dans les subscriptions du User OneSignal ${oneSignalId}.`
+      );
+
+    error.code =
+      'ONESIGNAL_SUBSCRIPTION_NOT_FOUND';
+
+    error.details = {
+      requestedSubscriptionId:
+        cleanedId,
+
+      oneSignalId,
+
+      subscriptions
+    };
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | APP VALIDATION
+  |--------------------------------------------------------------------------
+  */
+
+  const subscriptionAppId =
+    cleanText(
+      subscription.app_id
+    );
+
+  if (
+    subscriptionAppId &&
+    subscriptionAppId !==
+      appId
+  ) {
+    const error =
+      new Error(
+        `La Subscription ${cleanedId} appartient à l'App OneSignal ${subscriptionAppId}, pas à ${appId}.`
+      );
+
+    error.code =
+      'ONESIGNAL_APP_ID_MISMATCH';
+
+    error.details = {
+      subscriptionAppId,
+
+      configuredAppId:
+        appId,
+
+      subscriptionId:
+        cleanedId
+    };
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | ENABLED VALIDATION
+  |--------------------------------------------------------------------------
+  */
+
+  const enabled =
+    subscription.enabled === true;
+
+  if (!enabled) {
+    const error =
+      new Error(
+        `La Subscription OneSignal ${cleanedId} existe mais elle n'est pas active (enabled=false).`
+      );
+
+    error.code =
+      'ONESIGNAL_SUBSCRIPTION_DISABLED';
+
+    error.details =
+      subscription;
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | PUSH CHANNEL VALIDATION
+  |--------------------------------------------------------------------------
+  */
+
+  const type =
+    cleanText(
+      subscription.type
+    );
+
+  const pushTypes =
+    new Set([
+      'ChromePush',
+      'FirefoxPush',
+      'SafariPush',
+      'WindowsPush',
+      'iOSPush',
+      'AndroidPush',
+      'HuaweiPush',
+      'FireOSPush'
+    ]);
+
+  if (
+    type &&
+    !pushTypes.has(
+      type
+    )
+  ) {
+    const error =
+      new Error(
+        `La Subscription ${cleanedId} n'est pas une Subscription Push. Type reçu: ${type}`
+      );
+
+    error.code =
+      'ONESIGNAL_NOT_PUSH_SUBSCRIPTION';
+
+    error.details =
+      subscription;
+
+    throw error;
+  }
+
+  return {
+    appId,
+
+    subscriptionId:
+      cleanedId,
+
+    oneSignalId,
+
+    subscription,
+
+    user:
+      userData
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
 | ONESIGNAL PAYLOAD
 |--------------------------------------------------------------------------
 */
@@ -912,7 +1228,7 @@ function notificationPayload(
 
   /*
   |--------------------------------------------------------------------------
-  | TARGET SUBSCRIPTION
+  | FIND TARGET
   |--------------------------------------------------------------------------
   */
 
@@ -920,6 +1236,23 @@ function notificationPayload(
     getSubscriptionIds(
       eventData
     );
+
+  const explicitSubscriptionId =
+    cleanText(
+      eventData?.subscriptionId ||
+      eventData?.subscription_id
+    );
+
+  const subscriptionId =
+    explicitSubscriptionId ||
+    subscriptionIds[0] ||
+    '';
+
+  /*
+  |--------------------------------------------------------------------------
+  | BASE PAYLOAD
+  |--------------------------------------------------------------------------
+  */
 
   const payload = {
     app_id:
@@ -931,18 +1264,18 @@ function notificationPayload(
       'push',
 
     headings: {
-      fr:
+      en:
         title,
 
-      en:
+      fr:
         title
     },
 
     contents: {
-      fr:
+      en:
         body,
 
-      en:
+      fr:
         body
     },
 
@@ -950,12 +1283,14 @@ function notificationPayload(
 
     data: {
       type:
-        'new-product',
+        cleanText(
+          eventData?.type,
+          'new-product'
+        ),
 
       productId:
         cleanText(
           eventData?.productId,
-
           cleanText(
             product?.id
           )
@@ -989,26 +1324,32 @@ function notificationPayload(
   |--------------------------------------------------------------------------
   |
   | IMPORTANT:
-  | OneSignal does NOT allow us to combine targeting methods.
   |
-  | Specific subscription:
+  | We NEVER send:
+  |
   | include_subscription_ids
-  |
-  | Otherwise:
+  | AND
   | included_segments
+  |
+  | together.
   |
   |--------------------------------------------------------------------------
   */
 
-  if (
-    subscriptionIds.length > 0
-  ) {
+  if (subscriptionId) {
     payload.include_subscription_ids =
-      subscriptionIds;
+      [
+        subscriptionId
+      ];
   } else {
-    payload.included_segments = [
-      'Subscribed Users'
-    ];
+    /*
+     * If no individual Subscription ID was supplied,
+     * send to the standard subscribed audience.
+     */
+    payload.included_segments =
+      [
+        'Subscribed Users'
+      ];
   }
 
   return payload;
@@ -1016,39 +1357,253 @@ function notificationPayload(
 
 /*
 |--------------------------------------------------------------------------
-| ONESIGNAL REQUEST HELPER
+| SEND ONESIGNAL
 |--------------------------------------------------------------------------
 */
 
-async function oneSignalRequest(
-  url,
-  options = {}
+async function sendOneSignalNotification(
+  eventData = {}
 ) {
+  const appId =
+    requiredEnv(
+      'ONESIGNAL_APP_ID'
+    );
+
   const apiKey =
     requiredEnv(
       'ONESIGNAL_REST_API_KEY'
     );
 
-  const response =
-    await fetch(
-      url,
+  /*
+  |--------------------------------------------------------------------------
+  | RESOLVE TARGET
+  |--------------------------------------------------------------------------
+  */
+
+  const subscriptionIds =
+    getSubscriptionIds(
+      eventData
+    );
+
+  const targetSubscriptionId =
+    subscriptionIds[0] ||
+    '';
+
+  /*
+  |--------------------------------------------------------------------------
+  | VALIDATE SPECIFIC SUBSCRIPTION
+  |--------------------------------------------------------------------------
+  */
+
+  let verifiedSubscription =
+    null;
+
+  if (
+    targetSubscriptionId
+  ) {
+    console.log(
+      '[OneSignal] Vérification de la Subscription:',
+      targetSubscriptionId
+    );
+
+    verifiedSubscription =
+      await getOneSignalSubscription(
+        targetSubscriptionId
+      );
+
+    console.log(
+      '[OneSignal] Subscription vérifiée:',
       {
-        ...options,
+        subscriptionId:
+          verifiedSubscription.subscriptionId,
 
-        headers: {
-          Authorization:
-            `Key ${apiKey}`,
+        oneSignalId:
+          verifiedSubscription.oneSignalId,
 
-          'Content-Type':
-            'application/json',
+        type:
+          verifiedSubscription.subscription?.type,
 
-          Accept:
-            'application/json',
-
-          ...(options.headers || {})
-        }
+        enabled:
+          verifiedSubscription.subscription?.enabled
       }
     );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | CREATE PAYLOAD
+  |--------------------------------------------------------------------------
+  */
+
+  const payload =
+    notificationPayload(
+      eventData
+    );
+
+  /*
+  |--------------------------------------------------------------------------
+  | SAFETY CHECK
+  |--------------------------------------------------------------------------
+  */
+
+  const hasSubscriptionTarget =
+    Array.isArray(
+      payload.include_subscription_ids
+    ) &&
+    payload.include_subscription_ids.length >
+      0;
+
+  const hasSegmentTarget =
+    Array.isArray(
+      payload.included_segments
+    ) &&
+    payload.included_segments.length >
+      0;
+
+  if (
+    hasSubscriptionTarget &&
+    hasSegmentTarget
+  ) {
+    const error =
+      new Error(
+        'Configuration OneSignal invalide : include_subscription_ids et included_segments ne peuvent pas être utilisés ensemble.'
+      );
+
+    error.code =
+      'ONESIGNAL_MULTIPLE_TARGETING_METHODS';
+
+    throw error;
+  }
+
+  if (
+    !hasSubscriptionTarget &&
+    !hasSegmentTarget
+  ) {
+    const error =
+      new Error(
+        'Aucun destinataire OneSignal.'
+      );
+
+    error.code =
+      'NO_ONESIGNAL_TARGET';
+
+    throw error;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | FORCE PUSH CHANNEL
+  |--------------------------------------------------------------------------
+  */
+
+  payload.target_channel =
+    'push';
+
+  /*
+  |--------------------------------------------------------------------------
+  | LOG
+  |--------------------------------------------------------------------------
+  */
+
+  console.log(
+    '[OneSignal] Envoi notification',
+    {
+      appId,
+
+      target:
+        payload.include_subscription_ids ||
+        payload.included_segments,
+
+      targetChannel:
+        payload.target_channel,
+
+      title:
+        payload.headings?.fr,
+
+      body:
+        payload.contents?.fr
+    }
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | DEBUG PAYLOAD
+  |--------------------------------------------------------------------------
+  |
+  | The API key is NEVER logged.
+  |
+  |--------------------------------------------------------------------------
+  */
+
+  console.log(
+    '[OneSignal] Payload envoyé:',
+    JSON.stringify(
+      payload,
+      null,
+      2
+    )
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | SEND
+  |--------------------------------------------------------------------------
+  */
+
+  let response;
+
+  try {
+    response =
+      await fetch(
+        ONESIGNAL_URL,
+        {
+          method:
+            'POST',
+
+          headers: {
+            Authorization:
+              `Key ${apiKey}`,
+
+            'Content-Type':
+              'application/json',
+
+            Accept:
+              'application/json',
+
+            /*
+             * OneSignal recommends this header
+             * for partner integrations.
+             */
+            'OneSignal-Usage':
+              'LEmpreinteDEmil | Partner Integration'
+          },
+
+          body:
+            JSON.stringify(
+              payload
+            )
+        }
+      );
+  } catch (error) {
+    const networkError =
+      new Error(
+        `Impossible de contacter OneSignal: ${error?.message || error}`
+      );
+
+    networkError.code =
+      'ONESIGNAL_NETWORK_ERROR';
+
+    networkError.cause =
+      error;
+
+    throw networkError;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | READ RESPONSE
+  |--------------------------------------------------------------------------
+  */
 
   const responseText =
     await response.text();
@@ -1070,9 +1625,13 @@ async function oneSignalRequest(
     };
   }
 
-  if (
-    !response.ok
-  ) {
+  /*
+  |--------------------------------------------------------------------------
+  | ERROR HTTP
+  |--------------------------------------------------------------------------
+  */
+
+  if (!response.ok) {
     const error =
       new Error(
         `OneSignal HTTP ${response.status}: ${
@@ -1090,409 +1649,61 @@ async function oneSignalRequest(
     error.details =
       responseData;
 
-    throw error;
-  }
+    console.error(
+      '[OneSignal] API ERROR:',
+      {
+        status:
+          response.status,
 
-  return {
-    response,
-    data:
-      responseData
-  };
-}
-
-/*
-|--------------------------------------------------------------------------
-| CHECK ONESIGNAL SUBSCRIPTION
-|--------------------------------------------------------------------------
-|
-| This fixes:
-|
-| "Failed to parse app_id from request"
-|
-| We explicitly use:
-|
-| /apps/{APP_ID}/subscriptions/{SUBSCRIPTION_ID}/user/identity
-|
-| Then:
-|
-| /apps/{APP_ID}/users/by/onesignal_id/{ONESIGNAL_ID}
-|
-|--------------------------------------------------------------------------
-*/
-
-async function getOneSignalSubscription(
-  subscriptionId
-) {
-  const appId =
-    requiredEnv(
-      'ONESIGNAL_APP_ID'
+        details:
+          responseData
+      }
     );
-
-  const cleanSubscriptionId =
-    String(
-      subscriptionId || ''
-    ).trim();
-
-  if (
-    !cleanSubscriptionId
-  ) {
-    const error =
-      new Error(
-        'Subscription ID manquant.'
-      );
-
-    error.code =
-      'MISSING_SUBSCRIPTION_ID';
 
     throw error;
   }
 
   /*
   |--------------------------------------------------------------------------
-  | STEP 1 — FIND USER IDENTITY
+  | IMPORTANT SUCCESS VALIDATION
+  |--------------------------------------------------------------------------
+  |
+  | OneSignal documentation:
+  |
+  | HTTP 200 + id
+  |     = message created
+  |
+  | HTTP 200 + NO id
+  |     = message NOT created
+  |
   |--------------------------------------------------------------------------
   */
 
-  const identityUrl =
-    `${ONESIGNAL_BASE_URL}/apps/${encodeURIComponent(
-      appId
-    )}/subscriptions/${encodeURIComponent(
-      cleanSubscriptionId
-    )}/user/identity`;
-
-  console.log(
-    '[OneSignal] Vérification subscription:',
-    cleanSubscriptionId
-  );
-
-  const identityResult =
-    await oneSignalRequest(
-      identityUrl,
-      {
-        method:
-          'GET'
-      }
-    );
-
-  const identity =
-    identityResult.data
-      ?.identity ||
-    {};
-
-  const oneSignalId =
+  const notificationId =
     cleanText(
-      identity.onesignal_id
+      responseData?.id
     );
 
-  if (
-    !oneSignalId
-  ) {
+  if (!notificationId) {
     const error =
       new Error(
-        'OneSignal a trouvé la subscription mais aucun OneSignal ID utilisateur.'
-      );
-
-    error.code =
-      'ONESIGNAL_ID_NOT_FOUND';
-
-    error.details =
-      identityResult.data;
-
-    throw error;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | STEP 2 — GET USER
-  |--------------------------------------------------------------------------
-  */
-
-  const userUrl =
-    `${ONESIGNAL_BASE_URL}/apps/${encodeURIComponent(
-      appId
-    )}/users/by/onesignal_id/${encodeURIComponent(
-      oneSignalId
-    )}`;
-
-  const userResult =
-    await oneSignalRequest(
-      userUrl,
-      {
-        method:
-          'GET'
-      }
-    );
-
-  const user =
-    userResult.data ||
-    {};
-
-  const subscriptions =
-    Array.isArray(
-      user.subscriptions
-    )
-      ? user.subscriptions
-      : [];
-
-  const subscription =
-    subscriptions.find(
-      item =>
-        String(
-          item?.id || ''
-        ) ===
-        cleanSubscriptionId
-    );
-
-  if (
-    !subscription
-  ) {
-    const error =
-      new Error(
-        'Subscription introuvable dans les subscriptions de cet utilisateur.'
-      );
-
-    error.code =
-      'SUBSCRIPTION_NOT_FOUND';
-
-    error.details = {
-      subscriptionId:
-        cleanSubscriptionId,
-
-      oneSignalId,
-
-      subscriptions
-    };
-
-    throw error;
-  }
-
-  /*
-  |--------------------------------------------------------------------------
-  | NORMALIZED RESULT
-  |--------------------------------------------------------------------------
-  */
-
-  const enabled =
-    subscription.enabled === true;
-
-  const notificationTypes =
-    subscription.notification_types;
-
-  const subscribed =
-    enabled &&
-    (
-      notificationTypes ===
-        undefined ||
-      notificationTypes ===
-        null ||
-      Number(
-        notificationTypes
-      ) >= 0
-    );
-
-  return {
-    ok:
-      true,
-
-    subscribed,
-
-    enabled,
-
-    subscriptionId:
-      cleanSubscriptionId,
-
-    oneSignalId,
-
-    type:
-      subscription.type ||
-      null,
-
-    token:
-      subscription.token ||
-      null,
-
-    notificationTypes:
-      notificationTypes ??
-      null,
-
-    appId:
-      subscription.app_id ||
-      appId,
-
-    deviceModel:
-      subscription.device_model ||
-      null,
-
-    deviceOS:
-      subscription.device_os ||
-      null,
-
-    sdk:
-      subscription.sdk ||
-      null,
-
-    country:
-      user.properties?.country ||
-      null,
-
-    language:
-      user.properties?.language ||
-      null,
-
-    user
-  };
-}
-
-/*
-|--------------------------------------------------------------------------
-| SEND ONESIGNAL NOTIFICATION
-|--------------------------------------------------------------------------
-*/
-
-async function sendOneSignalNotification(
-  eventData = {}
-) {
-  const appId =
-    requiredEnv(
-      'ONESIGNAL_APP_ID'
-    );
-
-  const apiKey =
-    requiredEnv(
-      'ONESIGNAL_REST_API_KEY'
-    );
-
-  const payload =
-    notificationPayload(
-      eventData
-    );
-
-  /*
-  |--------------------------------------------------------------------------
-  | TARGET VALIDATION
-  |--------------------------------------------------------------------------
-  */
-
-  const hasSubscriptionTarget =
-    Array.isArray(
-      payload.include_subscription_ids
-    ) &&
-    payload.include_subscription_ids.length >
-      0;
-
-  const hasSegmentTarget =
-    Array.isArray(
-      payload.included_segments
-    ) &&
-    payload.included_segments.length >
-      0;
-
-  if (
-    !hasSubscriptionTarget &&
-    !hasSegmentTarget
-  ) {
-    const error =
-      new Error(
-        'Aucun destinataire OneSignal.'
-      );
-
-    error.code =
-      'NO_ONESIGNAL_TARGET';
-
-    throw error;
-  }
-
-  console.log(
-    '[OneSignal] Envoi notification',
-    {
-      appId,
-
-      target:
-        payload.include_subscription_ids ||
-        payload.included_segments,
-
-      title:
-        payload.headings?.fr,
-
-      body:
-        payload.contents?.fr
-    }
-  );
-
-  /*
-  |--------------------------------------------------------------------------
-  | SEND
-  |--------------------------------------------------------------------------
-  */
-
-  const result =
-    await oneSignalRequest(
-      ONESIGNAL_URL,
-      {
-        method:
-          'POST',
-
-        body:
-          JSON.stringify(
-            payload
-          )
-      }
-    );
-
-  const responseData =
-    result.data;
-
-  console.log(
-    '[OneSignal] Réponse API:',
-    responseData
-  );
-
-  /*
-  |--------------------------------------------------------------------------
-  | IMPORTANT:
-  |
-  | OneSignal can return HTTP 200 with no ID.
-  |
-  | According to OneSignal documentation, this means
-  | the request was valid but no message was created,
-  | commonly because the target contains no valid
-  | subscription.
-  |
-  |--------------------------------------------------------------------------
-  */
-
-  if (
-    !responseData?.id
-  ) {
-    const error =
-      new Error(
-        `OneSignal n'a créé aucun message. Réponse: ${JSON.stringify(
+        `OneSignal a accepté la requête HTTP ${response.status}, mais n'a créé aucun message. Réponse complète: ${JSON.stringify(
           responseData
         )}`
       );
 
     error.status =
-      result.response.status;
+      502;
 
     error.code =
-      'ONESIGNAL_MESSAGE_NOT_CREATED';
+      'ONESIGNAL_NO_MESSAGE_ID';
 
     error.details =
       responseData;
 
     console.error(
-      '[OneSignal] Aucun message créé:',
-      {
-        status:
-          result.response.status,
-
-        response:
-          responseData,
-
-        target:
-          payload.include_subscription_ids ||
-          payload.included_segments
-      }
+      '[OneSignal] Aucun Message ID retourné:',
+      responseData
     );
 
     throw error;
@@ -1500,21 +1711,52 @@ async function sendOneSignalNotification(
 
   /*
   |--------------------------------------------------------------------------
-  | SUCCESS
+  | REAL SUCCESS
   |--------------------------------------------------------------------------
   */
 
   console.log(
-    '[OneSignal] Message créé avec succès:',
-    responseData.id
+    '[OneSignal] MESSAGE CRÉÉ AVEC SUCCÈS:',
+    {
+      notificationId,
+
+      subscriptionId:
+        verifiedSubscription
+          ?.subscriptionId ||
+        targetSubscriptionId ||
+        null,
+
+      oneSignalId:
+        verifiedSubscription
+          ?.oneSignalId ||
+        null
+    }
   );
 
-  return responseData;
+  return {
+    ...responseData,
+
+    id:
+      notificationId,
+
+    notificationId,
+
+    subscriptionId:
+      verifiedSubscription
+        ?.subscriptionId ||
+      targetSubscriptionId ||
+      null,
+
+    oneSignalId:
+      verifiedSubscription
+        ?.oneSignalId ||
+      null
+  };
 }
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE PUSH EVENTS — CLAIM
+| FIREBASE PUSH EVENTS
 |--------------------------------------------------------------------------
 */
 
@@ -1553,7 +1795,7 @@ async function claimEvent(
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE PUSH EVENT PROCESSOR
+| PROCESS PUSH EVENT
 |--------------------------------------------------------------------------
 */
 
@@ -1602,18 +1844,19 @@ async function processPushEvent(
           .TIMESTAMP,
 
       oneSignalNotificationId:
-        result.id,
+        result.id ||
+        null,
 
       lastError:
         null
     });
 
     console.log(
-      `[Push] Notification envoyée pour ${eventId}`
+      `[Push] Notification OneSignal créée pour ${eventId}: ${result.id}`
     );
   } catch (error) {
     console.error(
-      `[Push] Échec pour ${eventId}`,
+      `[Push] Échec pour ${eventId}:`,
       error?.details ||
         error
     );
@@ -1629,10 +1872,10 @@ async function processPushEvent(
         lastError:
           String(
             error?.message ||
-            error
+              error
           ).slice(
             0,
-            1000
+            2000
           ),
 
         lastErrorAt:
@@ -1644,7 +1887,7 @@ async function processPushEvent(
       updateError
     ) {
       console.error(
-        '[Push] Impossible d’enregistrer l’erreur',
+        '[Push] Impossible d’enregistrer l’erreur:',
         updateError
       );
     }
@@ -1674,7 +1917,7 @@ function startPushEventListener(
       ).catch(
         error => {
           console.error(
-            `[Push] Erreur non interceptée pour ${snapshot.key}`,
+            `[Push] Erreur non interceptée pour ${snapshot.key}:`,
             error
           );
         }
@@ -1683,7 +1926,7 @@ function startPushEventListener(
 
     error => {
       console.error(
-        `[Firebase] Listener ${EVENTS_PATH} interrompu`,
+        `[Firebase] Listener ${EVENTS_PATH} interrompu:`,
         error
       );
     }
@@ -1764,7 +2007,7 @@ function allowedOrigin(
   const configured =
     String(
       process.env.FRONTEND_ORIGINS ||
-      ''
+        ''
     )
       .split(',')
       .map(
@@ -1933,7 +2176,8 @@ function createServer() {
           },
 
           timestamp:
-            new Date().toISOString()
+            new Date()
+              .toISOString()
         });
     }
   );
@@ -1986,7 +2230,8 @@ function createServer() {
             : 'OneSignal n’est pas correctement configuré.',
 
         timestamp:
-          new Date().toISOString()
+          new Date()
+            .toISOString()
       });
     }
   );
@@ -1995,8 +2240,6 @@ function createServer() {
   |--------------------------------------------------------------------------
   | ONESIGNAL SUBSCRIPTION CHECK
   |--------------------------------------------------------------------------
-  |
-  | THIS IS THE IMPORTANT NEW ENDPOINT.
   |
   | GET:
   |
@@ -2007,22 +2250,17 @@ function createServer() {
 
   app.get(
     '/api/notifications/subscription/:subscriptionId',
-
     async (
       request,
       response
     ) => {
       try {
         const subscriptionId =
-          String(
-            request.params
-              .subscriptionId ||
-              ''
-          ).trim();
+          cleanText(
+            request.params.subscriptionId
+          );
 
-        if (
-          !subscriptionId
-        ) {
+        if (!subscriptionId) {
           return response
             .status(400)
             .json({
@@ -2030,7 +2268,7 @@ function createServer() {
                 false,
 
               error:
-                'Subscription ID obligatoire.'
+                'Subscription ID manquant.'
             });
         }
 
@@ -2039,44 +2277,95 @@ function createServer() {
             subscriptionId
           );
 
-        return response
-          .status(200)
-          .json(
-            result
-          );
-      } catch (
-        error
-      ) {
+        return response.json({
+          ok:
+            true,
+
+          subscribed:
+            result.subscription
+              ?.enabled === true,
+
+          enabled:
+            result.subscription
+              ?.enabled === true,
+
+          subscriptionId:
+            result.subscriptionId,
+
+          oneSignalId:
+            result.oneSignalId,
+
+          type:
+            result.subscription
+              ?.type ||
+            null,
+
+          token:
+            result.subscription
+              ?.token ||
+            null,
+
+          notificationTypes:
+            result.subscription
+              ?.notification_types ??
+            null,
+
+          appId:
+            result.subscription
+              ?.app_id ||
+            result.appId,
+
+          deviceModel:
+            result.subscription
+              ?.device_model ||
+            null,
+
+          deviceOS:
+            result.subscription
+              ?.device_os ||
+            null,
+
+          sdk:
+            result.subscription
+              ?.sdk ||
+            null,
+
+          country:
+            result.user
+              ?.properties
+              ?.country ||
+            null,
+
+          language:
+            result.user
+              ?.properties
+              ?.language ||
+            null,
+
+          user:
+            result.user
+        });
+      } catch (error) {
         console.error(
-          '[OneSignal] Subscription check failed:',
+          '[OneSignal] Vérification subscription échouée:',
           error?.details ||
             error
         );
 
-        const status =
-          Number(
-            error?.status
-          ) >= 400 &&
-          Number(
-            error?.status
-          ) < 600
-            ? Number(
-                error.status
-              )
-            : 502;
-
         return response
-          .status(status)
+          .status(
+            error?.status >= 400 &&
+              error?.status < 600
+              ? error.status
+              : 502
+          )
           .json({
             ok:
               false,
 
-            subscribed:
-              false,
-
             error:
               error?.message ||
-              'Impossible de vérifier la subscription OneSignal.',
+              'Impossible de vérifier la Subscription OneSignal.',
 
             code:
               error?.code ||
@@ -2092,7 +2381,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE GLOBAL GET
+  | STORE GLOBAL
   |--------------------------------------------------------------------------
   */
 
@@ -2163,11 +2452,9 @@ function createServer() {
           data:
             normalized
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture globale impossible :',
+          '[Supabase] Lecture globale impossible:',
           error
         );
 
@@ -2236,11 +2523,9 @@ function createServer() {
 
           rows
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Mise à jour globale impossible :',
+          '[Supabase] Mise à jour globale impossible:',
           error
         );
 
@@ -2289,11 +2574,9 @@ function createServer() {
               value
             )
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture de chemin impossible :',
+          '[Supabase] Lecture de chemin impossible:',
           error
         );
 
@@ -2344,11 +2627,9 @@ function createServer() {
           updated_at:
             row.updated_at
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Écriture de chemin impossible :',
+          '[Supabase] Écriture de chemin impossible:',
           error
         );
 
@@ -2426,7 +2707,7 @@ function createServer() {
             .status(400)
             .json({
               error:
-                'Clé obligatoire.'
+                'Clé de stockage manquante.'
             });
         }
 
@@ -2451,11 +2732,9 @@ function createServer() {
           ok:
             true
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression impossible:',
           error
         );
 
@@ -2501,11 +2780,9 @@ function createServer() {
               value
             )
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture impossible :',
+          '[Supabase] Lecture impossible:',
           error
         );
 
@@ -2522,7 +2799,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE BY KEY PUT
+  | STORE PUT
   |--------------------------------------------------------------------------
   */
 
@@ -2546,11 +2823,9 @@ function createServer() {
 
           ...row
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Écriture impossible :',
+          '[Supabase] Écriture impossible:',
           error
         );
 
@@ -2567,7 +2842,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE BY KEY PATCH
+  | STORE PATCH
   |--------------------------------------------------------------------------
   */
 
@@ -2581,8 +2856,10 @@ function createServer() {
         const row =
           await writeStoreValue(
             request.params.key,
+
             request.body?.value ||
               {},
+
             'update'
           );
 
@@ -2592,11 +2869,9 @@ function createServer() {
 
           ...row
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Mise à jour impossible :',
+          '[Supabase] Mise à jour impossible:',
           error
         );
 
@@ -2613,7 +2888,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE BY KEY DELETE
+  | STORE DELETE
   |--------------------------------------------------------------------------
   */
 
@@ -2637,6 +2912,13 @@ function createServer() {
         }
 
         const {
+          key
+        } =
+          storeKeyFromPath(
+            request.params.key
+          );
+
+        const {
           error
         } =
           await client
@@ -2646,9 +2928,7 @@ function createServer() {
             .delete()
             .eq(
               'key',
-              storeKeyFromPath(
-                request.params.key
-              ).key
+              key
             );
 
         if (error) {
@@ -2659,11 +2939,9 @@ function createServer() {
           ok:
             true
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression impossible:',
           error
         );
 
@@ -2680,21 +2958,19 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | PUSH NOTIFICATION — PRODUCT
+  | PUSH NOTIFICATION PRODUCT
   |--------------------------------------------------------------------------
   */
 
   app.post(
     '/api/notifications/product',
-
     async (
       request,
       response
     ) => {
       try {
         const body =
-          request.body ||
-          {};
+          request.body || {};
 
         const result =
           await sendOneSignalNotification(
@@ -2711,17 +2987,21 @@ function createServer() {
               true,
 
             message:
-              'Notification créée avec succès par OneSignal.',
+              'Notification OneSignal créée avec succès.',
 
             notificationId:
               result.id,
 
+            subscriptionId:
+              result.subscriptionId,
+
+            oneSignalId:
+              result.oneSignalId,
+
             data:
               result
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           '[Push API] Send failed:',
           error?.details ||
@@ -2729,7 +3009,12 @@ function createServer() {
         );
 
         return response
-          .status(502)
+          .status(
+            error?.status >= 400 &&
+              error?.status < 600
+              ? error.status
+              : 502
+          )
           .json({
             ok:
               false,
@@ -2761,7 +3046,6 @@ function createServer() {
 
   app.post(
     '/api/push-events',
-
     async (
       request,
       response
@@ -2782,15 +3066,22 @@ function createServer() {
             handled:
               true,
 
+            message:
+              'Notification OneSignal créée avec succès.',
+
             notificationId:
               result.id,
+
+            subscriptionId:
+              result.subscriptionId,
+
+            oneSignalId:
+              result.oneSignalId,
 
             data:
               result
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           '[OneSignal] Événement push impossible:',
           error?.details ||
@@ -2798,7 +3089,12 @@ function createServer() {
         );
 
         return response
-          .status(502)
+          .status(
+            error?.status >= 400 &&
+              error?.status < 600
+              ? error.status
+              : 502
+          )
           .json({
             ok:
               false,
@@ -2830,7 +3126,6 @@ function createServer() {
 
   app.post(
     '/api/upload',
-
     async (
       request,
       response
@@ -2840,8 +3135,7 @@ function createServer() {
           dataUrl,
           folder
         } =
-          request.body ||
-          {};
+          request.body || {};
 
         if (!dataUrl) {
           return response
@@ -2868,8 +3162,7 @@ function createServer() {
 
         const expectedToken =
           String(
-            process.env
-              .UPLOAD_TOKEN ||
+            process.env.UPLOAD_TOKEN ||
               ''
           ).trim();
 
@@ -2914,9 +3207,7 @@ function createServer() {
             contentType:
               'image'
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           '[Upload] Échec validation Base64:',
           error
@@ -2961,7 +3252,7 @@ function createServer() {
 
   app.use(
     (
-      request,
+      _request,
       response
     ) => {
       response
@@ -2971,17 +3262,14 @@ function createServer() {
             false,
 
           error:
-            'Route introuvable.',
-
-          path:
-            request.originalUrl
+            'Route non trouvée.'
         });
     }
   );
 
   /*
   |--------------------------------------------------------------------------
-  | GLOBAL ERROR HANDLER
+  | ERROR HANDLER
   |--------------------------------------------------------------------------
   */
 
@@ -2993,23 +3281,25 @@ function createServer() {
       _next
     ) => {
       console.error(
-        '[Express] Erreur globale:',
+        '[Express] Erreur:',
         error
       );
 
+      if (
+        response.headersSent
+      ) {
+        return;
+      }
+
       response
-        .status(
-          Number(
-            error?.status
-          ) || 500
-        )
+        .status(500)
         .json({
           ok:
             false,
 
           error:
             error?.message ||
-            'Erreur serveur.'
+            'Erreur interne du serveur.'
         });
     }
   );
@@ -3074,9 +3364,7 @@ async function main() {
       startPushEventListener(
         db
       );
-    } catch (
-      error
-    ) {
+    } catch (error) {
       console.warn(
         '[Firebase] Worker historique non démarré:',
         error.message
@@ -3137,26 +3425,34 @@ async function main() {
       );
 
       console.log(
-        `[OneSignal] API: ${ONESIGNAL_URL}`
+        `[OneSignal] API : ${ONESIGNAL_URL}`
       );
 
       console.log(
-        `[OneSignal] App ID configuré: ${Boolean(
+        `[OneSignal] App ID configuré : ${Boolean(
           ONESIGNAL_APP_ID
         )}`
       );
 
       console.log(
-        `[OneSignal] REST API Key configurée: ${Boolean(
+        `[OneSignal] REST API Key configurée : ${Boolean(
           ONESIGNAL_REST_API_KEY
         )}`
       );
 
       console.log(
-        `[OneSignal] Test Subscription configurée: ${Boolean(
+        `[OneSignal] Test Subscription configuré : ${Boolean(
           ONESIGNAL_TEST_SUBSCRIPTION_ID
         )}`
       );
+
+      if (
+        ONESIGNAL_APP_ID
+      ) {
+        console.log(
+          `[OneSignal] App ID : ${ONESIGNAL_APP_ID}`
+        );
+      }
     }
   );
 }
@@ -3186,8 +3482,12 @@ main().catch(
 
 export {
   createServer,
+
   notificationPayload,
+
   processPushEvent,
+
   sendOneSignalNotification,
+
   getOneSignalSubscription
 };
