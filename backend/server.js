@@ -5,12 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 
 /*
 |--------------------------------------------------------------------------
-| L'EMPREINTE D'EMIL — BACKEND / SERVER
+| L'EMPREINTE D'EMIL — BACKEND
 |--------------------------------------------------------------------------
 | Express
 | Supabase
-| Firebase Realtime Database compatibility
-| OneSignal Push Notifications
+| Firebase Realtime Database
+| OneSignal Web Push
 |--------------------------------------------------------------------------
 */
 
@@ -38,33 +38,28 @@ const SUPABASE_TABLE =
 |--------------------------------------------------------------------------
 | ONESIGNAL
 |--------------------------------------------------------------------------
+|
+| IMPORTANT:
+|
+| Subscription ID:
+| 2115f28d-a830-4155-bd15-fadb80ff40ab
+|
+| User ID:
+| 7b36cf03-ec96-405d-9e4c-dfa08c7bed1a
+|
+| We ALWAYS use the Subscription ID for
+| include_subscription_ids.
+|--------------------------------------------------------------------------
 */
 
 const ONESIGNAL_URL =
-  'https://api.onesignal.com/notifications?c=push';
+  'https://api.onesignal.com/notifications';
 
 const ONESIGNAL_APP_ID =
   String(process.env.ONESIGNAL_APP_ID || '').trim();
 
 const ONESIGNAL_REST_API_KEY =
   String(process.env.ONESIGNAL_REST_API_KEY || '').trim();
-
-/*
-|--------------------------------------------------------------------------
-| TEST SUBSCRIPTION
-|--------------------------------------------------------------------------
-|
-| This must contain:
-|
-| 2115f28d-a830-4155-bd15-fadb80ff40ab
-|
-| This is the value returned by:
-|
-| OneSignal.User.PushSubscription.id
-|
-| DO NOT put OneSignal.User.onesignalId here.
-|--------------------------------------------------------------------------
-*/
 
 const ONESIGNAL_TEST_SUBSCRIPTION_ID =
   String(
@@ -91,7 +86,7 @@ const MAX_UPLOAD_BYTES =
 
 /*
 |--------------------------------------------------------------------------
-| UTILS
+| REQUIRED ENV
 |--------------------------------------------------------------------------
 */
 
@@ -132,8 +127,7 @@ function normalizePrivateKey(rawValue) {
         JSON.parse(key);
 
       if (
-        typeof parsed ===
-        'string'
+        typeof parsed === 'string'
       ) {
         key = parsed;
       }
@@ -210,7 +204,7 @@ function normalizePrivateKey(rawValue) {
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE SERVICE ACCOUNT JSON
+| FIREBASE SERVICE ACCOUNT
 |--------------------------------------------------------------------------
 */
 
@@ -231,7 +225,7 @@ function parseServiceAccountJson() {
       json =
         JSON.parse(raw);
     } catch {
-      // Parsing direct ci-dessous.
+      // Continue avec le JSON original.
     }
   }
 
@@ -241,8 +235,7 @@ function parseServiceAccountJson() {
 
     if (
       !account ||
-      typeof account !==
-        'object'
+      typeof account !== 'object'
     ) {
       throw new Error(
         'objet JSON attendu'
@@ -311,7 +304,7 @@ function buildFirebaseCredential() {
     !clientEmail
   ) {
     throw new Error(
-      'Le compte de service Firebase doit contenir project_id et client_email.'
+      'Le compte Firebase doit contenir project_id et client_email.'
     );
   }
 
@@ -363,11 +356,8 @@ function getSupabaseClient() {
     SUPABASE_SERVICE_ROLE_KEY,
     {
       auth: {
-        persistSession:
-          false,
-
-        autoRefreshToken:
-          false
+        persistSession: false,
+        autoRefreshToken: false
       }
     }
   );
@@ -375,7 +365,25 @@ function getSupabaseClient() {
 
 /*
 |--------------------------------------------------------------------------
-| STORE PATH HELPERS
+| TEXT HELPERS
+|--------------------------------------------------------------------------
+*/
+
+function cleanText(
+  value,
+  fallback = ''
+) {
+  return (
+    typeof value === 'string' &&
+    value.trim()
+  )
+    ? value.trim()
+    : fallback;
+}
+
+/*
+|--------------------------------------------------------------------------
+| STORE PATH
 |--------------------------------------------------------------------------
 */
 
@@ -420,6 +428,12 @@ function storeKeyFromPath(
   };
 }
 
+/*
+|--------------------------------------------------------------------------
+| NESTED VALUE
+|--------------------------------------------------------------------------
+*/
+
 function setNestedValue(
   root,
   parts,
@@ -433,8 +447,7 @@ function setNestedValue(
 
   const next =
     root &&
-    typeof root ===
-      'object'
+    typeof root === 'object'
       ? structuredClone(root)
       : {};
 
@@ -481,6 +494,12 @@ function getNestedValue(
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| EMPTY STORE
+|--------------------------------------------------------------------------
+*/
+
 function emptyStoreValue(
   pathValue
 ) {
@@ -523,8 +542,10 @@ function neutralizeStoreValue(
   pathValue,
   value
 ) {
-  return value === null ||
+  return (
+    value === null ||
     value === undefined
+  )
     ? emptyStoreValue(
         pathValue
       )
@@ -706,23 +727,6 @@ async function writeStoreValue(
 
 /*
 |--------------------------------------------------------------------------
-| TEXT
-|--------------------------------------------------------------------------
-*/
-
-function cleanText(
-  value,
-  fallback = ''
-) {
-  return typeof value ===
-    'string' &&
-    value.trim()
-    ? value.trim()
-    : fallback;
-}
-
-/*
-|--------------------------------------------------------------------------
 | PRODUCT
 |--------------------------------------------------------------------------
 */
@@ -730,16 +734,18 @@ function cleanText(
 function eventProduct(
   eventData
 ) {
-  return eventData?.product &&
+  return (
+    eventData?.product &&
     typeof eventData.product ===
       'object'
+  )
     ? eventData.product
     : eventData;
 }
 
 /*
 |--------------------------------------------------------------------------
-| IMAGE
+| NOTIFICATION IMAGE
 |--------------------------------------------------------------------------
 */
 
@@ -790,18 +796,6 @@ function getNotificationImage(
 |--------------------------------------------------------------------------
 | ONESIGNAL SUBSCRIPTION IDS
 |--------------------------------------------------------------------------
-|
-| Priority:
-|
-| 1. subscriptionIds
-| 2. subscription_ids
-| 3. subscriptionId
-| 4. subscription_id
-|
-| IMPORTANT:
-| We DO NOT use OneSignal.User.onesignalId here.
-|
-|--------------------------------------------------------------------------
 */
 
 function getSubscriptionIds(
@@ -811,32 +805,26 @@ function getSubscriptionIds(
   const ids =
     [];
 
-  const add =
-    value => {
-      if (
-        typeof value !==
-          'string'
-      ) {
-        return;
-      }
+  function add(value) {
+    if (
+      typeof value !== 'string'
+    ) {
+      return;
+    }
 
-      const cleaned =
-        value.trim();
+    const id =
+      value.trim();
 
-      if (!cleaned) {
-        return;
-      }
+    if (!id) {
+      return;
+    }
 
-      if (
-        !ids.includes(
-          cleaned
-        )
-      ) {
-        ids.push(
-          cleaned
-        );
-      }
-    };
+    if (
+      !ids.includes(id)
+    ) {
+      ids.push(id);
+    }
+  }
 
   if (
     Array.isArray(
@@ -868,9 +856,6 @@ function getSubscriptionIds(
   |--------------------------------------------------------------------------
   | TEST FALLBACK
   |--------------------------------------------------------------------------
-  |
-  | Only the dedicated TEST endpoint can use this fallback.
-  |
   */
 
   if (
@@ -918,7 +903,7 @@ function notificationPayload(
 
           cleanText(
             product?.name,
-            'Nouvelle signature disponible'
+            'Test L’Empreinte d’Emil'
           )
         )
       )
@@ -930,7 +915,6 @@ function notificationPayload(
 
       cleanText(
         product?.body,
-
         `Découvrez ${title} chez L’Empreinte d’Emil.`
       )
     );
@@ -943,15 +927,8 @@ function notificationPayload(
   const url =
     cleanText(
       eventData?.url,
-
       'https://l-empreinte-d-emil-1.onrender.com/'
     );
-
-  /*
-  |--------------------------------------------------------------------------
-  | SUBSCRIPTION TARGETS
-  |--------------------------------------------------------------------------
-  */
 
   const subscriptionIds =
     getSubscriptionIds(
@@ -975,13 +952,19 @@ function notificationPayload(
       'push',
 
     headings: {
-      en: title,
-      fr: title
+      en:
+        title,
+
+      fr:
+        title
     },
 
     contents: {
-      en: body,
-      fr: body
+      en:
+        body,
+
+      fr:
+        body
     },
 
     url,
@@ -1001,27 +984,12 @@ function notificationPayload(
 
       image:
         image || ''
-    },
-
-    /*
-    |--------------------------------------------------------------------------
-    | Idempotency
-    |--------------------------------------------------------------------------
-    |
-    | Prevent accidental duplicate sends when the same request is retried.
-    |
-    */
-
-    idempotency_key:
-      cleanText(
-        eventData?.idempotencyKey,
-        cryptoModule.randomUUID()
-      )
+    }
   };
 
   /*
   |--------------------------------------------------------------------------
-  | IMAGE
+  | OPTIONAL IMAGE
   |--------------------------------------------------------------------------
   */
 
@@ -1043,15 +1011,33 @@ function notificationPayload(
 
   /*
   |--------------------------------------------------------------------------
+  | OPTIONAL IDEMPOTENCY KEY
+  |--------------------------------------------------------------------------
+  */
+
+  const idempotencyKey =
+    cleanText(
+      eventData?.idempotencyKey
+    );
+
+  if (
+    idempotencyKey
+  ) {
+    payload.idempotency_key =
+      idempotencyKey;
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | TARGETING
   |--------------------------------------------------------------------------
   |
-  | OneSignal allows ONE targeting method per message.
+  | We NEVER combine:
   |
-  | Specific subscription:
   | include_subscription_ids
   |
-  | Broadcast:
+  | with:
+  |
   | included_segments
   |
   |--------------------------------------------------------------------------
@@ -1064,38 +1050,22 @@ function notificationPayload(
       subscriptionIds;
 
     console.log(
-      '[OneSignal] Targeting specific subscriptions:',
+      '[OneSignal] DIRECT TARGET:',
       subscriptionIds
     );
   } else {
-    /*
-    |--------------------------------------------------------------------------
-    | BROADCAST TO SUBSCRIBED USERS
-    |--------------------------------------------------------------------------
-    |
-    | "Subscribed Users" is preferable to "All" because we only want users
-    | who actually have a subscribed push channel.
-    |
-    */
-
     payload.included_segments =
       [
         'Subscribed Users'
       ];
 
     console.log(
-      '[OneSignal] Targeting segment: Subscribed Users'
+      '[OneSignal] BROADCAST TARGET: Subscribed Users'
     );
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | DEBUG
-  |--------------------------------------------------------------------------
-  */
-
   console.log(
-    '[OneSignal] Final payload:',
+    '[OneSignal] FINAL PAYLOAD:',
     JSON.stringify(
       payload,
       null,
@@ -1108,7 +1078,7 @@ function notificationPayload(
 
 /*
 |--------------------------------------------------------------------------
-| SEND ONESIGNAL NOTIFICATION
+| SEND ONESIGNAL
 |--------------------------------------------------------------------------
 */
 
@@ -1132,27 +1102,19 @@ async function sendOneSignalNotification(
       options
     );
 
-  /*
-  |--------------------------------------------------------------------------
-  | CHECK TARGET
-  |--------------------------------------------------------------------------
-  */
-
   const hasSubscriptionTarget =
     Array.isArray(
       payload.include_subscription_ids
     ) &&
-    payload
-      .include_subscription_ids
-      .length > 0;
+    payload.include_subscription_ids.length >
+      0;
 
   const hasSegmentTarget =
     Array.isArray(
       payload.included_segments
     ) &&
-    payload
-      .included_segments
-      .length > 0;
+    payload.included_segments.length >
+      0;
 
   if (
     !hasSubscriptionTarget &&
@@ -1169,8 +1131,14 @@ async function sendOneSignalNotification(
     throw error;
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | LOG
+  |--------------------------------------------------------------------------
+  */
+
   console.log(
-    '[OneSignal] Sending notification...',
+    '[OneSignal] SENDING...',
     {
       appId,
 
@@ -1188,7 +1156,17 @@ async function sendOneSignalNotification(
 
   /*
   |--------------------------------------------------------------------------
-  | API REQUEST
+  | REQUEST
+  |--------------------------------------------------------------------------
+  |
+  | IMPORTANT:
+  |
+  | Authorization: Key YOUR_API_KEY
+  |
+  | NOT:
+  |
+  | Authorization: Basic ...
+  |
   |--------------------------------------------------------------------------
   */
 
@@ -1236,7 +1214,7 @@ async function sendOneSignalNotification(
 
   /*
   |--------------------------------------------------------------------------
-  | READ RESPONSE
+  | RESPONSE
   |--------------------------------------------------------------------------
   */
 
@@ -1261,12 +1239,12 @@ async function sendOneSignalNotification(
   }
 
   console.log(
-    '[OneSignal] HTTP status:',
+    '[OneSignal] HTTP STATUS:',
     response.status
   );
 
   console.log(
-    '[OneSignal] Response:',
+    '[OneSignal] RESPONSE:',
     JSON.stringify(
       responseData,
       null,
@@ -1283,7 +1261,7 @@ async function sendOneSignalNotification(
   if (
     !response.ok
   ) {
-    const errorDetails =
+    const details =
       responseData?.errors ??
       responseData?.error ??
       responseData?.message ??
@@ -1291,9 +1269,7 @@ async function sendOneSignalNotification(
 
     const error =
       new Error(
-        `OneSignal HTTP ${response.status}: ${JSON.stringify(
-          errorDetails
-        )}`
+        `OneSignal HTTP ${response.status}: ${JSON.stringify(details)}`
       );
 
     error.status =
@@ -1302,45 +1278,37 @@ async function sendOneSignalNotification(
     error.details =
       responseData;
 
-    console.error(
-      '[OneSignal] API ERROR:',
-      {
-        status:
-          response.status,
-
-        details:
-          responseData
-      }
-    );
-
     throw error;
   }
 
   /*
   |--------------------------------------------------------------------------
-  | IMPORTANT: HTTP 200 BUT NO MESSAGE ID
-  |--------------------------------------------------------------------------
-  |
-  | OneSignal documents that a valid HTTP 200 response can still contain
-  | no "id" when no valid subscriptions exist in the target audience.
-  |
+  | CRITICAL:
+  | HTTP 200 DOES NOT ALWAYS MEAN MESSAGE SENT
   |--------------------------------------------------------------------------
   */
 
+  const messageId =
+    typeof responseData?.id ===
+      'string'
+      ? responseData.id.trim()
+      : '';
+
   if (
-    !responseData?.id
+    !messageId
   ) {
-    const errors =
+    const details =
       responseData?.errors ??
       responseData?.error ??
+      responseData?.warnings ??
       null;
 
     const error =
       new Error(
-        `OneSignal n'a créé aucun message. ${
-          errors
-            ? `Détails: ${JSON.stringify(errors)}`
-            : 'Aucun abonnement Push valide trouvé pour la cible.'
+        `OneSignal a accepté la requête HTTP ${response.status}, mais aucun message n’a été créé. ${
+          details
+            ? `Détails: ${JSON.stringify(details)}`
+            : 'La cible ne contient probablement aucun abonnement Push valide.'
         }`
       );
 
@@ -1372,8 +1340,8 @@ async function sendOneSignalNotification(
   */
 
   console.log(
-    '[OneSignal] SUCCESS - message created:',
-    responseData.id
+    '[OneSignal] SUCCESS — MESSAGE ID:',
+    messageId
   );
 
   return responseData;
@@ -1381,7 +1349,122 @@ async function sendOneSignalNotification(
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE PUSH EVENT CLAIM
+| ONESIGNAL SUBSCRIPTION DIAGNOSTIC
+|--------------------------------------------------------------------------
+*/
+
+async function getOneSignalSubscriptionIdentity(
+  subscriptionId
+) {
+  const appId =
+    requiredEnv(
+      'ONESIGNAL_APP_ID'
+    );
+
+  const apiKey =
+    requiredEnv(
+      'ONESIGNAL_REST_API_KEY'
+    );
+
+  const id =
+    cleanText(
+      subscriptionId
+    );
+
+  if (!id) {
+    const error =
+      new Error(
+        'Subscription ID OneSignal manquant.'
+      );
+
+    error.code =
+      'MISSING_SUBSCRIPTION_ID';
+
+    throw error;
+  }
+
+  const url =
+    `${ONESIGNAL_URL}/apps/${encodeURIComponent(
+      appId
+    )}/subscriptions/${encodeURIComponent(
+      id
+    )}/user/identity`;
+
+  const response =
+    await fetch(
+      url,
+      {
+        method:
+          'GET',
+
+        headers: {
+          Authorization:
+            `Key ${apiKey}`,
+
+          Accept:
+            'application/json'
+        }
+      }
+    );
+
+  const text =
+    await response.text();
+
+  let data =
+    {};
+
+  try {
+    data =
+      text
+        ? JSON.parse(
+            text
+          )
+        : {};
+  } catch {
+    data = {
+      raw:
+        text
+    };
+  }
+
+  if (
+    !response.ok
+  ) {
+    const error =
+      new Error(
+        `OneSignal subscription check HTTP ${response.status}: ${JSON.stringify(
+          data?.errors ??
+          data?.error ??
+          data?.message ??
+          data
+        )}`
+      );
+
+    error.status =
+      response.status;
+
+    error.details =
+      data;
+
+    throw error;
+  }
+
+  return {
+    subscription_id:
+      id,
+
+    identity:
+      data?.identity ??
+      null,
+
+    raw:
+      data
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| FIREBASE EVENT CLAIM
 |--------------------------------------------------------------------------
 */
 
@@ -1393,10 +1476,8 @@ async function claimEvent(
       current => {
         if (
           !current ||
-          current.processed ===
-            true ||
-          current.processing ===
-            true
+          current.processed === true ||
+          current.processing === true
         ) {
           return;
         }
@@ -1441,9 +1522,11 @@ async function processPushEvent(
         eventRef
       );
 
-    if (!eventData) {
+    if (
+      !eventData
+    ) {
       console.log(
-        `[Push] Événement ${eventId} déjà traité ou en cours.`
+        `[Push] ${eventId} déjà traité ou en cours.`
       );
 
       return;
@@ -1471,28 +1554,30 @@ async function processPushEvent(
           .TIMESTAMP,
 
       oneSignalNotificationId:
-        result.id || null,
+        result.id ||
+        null,
 
       lastError:
         null
     });
 
     console.log(
-      `[Push] Notification envoyée pour ${eventId}`
+      `[Push] Notification envoyée pour ${eventId}:`,
+      result.id
     );
   } catch (error) {
     console.error(
-      `[Push] Échec pour ${eventId}`,
+      `[Push] Échec ${eventId}:`,
       error?.details ||
         error
     );
 
     try {
       await eventRef.update({
-        processing:
+        processed:
           false,
 
-        processed:
+        processing:
           false,
 
         lastError:
@@ -1509,11 +1594,9 @@ async function processPushEvent(
             .ServerValue
             .TIMESTAMP
       });
-    } catch (
-      updateError
-    ) {
+    } catch (updateError) {
       console.error(
-        '[Push] Impossible d’enregistrer l’erreur',
+        '[Push] Impossible d’enregistrer l’erreur:',
         updateError
       );
     }
@@ -1522,7 +1605,7 @@ async function processPushEvent(
 
 /*
 |--------------------------------------------------------------------------
-| FIREBASE PUSH EVENT LISTENER
+| FIREBASE PUSH LISTENER
 |--------------------------------------------------------------------------
 */
 
@@ -1543,7 +1626,7 @@ function startPushEventListener(
       ).catch(
         error => {
           console.error(
-            `[Push] Erreur non interceptée pour ${snapshot.key}`,
+            `[Push] Erreur non interceptée pour ${snapshot.key}:`,
             error
           );
         }
@@ -1552,20 +1635,20 @@ function startPushEventListener(
 
     error => {
       console.error(
-        `[Firebase] Listener ${EVENTS_PATH} interrompu`,
+        `[Firebase] Listener ${EVENTS_PATH} interrompu:`,
         error
       );
     }
   );
 
   console.log(
-    `[Firebase] Listener actif sur ${EVENTS_PATH}`
+    `[Firebase] Listener actif: ${EVENTS_PATH}`
   );
 }
 
 /*
 |--------------------------------------------------------------------------
-| BASE64 IMAGE VALIDATION
+| IMAGE VALIDATION
 |--------------------------------------------------------------------------
 */
 
@@ -1573,8 +1656,9 @@ function validateBase64Image(
   value
 ) {
   const dataUrl =
-    String(value || '')
-      .trim();
+    String(
+      value || ''
+    ).trim();
 
   const match =
     dataUrl.match(
@@ -1605,12 +1689,19 @@ function validateBase64Image(
     );
 
   if (
-    !buffer.length ||
-    buffer.length >
-      MAX_UPLOAD_BYTES
+    !buffer.length
   ) {
     throw new Error(
-      'Image trop volumineuse : maximum 2 Mo après compression.'
+      'Image vide.'
+    );
+  }
+
+  if (
+    buffer.length >
+    MAX_UPLOAD_BYTES
+  ) {
+    throw new Error(
+      'Image trop volumineuse : maximum 2 Mo.'
     );
   }
 
@@ -1633,7 +1724,7 @@ function allowedOrigin(
   const configured =
     String(
       process.env.FRONTEND_ORIGINS ||
-        ''
+      ''
     )
       .split(',')
       .map(
@@ -1698,6 +1789,9 @@ function createServer() {
         return response
           .status(403)
           .json({
+            ok:
+              false,
+
             error:
               'Origin non autorisée.'
           });
@@ -1740,7 +1834,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | JSON BODY
+  | BODY
   |--------------------------------------------------------------------------
   */
 
@@ -1763,48 +1857,43 @@ function createServer() {
       _request,
       response
     ) => {
-      response
-        .status(200)
-        .json({
-          ok:
-            true,
+      response.json({
+        ok:
+          true,
 
-          service:
-            'emil-supabase-push-worker',
+        service:
+          'emil-supabase-push-worker',
 
-          dataProvider:
-            getSupabaseClient()
-              ? 'supabase'
-              : 'not-configured',
+        dataProvider:
+          getSupabaseClient()
+            ? 'supabase'
+            : 'not-configured',
 
-          legacyFirebasePushPath:
-            EVENTS_PATH,
+        oneSignal: {
+          configured:
+            Boolean(
+              ONESIGNAL_APP_ID &&
+              ONESIGNAL_REST_API_KEY
+            ),
 
-          oneSignal: {
-            configured:
-              Boolean(
-                ONESIGNAL_APP_ID &&
-                ONESIGNAL_REST_API_KEY
-              ),
+          app_id_configured:
+            Boolean(
+              ONESIGNAL_APP_ID
+            ),
 
-            app_id_configured:
-              Boolean(
-                ONESIGNAL_APP_ID
-              ),
+          api:
+            ONESIGNAL_URL,
 
-            api:
-              ONESIGNAL_URL,
+          test_subscription_configured:
+            Boolean(
+              ONESIGNAL_TEST_SUBSCRIPTION_ID
+            )
+        },
 
-            test_subscription_configured:
-              Boolean(
-                ONESIGNAL_TEST_SUBSCRIPTION_ID
-              )
-          },
-
-          timestamp:
-            new Date()
-              .toISOString()
-        });
+        timestamp:
+          new Date()
+            .toISOString()
+      });
     }
   );
 
@@ -1847,18 +1936,13 @@ function createServer() {
             ONESIGNAL_TEST_SUBSCRIPTION_ID
           ),
 
-        test_subscription_id:
-          ONESIGNAL_TEST_SUBSCRIPTION_ID
-            ? 'configured'
-            : null,
-
         push_api:
           ONESIGNAL_URL,
 
         message:
           configured
-            ? 'OneSignal est correctement configuré. Le serveur peut envoyer des notifications Push.'
-            : 'OneSignal n’est pas correctement configuré. Vérifiez ONESIGNAL_APP_ID et ONESIGNAL_REST_API_KEY.',
+            ? 'OneSignal est correctement configuré.'
+            : 'Vérifiez ONESIGNAL_APP_ID et ONESIGNAL_REST_API_KEY.',
 
         timestamp:
           new Date()
@@ -1869,19 +1953,70 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | DEDICATED ONESIGNAL TEST
+  | ONESIGNAL SUBSCRIPTION DIAGNOSTIC
+  |--------------------------------------------------------------------------
+  */
+
+  app.get(
+    '/api/notifications/subscription/:subscriptionId',
+    async (
+      request,
+      response
+    ) => {
+      try {
+        const result =
+          await getOneSignalSubscriptionIdentity(
+            request.params.subscriptionId
+          );
+
+        return response.json({
+          ok:
+            true,
+
+          ...result
+        });
+      } catch (error) {
+        console.error(
+          '[OneSignal] Subscription diagnostic failed:',
+          error?.details ||
+            error
+        );
+
+        return response
+          .status(
+            error?.status >= 400 &&
+            error?.status < 600
+              ? error.status
+              : 502
+          )
+          .json({
+            ok:
+              false,
+
+            error:
+              error?.message ||
+              'Impossible de vérifier la subscription.',
+
+            details:
+              error?.details ||
+              null
+          });
+      }
+    }
+  );
+
+  /*
+  |--------------------------------------------------------------------------
+  | DEDICATED TEST
   |--------------------------------------------------------------------------
   |
-  | THIS ENDPOINT IS IMPORTANT FOR YOUR CURRENT TEST.
+  | THIS IS THE BUTTON YOU ARE CURRENTLY USING.
   |
-  | It always targets:
-  |
-  | ONESIGNAL_TEST_SUBSCRIPTION_ID
-  |
-  | Therefore your current browser Subscription ID:
+  | It ALWAYS targets:
   |
   | 2115f28d-a830-4155-bd15-fadb80ff40ab
   |
+  | when that value is configured in Render.
   |--------------------------------------------------------------------------
   */
 
@@ -1924,9 +2059,20 @@ function createServer() {
               'Ceci est un test de notification Push.'
             ),
 
+          url:
+            cleanText(
+              body.url,
+              'https://l-empreinte-d-emil-1.onrender.com/'
+            ),
+
           subscriptionId:
             ONESIGNAL_TEST_SUBSCRIPTION_ID
         };
+
+        console.log(
+          '[OneSignal TEST] FORCED SUBSCRIPTION:',
+          ONESIGNAL_TEST_SUBSCRIPTION_ID
+        );
 
         const result =
           await sendOneSignalNotification(
@@ -1948,14 +2094,15 @@ function createServer() {
             subscription_id:
               ONESIGNAL_TEST_SUBSCRIPTION_ID,
 
+            message_id:
+              result.id,
+
             data:
               result
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Push TEST] Send failed:',
+          '[OneSignal TEST] FAILED:',
           error?.details ||
             error
         );
@@ -1995,7 +2142,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE GLOBAL
+  | STORE GLOBAL GET
   |--------------------------------------------------------------------------
   */
 
@@ -2013,6 +2160,9 @@ function createServer() {
           return response
             .status(503)
             .json({
+              ok:
+                false,
+
               error:
                 'Supabase non configuré.'
             });
@@ -2065,17 +2215,18 @@ function createServer() {
           data:
             normalized
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture globale impossible :',
+          '[Supabase] Lecture globale impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Lecture Supabase impossible.'
@@ -2098,8 +2249,8 @@ function createServer() {
     ) => {
       try {
         const updates =
-          request.body?.value ||
-          request.body?.data ||
+          request.body?.value ??
+          request.body?.data ??
           {};
 
         if (
@@ -2113,6 +2264,9 @@ function createServer() {
           return response
             .status(400)
             .json({
+              ok:
+                false,
+
               error:
                 'Objet de mise à jour attendu.'
             });
@@ -2138,17 +2292,18 @@ function createServer() {
 
           rows
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Mise à jour globale impossible :',
+          '[Supabase] Mise à jour globale impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Mise à jour Supabase impossible.'
@@ -2191,17 +2346,18 @@ function createServer() {
               value
             )
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture de chemin impossible :',
+          '[Supabase] Lecture node impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Lecture Supabase impossible.'
@@ -2246,17 +2402,18 @@ function createServer() {
           updated_at:
             row.updated_at
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Écriture de chemin impossible :',
+          '[Supabase] Écriture node impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Écriture Supabase impossible.'
@@ -2310,6 +2467,9 @@ function createServer() {
           return response
             .status(503)
             .json({
+              ok:
+                false,
+
               error:
                 'Supabase non configuré.'
             });
@@ -2327,6 +2487,9 @@ function createServer() {
           return response
             .status(400)
             .json({
+              ok:
+                false,
+
               error:
                 'Clé de stockage manquante.'
             });
@@ -2353,17 +2516,18 @@ function createServer() {
           ok:
             true
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression node impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Suppression Supabase impossible.'
@@ -2374,7 +2538,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE BY KEY
+  | STORE BY KEY GET
   |--------------------------------------------------------------------------
   */
 
@@ -2403,17 +2567,18 @@ function createServer() {
               value
             )
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Lecture impossible :',
+          '[Supabase] Lecture impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Lecture Supabase impossible.'
@@ -2424,7 +2589,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE PUT
+  | STORE BY KEY PUT
   |--------------------------------------------------------------------------
   */
 
@@ -2448,17 +2613,18 @@ function createServer() {
 
           ...row
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Écriture impossible :',
+          '[Supabase] Écriture impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Écriture Supabase impossible.'
@@ -2469,7 +2635,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE PATCH
+  | STORE BY KEY PATCH
   |--------------------------------------------------------------------------
   */
 
@@ -2483,7 +2649,7 @@ function createServer() {
         const row =
           await writeStoreValue(
             request.params.key,
-            request.body?.value ||
+            request.body?.value ??
               {},
             'update'
           );
@@ -2494,17 +2660,18 @@ function createServer() {
 
           ...row
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Mise à jour impossible :',
+          '[Supabase] Mise à jour impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Mise à jour Supabase impossible.'
@@ -2515,7 +2682,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | STORE DELETE
+  | STORE BY KEY DELETE
   |--------------------------------------------------------------------------
   */
 
@@ -2533,6 +2700,9 @@ function createServer() {
           return response
             .status(503)
             .json({
+              ok:
+                false,
+
               error:
                 'Supabase non configuré.'
             });
@@ -2561,17 +2731,18 @@ function createServer() {
           ok:
             true
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Supabase] Suppression impossible :',
+          '[Supabase] Suppression impossible:',
           error
         );
 
         return response
           .status(500)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Suppression Supabase impossible.'
@@ -2582,15 +2753,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | NORMAL PRODUCT PUSH
-  |--------------------------------------------------------------------------
-  |
-  | If a subscriptionId is supplied:
-  |     send to that subscription.
-  |
-  | Otherwise:
-  |     send to "Subscribed Users".
-  |
+  | NORMAL PRODUCT NOTIFICATION
   |--------------------------------------------------------------------------
   */
 
@@ -2618,12 +2781,13 @@ function createServer() {
             handled:
               true,
 
+            message_id:
+              result.id,
+
             data:
               result
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           '[Push API] Send failed:',
           error?.details ||
@@ -2662,7 +2826,7 @@ function createServer() {
 
   /*
   |--------------------------------------------------------------------------
-  | LEGACY PUSH EVENTS ENDPOINT
+  | LEGACY PUSH EVENTS
   |--------------------------------------------------------------------------
   */
 
@@ -2688,14 +2852,15 @@ function createServer() {
             handled:
               true,
 
+            message_id:
+              result.id,
+
             data:
               result
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[OneSignal] Événement push impossible :',
+          '[Push Events] Failed:',
           error?.details ||
             error
         );
@@ -2753,20 +2918,24 @@ function createServer() {
           return response
             .status(400)
             .json({
+              ok:
+                false,
+
               error:
                 'dataUrl obligatoire.'
             });
         }
 
         if (
-          folder !==
-            'products' &&
-          folder !==
-            'reviews'
+          folder !== 'products' &&
+          folder !== 'reviews'
         ) {
           return response
             .status(400)
             .json({
+              ok:
+                false,
+
               error:
                 'Dossier invalide.'
             });
@@ -2774,8 +2943,7 @@ function createServer() {
 
         const expectedToken =
           String(
-            process.env
-              .UPLOAD_TOKEN ||
+            process.env.UPLOAD_TOKEN ||
               ''
           ).trim();
 
@@ -2783,12 +2951,14 @@ function createServer() {
           expectedToken &&
           request.get(
             'X-Upload-Token'
-          ) !==
-            expectedToken
+          ) !== expectedToken
         ) {
           return response
             .status(401)
             .json({
+              ok:
+                false,
+
               error:
                 'Upload non autorisé.'
             });
@@ -2820,17 +2990,18 @@ function createServer() {
             contentType:
               'image'
           });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
-          '[Upload] Échec validation Base64 :',
+          '[Upload] Échec:',
           error
         );
 
         return response
           .status(400)
           .json({
+            ok:
+              false,
+
             error:
               error?.message ||
               'Upload impossible.'
@@ -2934,70 +3105,11 @@ async function main() {
 
   /*
   |--------------------------------------------------------------------------
-  | SUPABASE MODE
+  | FIREBASE WORKER
   |--------------------------------------------------------------------------
   */
 
-  if (
-    getSupabaseClient()
-  ) {
-    console.log(
-      `[Supabase] Mode principal actif sur la table ${SUPABASE_TABLE}.`
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | FIREBASE HISTORICAL PUSH WORKER
-    |--------------------------------------------------------------------------
-    */
-
-    try {
-      const firebaseApp =
-        initFirebaseAdmin();
-
-      const db =
-        admin.database(
-          firebaseApp
-        );
-
-      await db
-        .ref(
-          '.info/connected'
-        )
-        .once(
-          'value'
-        )
-        .catch(
-          error => {
-            console.warn(
-              '[Firebase] Vérification initiale indisponible :',
-              error.message
-            );
-          }
-        );
-
-      startPushEventListener(
-        db
-      );
-    } catch (
-      error
-    ) {
-      console.warn(
-        '[Firebase] Worker historique non démarré :',
-        error.message
-      );
-    }
-  } else {
-    /*
-    |--------------------------------------------------------------------------
-    | FIREBASE ONLY FALLBACK
-    |--------------------------------------------------------------------------
-    */
-
-    console.log(
-      '[Supabase] Supabase non configuré. Mode Firebase historique.'
-    );
-
+  try {
     const firebaseApp =
       initFirebaseAdmin();
 
@@ -3016,7 +3128,7 @@ async function main() {
       .catch(
         error => {
           console.warn(
-            '[Firebase] Vérification initiale indisponible :',
+            '[Firebase] Vérification indisponible:',
             error.message
           );
         }
@@ -3024,6 +3136,11 @@ async function main() {
 
     startPushEventListener(
       db
+    );
+  } catch (error) {
+    console.warn(
+      '[Firebase] Worker non démarré:',
+      error.message
     );
   }
 
@@ -3038,29 +3155,60 @@ async function main() {
     '0.0.0.0',
     () => {
       console.log(
-        `[HTTP] Serveur Express à l’écoute sur le port ${PORT}`
+        '=================================================='
       );
 
       console.log(
-        `[OneSignal] API : ${ONESIGNAL_URL}`
+        'L’EMPREINTE D’EMIL BACKEND'
       );
 
       console.log(
-        `[OneSignal] App ID configuré : ${Boolean(
+        '=================================================='
+      );
+
+      console.log(
+        `[HTTP] Port: ${PORT}`
+      );
+
+      console.log(
+        `[Supabase] Configuré: ${Boolean(
+          SUPABASE_URL &&
+          SUPABASE_SERVICE_ROLE_KEY
+        )}`
+      );
+
+      console.log(
+        `[OneSignal] API: ${ONESIGNAL_URL}`
+      );
+
+      console.log(
+        `[OneSignal] App ID: ${Boolean(
           ONESIGNAL_APP_ID
         )}`
       );
 
       console.log(
-        `[OneSignal] REST API Key configurée : ${Boolean(
+        `[OneSignal] REST API Key: ${Boolean(
           ONESIGNAL_REST_API_KEY
         )}`
       );
 
       console.log(
-        `[OneSignal] Test Subscription configuré : ${Boolean(
+        `[OneSignal] Test Subscription: ${Boolean(
           ONESIGNAL_TEST_SUBSCRIPTION_ID
         )}`
+      );
+
+      if (
+        ONESIGNAL_TEST_SUBSCRIPTION_ID
+      ) {
+        console.log(
+          `[OneSignal] TEST TARGET: ${ONESIGNAL_TEST_SUBSCRIPTION_ID}`
+        );
+      }
+
+      console.log(
+        '=================================================='
       );
     }
   );
@@ -3075,7 +3223,7 @@ async function main() {
 main().catch(
   error => {
     console.error(
-      '[Startup] Démarrage impossible',
+      '[Startup] Démarrage impossible:',
       error
     );
 
@@ -3093,5 +3241,6 @@ export {
   createServer,
   notificationPayload,
   processPushEvent,
-  sendOneSignalNotification
+  sendOneSignalNotification,
+  getOneSignalSubscriptionIdentity
 };
