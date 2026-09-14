@@ -2324,11 +2324,13 @@ img,svg,video,iframe{max-width:100%}
       window.__maybeCloseLuxeSplash();
     }, window.__LUXE_SPLASH_ANIMATION_MS__);
 
-    /* Absolute maximum: 4 seconds, regardless of Firebase/network/image state. */
+    /* Safety fallback only: give the catalogue and its images time to arrive.
+       The splash normally closes earlier, as soon as the startup coordinator
+       confirms the products and their images are ready. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       console.warn('[Startup] Splash safety timeout reached; unlocking UI.');
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 4000);
+    }, 30000);
 
     /* Optional cache warm-up; never allowed to throw or block parsing. */
     try {
@@ -14239,12 +14241,12 @@ window.enableSmartPush=enableSmartPush;
     // Splash logo is itself a visible critical asset.
     add('https://i.postimg.cc/HLdg7Tb5/logo.png');
 
-    // Only preload what is actually visible in the first paint. This avoids
-    // downloading every catalogue image before the customer can interact.
-    const visibleProducts = (Array.isArray(productList)?productList:[]).slice(0,8);
-    visibleProducts.forEach(p => {
+    // Preload every product image before releasing the splash. The catalogue
+    // must not visibly fill in after the animation has already disappeared.
+    const allProducts = Array.isArray(productList) ? productList : [];
+    allProducts.forEach(p => {
       const list = Array.isArray(p?.imgs) ? p.imgs : [];
-      add(list[0]);
+      list.forEach(add);
     });
 
     // Approved review photos can appear on the home page as well.
@@ -14271,7 +14273,7 @@ window.enableSmartPush=enableSmartPush;
           finish(img.naturalWidth>0);
         });
       }
-      setTimeout(()=>finish(false),2200);
+      setTimeout(()=>finish(false),10000);
     }));
 
     if(!tasks.length)return true;
@@ -14301,7 +14303,7 @@ window.enableSmartPush=enableSmartPush;
       if(typeof firebaseDb!=='undefined'&&firebaseDb){
         remotePromise = Promise.race([
           firebaseDb.ref('storedData/products').once('value'),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Remote product refresh timeout')),1800))
+          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Remote product refresh timeout')),10000))
         ]).then(snap=>normaliseStartupProducts(snap.val())).catch(e=>{
           console.warn('[Startup] Remote product refresh skipped:',e);
           return [];
