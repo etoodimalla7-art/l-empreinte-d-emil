@@ -316,8 +316,10 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);over
 	
 .product-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.08);border-radius:8px;overflow:hidden;cursor:pointer;transition:var(--transition);position:relative}
 .product-card:hover{border-color:rgba(201,168,76,.3);transform:translateY(-4px);box-shadow:var(--shadow)}
-.product-img{width:100%;aspect-ratio:1;background:var(--dark-3);display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden;position:relative}
+.product-img{width:100%;aspect-ratio:1;background:var(--dark-3);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
 .product-img img{width:100%;height:100%;object-fit:cover}
+.product-image-skeleton{display:block;width:100%;height:100%;background:linear-gradient(100deg,var(--dark-3) 30%,var(--dark-4) 50%,var(--dark-3) 70%);background-size:200% 100%;animation:product-skeleton 1.25s linear infinite}
+@keyframes product-skeleton{to{background-position:-200% 0}}
 .product-badge{position:absolute;top:10px;left:10px;background:var(--gold);color:var(--noir);font-size:10px;font-weight:700;padding:3px 8px;border-radius:2px;letter-spacing:.08em;text-transform:uppercase}
 .product-badge.bundle{background:var(--dark-4);color:var(--gold);border:1px solid var(--gold)}
 .product-info{padding:14px}
@@ -2324,11 +2326,11 @@ img,svg,video,iframe{max-width:100%}
       window.__maybeCloseLuxeSplash();
     }, window.__LUXE_SPLASH_ANIMATION_MS__);
 
-    /* Absolute maximum: 4 seconds, regardless of Firebase/network/image state. */
+    /* Emergency fallback only; normal closure requires Firebase data and image preload. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       console.warn('[Startup] Splash safety timeout reached; unlocking UI.');
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 4000);
+    }, 30000);
 
     /* Optional cache warm-up; never allowed to throw or block parsing. */
     try {
@@ -5677,7 +5679,7 @@ function renderProductCard(p) {
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${firstImg?`<img src="${firstImg}" alt="${prodName(p)}" width="100%" height="auto" class="prod-img-tag" loading="eager" fetchpriority="high" decoding="sync">`:(cat?cat.icon:'📦')}
+        ${firstImg?`<img src="${firstImg}" alt="${esc(prodName(p))}" width="100%" height="auto" class="prod-img-tag" loading="eager" fetchpriority="high" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="product-image-skeleton" style="display:none" aria-label="Image indisponible"></span>`:`<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -5975,7 +5977,7 @@ function openProduct(id) {
   const imgs = p.imgs?.length ? p.imgs : [];
   const mainImgHTML = imgs.length
     ? `<img src="${imgs[0]}" id="pm-main-img" alt="${prodName(p)}">`
-    : `<span id="pm-main-img" style="font-size:80px">${cat?.icon||'📦'}</span>`;
+    : `<span id="pm-main-img" class="product-image-skeleton" aria-label="Image indisponible"></span>`;
 
   const thumbsHTML = imgs.length > 1 ? `
     <div class="product-thumbs">
@@ -6230,7 +6232,7 @@ function renderCart() {
 	    const variantStr = [item.size, item.color, item.volume].filter(Boolean).join(' / ');
 	    return `
 	      <div class="cart-item">
-	        <div class="cart-item-img">${firstImg?`<img src="${firstImg}" alt="">`:(cat?cat.icon:'📦')}</div>
+        <div class="cart-item-img">${firstImg?`<img src="${firstImg}" alt="">`:`<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}</div>
 	        <div class="cart-item-body">
 	          <div class="cart-item-name">${prodName(p)}</div>
 	          <div class="cart-item-type">
@@ -7075,7 +7077,7 @@ const el_search_input = document.getElementById('search-input'); if (el_search_i
     const cat=getCat(p.catId);
     const fi=p.imgs?.[0];
     return `<div class="search-result-item" onclick="openProduct('${p.id}');document.getElementById('search-input').value='';document.getElementById('search-dropdown').classList.remove('show')">
-      <div class="search-result-img">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div>
+      <div class="search-result-img">${fi?`<img src="${fi}" alt="">`:`<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}</div>
       <div><div style="font-size:13px">${prodName(p)}</div><div style="font-size:11px;color:var(--gold)">${fmt(p.price || 0)}</div></div>
     </div>`;
   }).join('');
@@ -7213,7 +7215,7 @@ function renderAdminProducts() {
     const cat=getCat(p.catId);
     const fi=p.imgs?.[0];
     return `<tr>
-      <td><div class="product-thumb-admin">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div></td>
+      <td><div class="product-thumb-admin">${fi?`<img src="${fi}" alt="">`:`<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}</div></td>
       <td>${prodName(p)}</td>
       <td>${cat?`${cat.icon} ${getCatName(cat)}`:'—'}</td>
       <td style="color:var(--gold)">${fmt(p.price || 0)}</td>
@@ -8406,7 +8408,7 @@ function renderLookDuMoment() {
     const cat = getCat(p.catId);
     const fi = p.imgs?.[0];
     return `<div class="look-item" onclick="openProduct('${p.id}')">
-      <div class="look-item-img">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div>
+      <div class="look-item-img">${fi?`<img src="${fi}" alt="">`:`<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}</div>
       <div style="flex:1">
         <div class="look-item-name">${prodName(p)}</div>
         <div class="look-item-price">${fmt(p.price || 0)}</div>
@@ -8775,7 +8777,7 @@ function renderAdminAboutContent() {
   ll.innerHTML = lookProducts.map((id,i) => {
     const p = getProd(id); if (!p) return '';
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--dark-3);border-radius:6px;margin-bottom:8px">
-      <span style="font-size:20px">${getCat(p.catId)?.icon||'📦'}</span>
+      <span class="product-image-skeleton" style="width:36px;height:36px" aria-label="Image indisponible"></span>
       <div style="flex:1;font-size:13px">${prodName(p)} — <span style="color:var(--gold)">${fmt(p.price || 0)}</span></div>
       <button class="admin-btn admin-btn-sm admin-btn-danger" onclick="removeFromLook(${i})">🗑</button>
     </div>`;
@@ -9035,7 +9037,7 @@ function openOrderDetail(orderId) {
       bundleRows = `<div style="margin-top:4px;font-size:11px;color:var(--gold)">📦 ${p.bundleItems.join(' · ')}</div>`;
     }
     return `<div class="order-item-row">
-      <div class="order-item-thumb">${fi ? `<img src="${fi}" alt="">` : (cat ? cat.icon : '📦')}</div>
+      <div class="order-item-thumb">${fi ? `<img src="${fi}" alt="">` : `<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}</div>
       <div class="order-item-info">
         <div class="order-item-name">${prodName(p)}</div>
         <div class="order-item-meta">${cat ? catName(cat) : ''} · ${p.type === 'bundle' ? (lang==='fr'?'Pack':'Pack') : (lang==='fr'?'Produit simple':'Single product')} · ${lang==='fr'?'Qté':'Qty'}: ${item.qty}</div>
@@ -9605,13 +9607,15 @@ function renderQuizResults(body) {
       <div class="quiz-result-products">
         ${prods.map(p => {
           const cat = getCat(p.catId);
-          const fi  = p.imgs?.[0];
+          const rawImgs = p.imgs ?? p.images;
+          const imageList = Array.isArray(rawImgs) ? rawImgs : (rawImgs && typeof rawImgs === 'object' ? Object.values(rawImgs) : []);
+          const fi = imageList.find(v => typeof v === 'string' && /^https?:\/\//i.test(v)) || p.image || p.img || p.imgUrl || p.imageUrl || '';
           return `
             <div class="quiz-result-product" onclick="openProduct('${p.id}');closeModal('quiz-modal');document.body.style.overflow=''">
               <div class="quiz-result-img">
                 ${fi
-                  ? `<img src="${fi}" alt="${prodName(p)}" loading="eager" fetchpriority="high" decoding="sync">`
-                  : `<span style="font-size:44px">${cat?.icon||'🌹'}</span>`}
+                  ? `<img src="${fi}" alt="${esc(prodName(p))}" loading="eager" fetchpriority="high" decoding="async">`
+                  : `<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
               </div>
               <div class="quiz-result-info">
                 <div class="quiz-result-name">${prodName(p)}</div>
@@ -9925,8 +9929,9 @@ function showBundleSuggestion(addedProductId) {
   const rel = bundleRelations.find(r=>r.from===addedProductId && r.enabled);
   if (!rel) return;
   const suggested = getProd(rel.to); if (!suggested) return;
-  const cat = getCat(suggested.catId);
-  const fi = suggested.imgs?.[0];
+  const rawImgs = suggested.imgs ?? suggested.images;
+  const imageList = Array.isArray(rawImgs) ? rawImgs : (rawImgs && typeof rawImgs === 'object' ? Object.values(rawImgs) : []);
+  const fi = imageList.find(v => typeof v === 'string' && /^https?:\/\//i.test(v)) || suggested.image || suggested.img || suggested.imgUrl || suggested.imageUrl || '';
   const price = rel.discount>0 ? Math.round(suggested.price*(1-rel.discount/100)) : suggested.price;
   const suggest = document.createElement('div');
   suggest.className = 'bundle-suggest';
@@ -9934,7 +9939,7 @@ function showBundleSuggestion(addedProductId) {
   suggest.innerHTML = `
     <div class="bundle-suggest-title">✨ ${lang==='fr'?'Complétez votre expérience':'Complete your experience'}</div>
     <div class="bundle-suggest-inner">
-      <div class="bundle-suggest-img">${fi?`<img src="${fi}" alt="">`:(cat?cat.icon:'📦')}</div>
+      <div class="bundle-suggest-img">${fi?`<img src="${fi}" alt="${esc(prodName(suggested))}">`:`<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}</div>
       <div class="bundle-suggest-info">
         <div class="bundle-suggest-name">${prodName(suggested)}</div>
         <div class="bundle-suggest-price">${rel.discount>0?`<span style="text-decoration:line-through;color:var(--muted);font-size:11px">${fmt(suggested.price)}</span> `:''} ${fmt(price)}</div>
@@ -10740,7 +10745,7 @@ function renderEngravingAdmin() {
   const engProds = getValidProducts().filter(p => p.engraving?.enabled);
   el.innerHTML = engProds.length ? engProds.map(p => `
     <div class="engraving-admin-row">
-      <span style="font-size:18px">${getCat(p.catId)?.icon||'📦'}</span>
+      <span class="product-image-skeleton" style="width:32px;height:32px" aria-label="Image indisponible"></span>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:500">${prodName(p)}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px">
@@ -11712,7 +11717,7 @@ function openCatEditModal(id) {
     ? prods.map(p => `
         <div style="display:flex;gap:10px;align-items:center;padding:8px;background:var(--dark-2);border-radius:6px;margin-bottom:6px">
           <div style="width:36px;height:36px;border-radius:4px;background:var(--dark-3);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden;flex-shrink:0">
-            ${p.imgs?.[0] ? `<img src="${p.imgs[0]}" style="width:100%;height:100%;object-fit:cover">` : (getCat(p.catId)?.icon||'📦')}
+            ${p.imgs?.[0] ? `<img src="${p.imgs[0]}" style="width:100%;height:100%;object-fit:cover">` : `<span class="product-image-skeleton" aria-label="Image indisponible"></span>`}
           </div>
           <div style="flex:1;min-width:0">
             <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${prodName(p)}</div>
@@ -12241,7 +12246,9 @@ function emilShowProducts(prods, title) {
   row.className = 'emil-products-row';
   prods.slice(0,3).forEach(p => {
     const cat = getCat(p.catId);
-    const fi  = p.imgs?.[0];
+    const rawImgs = p.imgs ?? p.images;
+    const imageList = Array.isArray(rawImgs) ? rawImgs : (rawImgs && typeof rawImgs === 'object' ? Object.values(rawImgs) : []);
+    const fi = imageList.find(v => typeof v === 'string' && /^https?:\/\//i.test(v)) || p.image || p.img || p.imgUrl || p.imageUrl || '';
     const card = document.createElement('div');
     card.className = 'emil-product-card';
     card.onclick = () => { emilToggle(); openProduct(p.id); };
@@ -12252,7 +12259,7 @@ function emilShowProducts(prods, title) {
     const stars = revs.length ? '★'.repeat(Math.round(revs.reduce((s,r)=>s+(r.stars||0),0)/revs.length)) : '';
     card.innerHTML = `
       <div class="emil-product-img">
-        ${fi ? `<img src="${fi}" alt="${prodName(p)}" loading="eager" fetchpriority="high" decoding="sync">` : `<span>${cat?.icon||'📦'}</span>`}
+        ${fi ? `<img src="${fi}" alt="${esc(prodName(p))}" loading="eager" fetchpriority="high" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="product-image-skeleton" style="display:none" aria-label="Image indisponible"></span>` : `<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
       </div>
       <div class="emil-product-info">
         ${stars ? `<div style="font-size:11px;color:var(--gold);margin-bottom:3px">${stars}</div>` : ''}
@@ -14280,8 +14287,8 @@ window.enableSmartPush=enableSmartPush;
     }));
 
     if(!tasks.length)return true;
-    await Promise.all(tasks);
-    return true;
+    const results = await Promise.allSettled(tasks);
+    return results.every(result => result.status === 'fulfilled' && result.value === true);
   }
 
   async function criticalStartup(){
@@ -14294,12 +14301,34 @@ window.enableSmartPush=enableSmartPush;
       }catch(e){console.error('[Startup] Initial local render failed:',e);}
 
       const localProducts = Array.isArray(products)?products:[];
+
+      // Firebase data must arrive before the first-view images are preloaded.
+      // This is the only startup product read; the normal realtime listeners
+      // continue updating the page after startup.
+      let remoteProducts = [];
+      try{
+        if(typeof initFirebase==='function')initFirebase();
+        if(typeof firebaseDb!=='undefined'&&firebaseDb){
+          const snap = await Promise.race([
+            firebaseDb.ref('storedData/products').once('value'),
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firebase startup read timeout')),6000))
+          ]);
+          remoteProducts = normaliseStartupProducts(snap.val());
+        }
+      }catch(e){
+        console.warn('[Startup] Firebase startup read unavailable; using cached catalogue.', e.message);
+      }
+
+      if(remoteProducts.length){
+        products = remoteProducts;
+        try{saveLocal();}catch(e){}
+        try{renderAll();}catch(e){console.warn('[Startup] Firebase catalogue render failed:',e);}
+      }
       mark('products');
 
-      // 2) Prepare the cached catalogue images before removing the splash.
-      // Firebase continues its normal background sync independently.
-      await preloadCriticalViewport(localProducts).catch(e=>{
-        console.warn('[Startup] Critical local image preload failed:',e);
+      const firstViewProducts = remoteProducts.length ? remoteProducts : localProducts;
+      await preloadCriticalViewport(firstViewProducts).catch(e=>{
+        console.warn('[Startup] First-view image preload failed:',e);
       });
       mark('images');
     }catch(error){
