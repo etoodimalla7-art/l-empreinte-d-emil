@@ -182,7 +182,7 @@ function esc(str) {
 	  position: relative;
 	  overflow: hidden;
 	}
-.splash-loader::after {
+	.splash-loader::after {
 	  content: '';
 	  position: absolute;
 	  top: 0; left: -100%;
@@ -2324,13 +2324,11 @@ img,svg,video,iframe{max-width:100%}
       window.__maybeCloseLuxeSplash();
     }, window.__LUXE_SPLASH_ANIMATION_MS__);
 
-    /* Safety fallback only: give the catalogue and its images time to arrive.
-       The splash normally closes earlier, as soon as the startup coordinator
-       confirms the products and their images are ready. */
+    /* Absolute maximum: 4 seconds, regardless of Firebase/network/image state. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
       console.warn('[Startup] Splash safety timeout reached; unlocking UI.');
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 30000);
+    }, 4000);
 
     /* Optional cache warm-up; never allowed to throw or block parsing. */
     try {
@@ -4853,16 +4851,7 @@ function handleKeyUpdate(key, value) {
   
   // Update global variables
   if (key === 'categories') categories = value;
-  else if (key === 'products') {
-    products = value;
-    // The normal realtime listener is the source of truth for startup. Resolve
-    // the splash wait as soon as that listener actually delivers the catalogue.
-    if (typeof window.__resolveEmilStartupProducts === 'function') {
-      const resolve = window.__resolveEmilStartupProducts;
-      window.__resolveEmilStartupProducts = null;
-      resolve(value);
-    }
-  }
+  else if (key === 'products') products = value;
   else if (key === 'settings') settings = value;
   else if (key === 'reviews') {
     reviews = reviewRows(value);
@@ -4995,11 +4984,6 @@ async function syncPull(silent) {
 
     // RENDU IMMÉDIAT : Dès que les produits sont là, on affiche et on coupe le splash
     if (products.length > 0) {
-      if (typeof window.__resolveEmilStartupProducts === 'function') {
-        const resolveStartupProducts = window.__resolveEmilStartupProducts;
-        window.__resolveEmilStartupProducts = null;
-        resolveStartupProducts(products);
-      }
       if (typeof renderAll === "function") renderAll();
       if (typeof filterProducts === "function" && currentPage === 'shop') filterProducts();
     }
@@ -14258,10 +14242,10 @@ window.enableSmartPush=enableSmartPush;
     // Splash logo is itself a visible critical asset.
     add('https://i.postimg.cc/HLdg7Tb5/logo.png');
 
-    // Preload every product image before releasing the splash. The catalogue
-    // must not visibly fill in after the animation has already disappeared.
-    const allProducts = Array.isArray(productList) ? productList : [];
-    allProducts.forEach(p => {
+    // Only preload what is actually visible in the first paint. This avoids
+    // downloading every catalogue image before the customer can interact.
+    const visibleProducts = (Array.isArray(productList)?productList:[]).slice(0,8);
+    visibleProducts.forEach(p => {
       const raw = p?.imgs ?? p?.images;
       const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : []);
       list.forEach(add);
@@ -14292,7 +14276,7 @@ window.enableSmartPush=enableSmartPush;
           finish(img.naturalWidth>0);
         });
       }
-      setTimeout(()=>finish(false),10000);
+      setTimeout(()=>finish(false),2200);
     }));
 
     if(!tasks.length)return true;
@@ -14312,64 +14296,12 @@ window.enableSmartPush=enableSmartPush;
       const localProducts = Array.isArray(products)?products:[];
       mark('products');
 
-      // 2) Start Firebase refresh IN PARALLEL with the critical image preload.
-      // Do not issue a second once('value') request here. initFirebase() already
-      // owns the realtime products listener; this promise is resolved by that
-      // listener when it actually receives the catalogue.
-      let resolveRemoteProducts;
-      const remotePromise = new Promise(resolve=>{
-        resolveRemoteProducts = resolve;
-        window.__resolveEmilStartupProducts = value => {
-          window.__resolveEmilStartupProducts = null;
-          resolve(normaliseStartupProducts(value));
-        };
-        setTimeout(()=>{
-          if(window.__resolveEmilStartupProducts){
-            window.__resolveEmilStartupProducts = null;
-            console.warn('[Startup] Realtime product listener timeout; using cached catalogue.');
-            resolve([]);
-          }
-        },15000);
-      });
-      try{
-        const firebaseStarted = typeof initFirebase==='function' && initFirebase();
-        if(!firebaseStarted && resolveRemoteProducts)resolveRemoteProducts([]);
-      }catch(e){
-        console.warn('[Startup] Firebase init failed:',e);
-        if(resolveRemoteProducts)resolveRemoteProducts([]);
-      }
-
-      // 3) Prepare the currently visible catalogue immediately.
-      const localImagePromise = preloadCriticalViewport(localProducts).catch(e=>{
+      // 2) Prepare the cached catalogue images before removing the splash.
+      // Firebase continues its normal background sync independently.
+      await preloadCriticalViewport(localProducts).catch(e=>{
         console.warn('[Startup] Critical local image preload failed:',e);
       });
-
-      // Once Firebase delivers the real catalogue, render it and make every
-      // product image ready before releasing the splash.
-      const remoteProducts = await remotePromise;
-      if(Array.isArray(remoteProducts) && remoteProducts.length){
-        products=remoteProducts;
-        try{saveLocal();}catch(e){}
-        try{renderAll();}catch(e){console.warn('[Startup] Remote product render failed:',e);}
-        try{await preloadCriticalViewport(remoteProducts);}catch(e){console.warn('[Startup] Remote image preload failed:',e);}
-      } else {
-        // No remote response: keep the already-rendered local catalogue.
-        await localImagePromise;
-      }
       mark('images');
-
-      // 4) Reviews are non-critical and never hold the splash.
-      if(typeof firebaseDb!=='undefined'&&firebaseDb){
-        setTimeout(()=>{
-          firebaseDb.ref('storedData/reviews').once('value').then(snap=>{
-            const remoteReviews=normalise(snap.val());
-            if(typeof reviews!=='undefined')reviews=remoteReviews;
-            window.reviews=remoteReviews;
-            window.pendingReviews=remoteReviews.filter(isPending);
-            try{renderPublicReviews();}catch(e){}
-          }).catch(e=>console.warn('[Startup] Reviews background load skipped:',e));
-        },0);
-      }
     }catch(error){
       console.error('[Startup] Startup coordinator failed:',error);
       mark('products');
