@@ -5667,19 +5667,28 @@ function sanitizeData() {
 }
 
 // ============================================================
+function getProductDisplayImage(product) {
+  if (!product || typeof product !== 'object') return '';
+  const imageList = Array.isArray(product.images)
+    ? product.images
+    : (product.images && typeof product.images === 'object' ? Object.values(product.images) : []);
+  const imgsList = Array.isArray(product.imgs)
+    ? product.imgs
+    : (product.imgs && typeof product.imgs === 'object' ? Object.values(product.imgs) : []);
+  return product.image || product.imageUrl || product.img || imageList[0] || imgsList[0] || '';
+}
+
 function renderProductCard(p) {
   if (!p || typeof p !== 'object' || !p.id || !p.catId) return '';
   if (!p || typeof p !== 'object' || !p.catId) return '';
   const cat = getCat(p.catId);
   const isNew = products.slice(0,3).find(pp=>pp.id===p.id);
-  const rawImgs = p.imgs ?? p.images;
-  const imageList = Array.isArray(rawImgs) ? rawImgs : (rawImgs && typeof rawImgs === 'object' ? Object.values(rawImgs) : []);
-  const firstImg = imageList.find(v => typeof v === 'string' && /^https?:\/\//i.test(v)) || p.image || p.img || p.imgUrl || p.imageUrl || '';
+  const firstImg = getProductDisplayImage(p);
   return `
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${firstImg?`<img src="${firstImg}" alt="${esc(prodName(p))}" width="100%" height="auto" class="prod-img-tag" loading="eager" fetchpriority="high" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="product-image-skeleton" style="display:none" aria-label="Image indisponible"></span>`:`<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
+        ${firstImg?`<img src="${firstImg}" alt="${esc(prodName(p))}" width="100%" height="auto" class="product-card-img prod-img-tag" loading="eager" fetchpriority="high" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="product-image-skeleton" style="display:none" aria-label="Image indisponible"></span>`:`<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -5974,7 +5983,10 @@ function openProduct(id) {
   pmQty = 1;
   document.getElementById('pm-title').textContent = prodName(p);
 
-  const imgs = p.imgs?.length ? p.imgs : [];
+  const rawImgs = Array.isArray(p.imgs) ? p.imgs : (p.imgs && typeof p.imgs === 'object' ? Object.values(p.imgs) : []);
+  const rawImages = Array.isArray(p.images) ? p.images : (p.images && typeof p.images === 'object' ? Object.values(p.images) : []);
+  const primaryImg = getProductDisplayImage(p);
+  const imgs = [...new Set([primaryImg, ...rawImages, ...rawImgs].filter(Boolean))];
   const mainImgHTML = imgs.length
     ? `<img src="${imgs[0]}" id="pm-main-img" alt="${prodName(p)}">`
     : `<span id="pm-main-img" class="product-image-skeleton" aria-label="Image indisponible"></span>`;
@@ -14330,6 +14342,14 @@ window.enableSmartPush=enableSmartPush;
       await preloadCriticalViewport(firstViewProducts).catch(e=>{
         console.warn('[Startup] First-view image preload failed:',e);
       });
+      // Wait for both home grids to commit their real <img> card nodes.
+      // This keeps the splash visible through the actual DOM construction,
+      // not merely through receipt of the Firebase payload.
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      const initialCardImages = document.querySelectorAll('.product-card-img');
+      if(firstViewProducts.length && !initialCardImages.length){
+        throw new Error('Initial product cards were not built with image elements');
+      }
       mark('images');
     }catch(error){
       console.error('[Startup] Startup coordinator failed:',error);
