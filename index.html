@@ -2124,6 +2124,19 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 .emil-review-preview.show{display:block}.emil-review-preview img{width:100%;height:100%;object-fit:cover}.emil-review-preview button{position:absolute;right:4px;top:4px;border:0;border-radius:50%;width:20px;height:20px;background:rgba(10,10,10,.8);color:#fff;cursor:pointer}
 .emil-live-ops{background:var(--dark-2);border:1px solid rgba(201,168,76,.14);border-radius:10px;padding:18px;margin:0 0 24px}.emil-live-ops-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}.emil-live-chip{background:var(--dark-3);border:1px solid rgba(201,168,76,.12);border-radius:7px;padding:12px}.emil-live-chip b{display:block;color:var(--gold);font-family:var(--font-display);font-size:22px}.emil-live-chip span{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.emil-live-ops-actions{display:flex;gap:8px;flex-wrap:wrap}.emil-live-ops-actions button{background:transparent;border:1px solid rgba(201,168,76,.3);border-radius:4px;color:var(--gold);padding:7px 10px;font-size:11px;cursor:pointer}
 
+
+/* Checkout payment method cards */
+.payment-method-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.payment-method-card{appearance:none;width:100%;min-height:78px;padding:14px 15px;background:linear-gradient(145deg,var(--dark-2),var(--dark));border:1px solid rgba(245,240,232,.16);border-radius:8px;color:var(--light);cursor:pointer;text-align:left;font:inherit;transition:var(--transition)}
+.payment-method-card:hover,.payment-method-card:focus-visible{border-color:rgba(212,175,55,.75);outline:none;transform:translateY(-1px)}
+.payment-method-card.is-selected{border-color:#D4AF37;box-shadow:0 0 0 1px rgba(212,175,55,.2),0 0 22px rgba(212,175,55,.16);background:linear-gradient(145deg,rgba(212,175,55,.14),var(--dark-2))}
+.payment-method-title{display:block;color:var(--gold-light);font-weight:600;font-size:13px;margin-bottom:5px}
+.payment-method-subtitle{display:block;color:var(--muted);font-size:11px;line-height:1.4}
+.payment-method-hint{font-size:11px;color:var(--muted);margin-top:8px}
+.mobile-money-options{margin:12px 0;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:6px}
+.card-payment-fields[hidden]{display:none!important}.card-number-wrap{position:relative}.card-number-wrap .form-input{padding-right:108px}.card-brand-mark{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;min-width:74px;height:27px;pointer-events:none}.card-brand-mark svg{width:72px;height:27px}.card-brand-status{font-size:10px;color:var(--muted);margin-top:5px;min-height:14px}.card-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card-security-note{font-size:11px;line-height:1.5;color:var(--muted);padding:10px 12px;border-left:2px solid var(--gold);background:rgba(201,168,76,.05);margin-top:2px}
+@media(max-width:560px){.payment-method-grid{grid-template-columns:1fr}.payment-method-card{min-height:68px}.card-details-grid{gap:8px}.card-number-wrap .form-input{padding-right:92px}.card-brand-mark{right:7px;min-width:66px}.card-brand-mark svg{width:64px}}
+
 </style>
 <script id="notchpay-sdk" src="https://cdn.jsdelivr.net/npm/notchpay.js@1.0.1/dist/notchpay-sdk.min.js" defer></script>
 
@@ -2504,25 +2517,59 @@ img,svg,video,iframe{max-width:100%}
     <div class="modal-body" id="checkout-body">
       <div class="checkout-summary" id="checkout-summary"></div>
       <div class="delivery-note" id="delivery-note">📍 Livraison à Douala dès 500 FCFA selon votre quartier · Autres villes à partir de 1500 FCFA</div>
-      <!-- PAYMENT SCOPE — interrupteur exclusif, placé en tête du parcours -->
+      <!-- PAYMENT SCOPE -->
       <div class="form-group" id="payment-scope-group">
-        <label class="form-label">Mode de paiement *</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button type="button" id="payment-scope-local-label" data-payment-scope="local" aria-pressed="true" style="display:flex;align-items:center;gap:8px;text-align:left;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.25);border-radius:5px;cursor:pointer;color:var(--light);font:inherit">
-            <span><strong style="display:block;color:var(--gold)">Paiement local (+237)</strong><small style="color:var(--muted)">MTN Mobile Money ou Orange Money</small></span>
+        <label class="form-label">MODE DE PAIEMENT *</label>
+        <div class="payment-method-grid" role="group" aria-label="Choisir le mode de paiement">
+          <button type="button" class="payment-method-card is-selected" id="payment-scope-local-label" data-payment-scope="local" aria-pressed="true">
+            <span class="payment-method-title">Paiement local (+237)</span>
+            <span class="payment-method-subtitle">MTN Mobile Money ou Orange Money</span>
+          </button>
+          <button type="button" class="payment-method-card" id="payment-scope-international-label" data-payment-scope="international" aria-pressed="false">
+            <span class="payment-method-title">Paiement international</span>
+            <span class="payment-method-subtitle">Carte Bancaire (Visa, Mastercard)</span>
           </button>
         </div>
-        <div id="payment-scope-hint" style="font-size:11px;color:var(--muted);margin-top:7px">Sélectionnez votre opérateur mobile money ci-dessous.</div>
+        <div id="payment-scope-hint" class="payment-method-hint">Sélectionnez votre opérateur Mobile Money pour continuer.</div>
       </div>
       <div id="emil-local-payment-fields">
         <div class="form-group">
-          <label class="form-label" data-i18n="label_phone">Téléphone *</label>
+          <label class="form-label" data-i18n="label_phone">TÉLÉPHONE *</label>
           <div class="phone-field-wrap">
             <select class="country-code-select" id="c-phone-country" onchange="updatePhonePlaceholder()"></select>
-            <input class="form-input phone-number-input" id="c-phone" placeholder="6XX XXX XXX" type="tel">
+            <input class="form-input phone-number-input" id="c-phone" placeholder="6XX XXX XXX" type="tel" autocomplete="tel">
           </div>
         </div>
-        <div id="emil-payment-options" style="margin:12px 0;padding:12px;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:6px"></div>
+        <div id="emil-payment-options" class="mobile-money-options"></div>
+      </div>
+      <div id="emil-card-payment-fields" class="card-payment-fields" hidden>
+        <div class="form-group">
+          <label class="form-label" for="c-email">ADRESSE E-MAIL DE CONFIRMATION *</label>
+          <input class="form-input" id="c-email" type="email" required autocomplete="email" placeholder="votre@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="c-card-name">NOM SUR LA CARTE *</label>
+          <input class="form-input" id="c-card-name" type="text" required autocomplete="cc-name" placeholder="Nom complet du titulaire">
+        </div>
+        <div class="form-group card-number-group">
+          <label class="form-label" for="c-card-number">NUMÉRO DE CARTE *</label>
+          <div class="card-number-wrap">
+            <input class="form-input" id="c-card-number" type="text" inputmode="numeric" required autocomplete="cc-number" maxlength="19" placeholder="1234 5678 9012 3456" aria-describedby="card-brand-status">
+            <span class="card-brand-mark" id="card-brand-mark" aria-hidden="true"></span>
+          </div>
+          <div class="card-brand-status" id="card-brand-status" aria-live="polite">Visa ou Mastercard</div>
+        </div>
+        <div class="card-details-grid">
+          <div class="form-group">
+            <label class="form-label" for="c-card-expiry">DATE D'EXPIRATION (MM/AA) *</label>
+            <input class="form-input" id="c-card-expiry" type="text" inputmode="numeric" required autocomplete="cc-exp" maxlength="5" placeholder="MM/AA">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="c-card-cvc">CODE CVC / CVV *</label>
+            <input class="form-input" id="c-card-cvc" type="text" inputmode="numeric" required autocomplete="cc-csc" maxlength="4" placeholder="123">
+          </div>
+        </div>
+        <div class="card-security-note">Paiement sécurisé par NotchPay. Vos données de carte sont saisies dans le parcours sécurisé du prestataire.</div>
       </div>
       <div class="form-group">
         <label class="form-label" data-i18n="label_name">Nom complet *</label>
@@ -13932,28 +13979,46 @@ window.addEventListener('load', () => setTimeout(() => {
   }
 
   function setPaymentScopeVisual(scope){
-    const ll=q('#payment-scope-local-label'),hint=q('#payment-scope-hint'),localBox=q('#emil-local-payment-fields');
-    if(ll){ll.style.borderColor='var(--gold)';ll.setAttribute('aria-pressed','true');}
-    if(hint)hint.textContent='Choisissez votre opérateur Mobile Money pour continuer.';
-    if(localBox)localBox.style.display='block';
-    [q('#c-phone-country'),q('#c-phone'),...Array.from(document.querySelectorAll('#emil-payment-options input'))].forEach(el=>{if(el)el.disabled=false;});
+    const isInternational=scope==='international';
+    const localButton=q('#payment-scope-local-label'),internationalButton=q('#payment-scope-international-label');
+    const localBox=q('#emil-local-payment-fields'),cardBox=q('#emil-card-payment-fields'),hint=q('#payment-scope-hint');
+    [[localButton,!isInternational],[internationalButton,isInternational]].forEach(([button,active])=>{if(button){button.classList.toggle('is-selected',active);button.setAttribute('aria-pressed',String(active));}});
+    if(localBox)localBox.hidden=isInternational;
+    if(cardBox)cardBox.hidden=!isInternational;
+    if(hint)hint.textContent=isInternational?'Saisissez vos informations de carte pour continuer.':'Choisissez votre opérateur Mobile Money pour continuer.';
+    const country=q('#c-phone-country'); if(country)country.disabled=isInternational;
+    const phone=q('#c-phone'); if(phone){phone.disabled=isInternational;phone.required=!isInternational;}
+    document.querySelectorAll('#emil-payment-options input').forEach(el=>el.disabled=isInternational);
+    window.__emilPaymentScope=isInternational?'international':'local';
   }
   function updatePaymentScope(scope){
-    const country=q('#c-phone-country'); if(country){country.value='+237'; if(typeof updatePhonePlaceholder==='function')updatePhonePlaceholder();}
-    if(typeof ensureCardForm==='function')ensureCardForm(); setPaymentScopeVisual('local'); renderCheckoutPromo();
+    const selected=scope==='international'?'international':'local';
+    if(selected==='local'){const country=q('#c-phone-country');if(country){country.value='+237';if(typeof updatePhonePlaceholder==='function')updatePhonePlaceholder();}if(typeof ensureCardForm==='function')ensureCardForm();}
+    setPaymentScopeVisual(selected); renderCheckoutPromo();
   }
-  function syncPaymentScopeFromCountry(){
-    const country=q('#c-phone-country'); if(country)country.value='+237'; setPaymentScopeVisual('local'); if(typeof ensureCardForm==='function')ensureCardForm();
+  function syncPaymentScopeFromCountry(){updatePaymentScope('local');}
+  function cardBrandFromNumber(value){const digits=String(value||'').replace(/\D/g,'');if(/^4/.test(digits))return 'visa';if(/^(5[1-5]|2(2[2-9]|[3-6]\d|7[0-2]))/.test(digits))return 'mastercard';return '';}
+  function cardLogoSvg(brand){if(brand==='visa')return '<svg viewBox="0 0 72 27" role="img" aria-label="Visa"><rect width="72" height="27" rx="4" fill="#fff"/><text x="36" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-style="italic" font-weight="700" fill="#1434CB">VISA</text></svg>';if(brand==='mastercard')return '<svg viewBox="0 0 72 27" role="img" aria-label="Mastercard"><rect width="72" height="27" rx="4" fill="#fff"/><circle cx="31" cy="13.5" r="8" fill="#EB001B"/><circle cx="41" cy="13.5" r="8" fill="#F79E1B" fill-opacity=".95"/><path d="M36 7.8a8 8 0 0 1 0 11.4 8 8 0 0 1 0-11.4Z" fill="#FF5F00"/><text x="36" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-size="5" font-weight="700" fill="#222">mastercard</text></svg>';return '';}
+  function bindCardNumberUX(){
+    const number=q('#c-card-number'),expiry=q('#c-card-expiry'),cvc=q('#c-card-cvc');if(!number||number.dataset.bound)return;
+    number.dataset.bound='1';number.addEventListener('input',()=>{const digits=number.value.replace(/\D/g,'').slice(0,16);number.value=digits.replace(/(.{4})/g,'$1 ').trim();const brand=cardBrandFromNumber(digits),mark=q('#card-brand-mark'),status=q('#card-brand-status');if(mark)mark.innerHTML=cardLogoSvg(brand);if(status)status.textContent=brand==='visa'?'Visa détectée':brand==='mastercard'?'Mastercard détectée':'Visa ou Mastercard';});
+    expiry?.addEventListener('input',()=>{let d=expiry.value.replace(/\D/g,'').slice(0,4);if(d.length>2)d=d.slice(0,2)+'/'+d.slice(2);expiry.value=d;});cvc?.addEventListener('input',()=>{cvc.value=cvc.value.replace(/\D/g,'').slice(0,4);});
   }
   function checkoutPaymentState(){
-    const country=q('#c-phone-country')?.value||'+237'; if(country!=='+237')throw new Error('Le paiement local nécessite le pays Cameroun (+237).');
-    const method=q('input[name="emil-pay"]:checked')?.value||'mtn_momo';
-    if(!['mtn_momo','orange_money'].includes(method))throw new Error('Pour le paiement local, choisissez MTN Mobile Money ou Orange Money.');
-    return {method};
+    const scope=window.__emilPaymentScope||'local';
+    if(scope==='international'){
+      const email=q('#c-email')?.value.trim()||'',cardName=q('#c-card-name')?.value.trim()||'',cardNumber=q('#c-card-number')?.value.replace(/\s/g,'')||'',expiry=q('#c-card-expiry')?.value.trim()||'',cvc=q('#c-card-cvc')?.value.trim()||'';
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw new Error('Veuillez renseigner une adresse e-mail valide.');
+      if(!cardName||!/^\d{13,19}$/.test(cardNumber))throw new Error('Veuillez renseigner un numéro de carte valide.');
+      if(!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)||!/^\d{3,4}$/.test(cvc))throw new Error('Vérifiez la date d’expiration et le code CVC/CVV.');
+      const brand=cardBrandFromNumber(cardNumber);if(!brand)throw new Error('Seules les cartes Visa et Mastercard sont acceptées.');
+      return {method:'card',paymentScope:'international',email,cardholderName:cardName,cardBrand:brand,cardLast4:cardNumber.slice(-4)};
+    }
+    const country=q('#c-phone-country')?.value||'+237';if(country!=='+237')throw new Error('Le paiement local nécessite le pays Cameroun (+237).');const method=q('input[name="emil-pay"]:checked')?.value||'mtn_momo';if(!['mtn_momo','orange_money'].includes(method))throw new Error('Pour le paiement local, choisissez MTN Mobile Money ou Orange Money.');return {method,paymentScope:'local'};
   }
   function getCheckoutData(){
     const name=q('#c-name')?.value.trim(), phone=(typeof window.getFullPhone==='function'?window.getFullPhone():q('#c-phone')?.value||'').replace(/\s/g,''); const city=q('#c-city')?.value||''; const address=q('#c-address')?.value.trim(); const notes=q('#c-msg')?.value.trim()||'';
-    if(!name||!address||!phone) throw new Error('Veuillez renseigner votre nom, votre téléphone et votre adresse.');
+    if(!name||!address||((window.__emilPaymentScope||'local')==='local'&&!phone)) throw new Error('Veuillez renseigner votre nom, votre téléphone et votre adresse.');
     const totals=typeof window.calcCartTotals==='function'?window.calcCartTotals(city):{subtotal:0}; const fee=Number((q('#co-delivery')?.textContent||'').replace(/\D/g,''))||0; const gift=(typeof giftSelected!=='undefined'&&giftSelected&&typeof giftSettings!=='undefined')?Number(giftSettings.price||0):0; const promo=renderCheckoutPromo(); const payment=checkoutPaymentState();
     return {name,phone,city,address,notes,subtotal:Number(totals.subtotal||0),promoCode:promo.code||null,promoDiscount:Number(promo.discount||0),deliveryFee:fee,giftFee:gift,total:Math.max(0,Number(totals.subtotal||0)-Number(promo.discount||0)+fee+gift),reference:'EMIL-'+Date.now(),...payment};
   }
@@ -13965,9 +14030,9 @@ window.addEventListener('load', () => setTimeout(() => {
       const order={...data,id:data.reference,status:'En attente',date:new Date().toISOString(),items:[...(typeof cart!=='undefined'?cart:(window.cart||[]))],paymentProvider:'notchpay',paymentStatus:'pending'};
       if(!NOTCHPAY_CONFIG.createPaymentEndpoint){
         if(!NOTCHPAY_CONFIG.publicKey) throw new Error('Ajoutez votre clé publique Notch Pay dans NOTCHPAY_CONFIG.publicKey pour ouvrir le paiement client-side.');
-        orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order; await window.openClientSideNotchPay(data.total,'XAF',{name:data.name,phone:data.phone},data.reference); return;
+        orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order; await window.openClientSideNotchPay(data.total,'XAF',{name:data.name,phone:data.phone,email:data.email||'',mode:data.paymentScope||data.method},data.reference); return;
       }
-      const response=await fetch(NOTCHPAY_CONFIG.createPaymentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,callbackUrl:NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname})});
+      const response=await fetch(NOTCHPAY_CONFIG.createPaymentEndpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({order,customer:{name:data.name,email:data.email||'',phone:data.phone,mode:data.paymentScope||data.method},callbackUrl:NOTCHPAY_CONFIG.callbackUrl||location.origin+location.pathname})});
       const result=await response.json().catch(()=>({}));
       if(!response.ok||(!result.checkoutUrl&&!result.paymentId&&!result.payment?.transaction?.id)) throw new Error(result.message||'Impossible d’initialiser le paiement sécurisé.');
       orders.unshift(order); DB.set('orders',orders); lastOrderData=order; window.currentOrder=order;
