@@ -182,13 +182,13 @@ function esc(str) {
 	  position: relative;
 	  overflow: hidden;
 	}
-	.splash-loader::after {
+.splash-loader::after {
 	  content: '';
 	  position: absolute;
 	  top: 0; left: -100%;
 	  width: 100%; height: 100%;
 	  background: var(--gold);
-	  animation: splash-load 1.15s ease-in-out 2 alternate;
+  animation: splash-load 1.15s linear infinite;
 	}
 	@keyframes splash-load {
 	  0% { left: -100%; }
@@ -4995,6 +4995,11 @@ async function syncPull(silent) {
 
     // RENDU IMMÉDIAT : Dès que les produits sont là, on affiche et on coupe le splash
     if (products.length > 0) {
+      if (typeof window.__resolveEmilStartupProducts === 'function') {
+        const resolveStartupProducts = window.__resolveEmilStartupProducts;
+        window.__resolveEmilStartupProducts = null;
+        resolveStartupProducts(products);
+      }
       if (typeof renderAll === "function") renderAll();
       if (typeof filterProducts === "function" && currentPage === 'shop') filterProducts();
     }
@@ -5681,7 +5686,9 @@ function renderProductCard(p) {
   if (!p || typeof p !== 'object' || !p.catId) return '';
   const cat = getCat(p.catId);
   const isNew = products.slice(0,3).find(pp=>pp.id===p.id);
-  const firstImg = (Array.isArray(p.imgs) && p.imgs[0]) || p.image || p.img || p.imgUrl || p.imageUrl || '';
+  const rawImgs = p.imgs ?? p.images;
+  const imageList = Array.isArray(rawImgs) ? rawImgs : (rawImgs && typeof rawImgs === 'object' ? Object.values(rawImgs) : []);
+  const firstImg = imageList.find(v => typeof v === 'string' && /^https?:\/\//i.test(v)) || p.image || p.img || p.imgUrl || p.imageUrl || '';
   return `
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
@@ -14237,7 +14244,8 @@ window.enableSmartPush=enableSmartPush;
 
   function normaliseStartupProducts(value){
     return rows(value).filter(p=>p&&typeof p==='object'&&p.id).map(p=>{
-      const urls=[...(Array.isArray(p.imgs)?p.imgs:[]),...(Array.isArray(p.images)?p.images:[]),p.image,p.img,p.imgUrl,p.imageUrl]
+      const imgValues=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);
+      const urls=[...imgValues(p.imgs),...imgValues(p.images),p.image,p.img,p.imgUrl,p.imageUrl]
         .filter(v=>typeof v==='string'&&/^https?:\/\//i.test(v));
       return {...p,imgs:urls};
     });
@@ -14254,8 +14262,10 @@ window.enableSmartPush=enableSmartPush;
     // must not visibly fill in after the animation has already disappeared.
     const allProducts = Array.isArray(productList) ? productList : [];
     allProducts.forEach(p => {
-      const list = Array.isArray(p?.imgs) ? p.imgs : [];
+      const raw = p?.imgs ?? p?.images;
+      const list = Array.isArray(raw) ? raw : (raw && typeof raw === 'object' ? Object.values(raw) : []);
       list.forEach(add);
+      [p?.image,p?.img,p?.imgUrl,p?.imageUrl].forEach(add);
     });
 
     // Approved review photos can appear on the home page as well.
