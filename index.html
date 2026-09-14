@@ -4853,7 +4853,16 @@ function handleKeyUpdate(key, value) {
   
   // Update global variables
   if (key === 'categories') categories = value;
-  else if (key === 'products') products = value;
+  else if (key === 'products') {
+    products = value;
+    // The normal realtime listener is the source of truth for startup. Resolve
+    // the splash wait as soon as that listener actually delivers the catalogue.
+    if (typeof window.__resolveEmilStartupProducts === 'function') {
+      const resolve = window.__resolveEmilStartupProducts;
+      window.__resolveEmilStartupProducts = null;
+      resolve(value);
+    }
+  }
   else if (key === 'settings') settings = value;
   else if (key === 'reviews') {
     reviews = reviewRows(value);
@@ -14294,20 +14303,30 @@ window.enableSmartPush=enableSmartPush;
       mark('products');
 
       // 2) Start Firebase refresh IN PARALLEL with the critical image preload.
-      // This removes the previous 3-second Firebase timeout from the first paint.
-      let remotePromise = Promise.resolve(null);
+      // Do not issue a second once('value') request here. initFirebase() already
+      // owns the realtime products listener; this promise is resolved by that
+      // listener when it actually receives the catalogue.
+      let resolveRemoteProducts;
+      const remotePromise = new Promise(resolve=>{
+        resolveRemoteProducts = resolve;
+        window.__resolveEmilStartupProducts = value => {
+          window.__resolveEmilStartupProducts = null;
+          resolve(normaliseStartupProducts(value));
+        };
+        setTimeout(()=>{
+          if(window.__resolveEmilStartupProducts){
+            window.__resolveEmilStartupProducts = null;
+            console.warn('[Startup] Realtime product listener timeout; using cached catalogue.');
+            resolve([]);
+          }
+        },15000);
+      });
       try{
-        if(typeof initFirebase==='function')initFirebase();
-      }catch(e){console.warn('[Startup] Firebase init failed:',e);}
-
-      if(typeof firebaseDb!=='undefined'&&firebaseDb){
-        remotePromise = Promise.race([
-          firebaseDb.ref('storedData/products').once('value'),
-          new Promise((_,reject)=>setTimeout(()=>reject(new Error('Remote product refresh timeout')),10000))
-        ]).then(snap=>normaliseStartupProducts(snap.val())).catch(e=>{
-          console.warn('[Startup] Remote product refresh skipped:',e);
-          return [];
-        });
+        const firebaseStarted = typeof initFirebase==='function' && initFirebase();
+        if(!firebaseStarted && resolveRemoteProducts)resolveRemoteProducts([]);
+      }catch(e){
+        console.warn('[Startup] Firebase init failed:',e);
+        if(resolveRemoteProducts)resolveRemoteProducts([]);
       }
 
       // 3) Prepare the currently visible catalogue immediately.
@@ -14315,8 +14334,8 @@ window.enableSmartPush=enableSmartPush;
         console.warn('[Startup] Critical local image preload failed:',e);
       });
 
-      // If Firebase returns quickly, switch to the real remote catalogue and
-      // make its first visible images ready before releasing the splash.
+      // Once Firebase delivers the real catalogue, render it and make every
+      // product image ready before releasing the splash.
       const remoteProducts = await remotePromise;
       if(Array.isArray(remoteProducts) && remoteProducts.length){
         products=remoteProducts;
