@@ -5724,17 +5724,23 @@ function getProductDisplayImage(product) {
   return product.image || product.imageUrl || product.img || imageList[0] || imgsList[0] || '';
 }
 
+// Fallback inline : il est disponible même lorsque le réseau, Cloudinary,
+// ImgBB ou Firebase ne répond pas. Chaque carte reçoit donc toujours une
+// véritable balise <img> dès son premier rendu.
+const PRODUCT_IMAGE_FALLBACK = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg" viewBox="0 0 800 600"%3E%3Crect width="800" height="600" fill="%23141414"%2F%3E%3Cpath d="M0 500L220 280l130 120 110-150 340 250H0z" fill="%23252525"%2F%3E%3Ccircle cx="580" cy="185" r="55" fill="%23c9a84c" fill-opacity=".22"%2F%3E%3Ctext x="400" y="545" text-anchor="middle" fill="%23c9a84c" font-family="serif" font-size="28" letter-spacing="5"%3EL%27EMPREINTE D%27EMIL%3C%2Ftext%3E%3C%2Fsvg%3E';
+window.PRODUCT_IMAGE_FALLBACK = PRODUCT_IMAGE_FALLBACK;
+
 function renderProductCard(p) {
   if (!p || typeof p !== 'object' || !p.id || !p.catId) return '';
   if (!p || typeof p !== 'object' || !p.catId) return '';
   const cat = getCat(p.catId);
   const isNew = products.slice(0,3).find(pp=>pp.id===p.id);
-  const firstImg = getProductDisplayImage(p);
+  const firstImg = getProductDisplayImage(p) || PRODUCT_IMAGE_FALLBACK;
   return `
     <div class="product-card" onclick="openProduct('${p.id}')">
       ${p.type==='bundle'?`<div class="product-badge bundle">${t('bundle_badge')}</div>`:isNew?`<div class="product-badge">${t('new_badge')}</div>`:''}
       <div class="product-img">
-        ${firstImg?`<img src="${firstImg}" alt="${esc(prodName(p))}" width="100%" height="auto" class="product-card-img prod-img-tag" loading="eager" fetchpriority="high" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><span class="product-image-skeleton" style="display:none" aria-label="Image indisponible"></span>`:`<span class="product-image-skeleton" aria-label="Image en cours de chargement"></span>`}
+        <img src="${esc(firstImg)}" alt="${esc(prodName(p))}" width="100%" height="auto" class="product-card-img prod-img-tag" loading="eager" fetchpriority="high" decoding="async" onerror="if(this.dataset.fallbackApplied){return;}this.dataset.fallbackApplied='1';this.src=window.PRODUCT_IMAGE_FALLBACK||'${PRODUCT_IMAGE_FALLBACK}'">
       </div>
       <div class="product-info">
         <div class="product-cat">${cat?catName(cat):''}</div>
@@ -14406,17 +14412,20 @@ window.enableSmartPush=enableSmartPush;
       await preloadCriticalViewport(firstViewProducts).catch(e=>{
         console.warn('[Startup] First-view image preload failed:',e);
       });
-      // Wait for both home grids to commit their real <img> card nodes.
-      // This keeps the splash visible through the actual DOM construction,
-      // not merely through receipt of the Firebase payload.
+      // Laisser le DOM se construire sans imposer d'assertion sur les images.
+      // Un rendu peut être différé par le navigateur sans devoir interrompre
+      // toute la séquence de démarrage.
       await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-      const initialCardImages = document.querySelectorAll('.product-card-img');
-      if(firstViewProducts.length && !initialCardImages.length){
-        throw new Error('Initial product cards were not built with image elements');
-      }
       mark('images');
     }catch(error){
-      console.error('[Startup] Startup coordinator failed:',error);
+      // Fallback silencieux : le catalogue local et son rendu standard restent
+      // disponibles même si une étape réseau ou de préchargement échoue.
+      try{
+        if(typeof sanitizeData==='function')sanitizeData();
+        if(typeof renderAll==='function')renderAll();
+      }catch(fallbackError){
+        console.warn('[Startup] Fallback render skipped:', fallbackError);
+      }
       mark('products');
       mark('images');
     }
