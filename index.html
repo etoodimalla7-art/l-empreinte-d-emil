@@ -2285,9 +2285,8 @@ img,svg,video,iframe{max-width:100%}
   /* EMIL STARTUP GUARD — the splash can NEVER block the UI */
   (function () {
     'use strict';
-    // The splash is released only when the animation has finished AND the
-    // initial visible UI has been rendered with its critical images decoded.
-    // This prevents the "blank/late paint" effect after the animation.
+    // The splash is released when the initial UI is ready, but it can never
+    // block the visitor beyond the absolute four-second safety limit.
     const ready = window.__SPLASH_READY_STATE__ = { products:false, images:false, reviews:false, animation:false };
     window.__LUXE_SPLASH_STARTED_AT__ = performance.now();
     window.__LUXE_SPLASH_ANIMATION_MS__ = 2300;
@@ -2332,18 +2331,18 @@ img,svg,video,iframe{max-width:100%}
     };
 
     // The visible splash animation is 1.15s x 2 = 2.3s. We do not close it
-    // before that point. If data/images need a little longer, the splash stays
-    // up until they are ready. The separate 4s guard is the absolute fallback.
+    // before that point when the startup data is already ready. If data/images
+    // need longer, the absolute four-second guard releases the interface.
     setTimeout(() => {
       ready.animation = true;
       window.__maybeCloseLuxeSplash();
     }, window.__LUXE_SPLASH_ANIMATION_MS__);
 
-    /* Emergency fallback only; normal closure requires Firebase data and image preload. */
+    /* Absolute emergency fallback: network/images must never block the visitor. */
     window.__SPLASH_TIMEOUT__ = setTimeout(() => {
-      console.warn('[Startup] Splash safety timeout reached; unlocking UI.');
+      console.warn('[Startup] Absolute 4s splash safety timeout reached; unlocking UI.');
       if (typeof window.closeLuxeSplash === 'function') window.closeLuxeSplash();
-    }, 30000);
+    }, 4000);
 
     /* Optional cache warm-up; never allowed to throw or block parsing. */
     try {
@@ -14388,7 +14387,7 @@ window.enableSmartPush=enableSmartPush;
         if(typeof firebaseDb!=='undefined'&&firebaseDb){
           const snap = await Promise.race([
             firebaseDb.ref('storedData/products').once('value'),
-            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firebase startup read timeout')),6000))
+            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firebase startup read timeout (3s)')),3000))
           ]);
           remoteProducts = normaliseStartupProducts(snap.val());
         }
