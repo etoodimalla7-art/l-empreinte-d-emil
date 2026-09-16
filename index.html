@@ -36,7 +36,21 @@
 <meta name="twitter:image" content="https://i.postimg.cc/HLdg7Tb5/logo.png">
 
 <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script><script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<!-- Supabase SDK (catalogue hybride, optionnel tant que non configure) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+
+// Configuration Supabase : renseigner ces valeurs sans modifier Firebase.
+const SUPABASE_URL = "https://qlddwmimgmrqnsfqrftd.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFsZGR3bWltZ21ycW5zZnFyZnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NjExNDEsImV4cCI6MjEwNTEzNzE0MX0.wpE5jA-ssMkenHoQDp_eFB3tKFiV8WIv3jqn_USQfZo";
+const ADMIN_EMAIL = "admin@lempreintedemil.com";
+let supabaseClient = null;
+try {
+  if (window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch (error) { console.warn('[Supabase] Initialisation indisponible :', error); }
+window.supabaseClient = supabaseClient;
 
 // Utilitaire global requis par les cartes d’avis et les rendus HTML.
 function esc(str) {
@@ -3868,9 +3882,10 @@ Action: Immediate restocking required.</textarea></div>
           </div>
           <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(201,168,76,.1)">
             <div class="admin-label" style="margin-bottom:10px">Changer le mot de passe admin</div>
-            <div style="display:flex;gap:10px;max-width:340px">
-              <input class="admin-input" id="new-pwd" type="password" placeholder="Nouveau mot de passe">
-              <button class="admin-btn" onclick="changePwd()">✅</button>
+            <div style="display:grid;gap:10px;max-width:340px">
+              <input class="admin-input" id="new-pwd" type="password" placeholder="Nouveau mot de passe" autocomplete="new-password">
+              <input class="admin-input" id="new-pwd-confirm" type="password" placeholder="Confirmer le nouveau mot de passe" autocomplete="new-password">
+              <button class="admin-btn" onclick="changePwd()">✅ Modifier le mot de passe</button>
             </div>
           </div>
         </div>
@@ -5715,13 +5730,12 @@ function sanitizeData() {
 // ============================================================
 function getProductDisplayImage(product) {
   if (!product || typeof product !== 'object') return '';
-  const imageList = Array.isArray(product.images)
-    ? product.images
-    : (product.images && typeof product.images === 'object' ? Object.values(product.images) : []);
-  const imgsList = Array.isArray(product.imgs)
-    ? product.imgs
-    : (product.imgs && typeof product.imgs === 'object' ? Object.values(product.imgs) : []);
-  return product.image || product.imageUrl || product.img || imageList[0] || imgsList[0] || '';
+  const toList = value => Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
+  const candidates = [product.image, product.imageUrl, product.img, product.image_url,
+    product.supabaseStorageUrl, product.supabase_storage_url, product.storageUrl,
+    product.storage_url, product.publicUrl, product.public_url,
+    ...toList(product.images), ...toList(product.imgs)];
+  return candidates.find(value => typeof value === 'string' && value.trim()) || '';
 }
 
 // Fallback inline : il est disponible même lorsque le réseau, Cloudinary,
@@ -7437,7 +7451,9 @@ async function uploadProductImages(productId, imageSources) {
       if (source && /^https:\/\//i.test(source)) uploadedUrls.push(source);
       continue;
     }
-    uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
+    if (window.supabaseClient && window.uploadSupabaseMedia) {
+      uploadedUrls.push(await window.uploadSupabaseMedia(dataUrlToBlob(source), 'product-media', String(productId)));
+    } else uploadedUrls.push(await uploadImageToExternalHost(source, productId, index));
   }
   return uploadedUrls;
 }
@@ -7465,12 +7481,11 @@ async function saveProduct() {
     }).filter(Boolean),
   };
 
-  // Firebase est la source distante principale : on refuse de confirmer
-  // l'enregistrement si la base n'est pas initialisée ou si l'écriture échoue.
-  if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-    const error = new Error('Firebase Realtime Database non disponible.');
-    console.error('[saveProduct] Firebase indisponible :', error);
-    showToast('Échec Firebase : impossible d’enregistrer le produit.', '❌');
+  // Supabase est la source d’écriture principale ; Firebase reste le fallback legacy.
+  if (!window.supabaseClient && (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb)) {
+    const error = new Error('Aucun backend disponible.');
+    console.error('[saveProduct] Backend indisponible :', error);
+    showToast('Échec : aucun backend disponible pour enregistrer le produit.', '❌');
     return false;
   }
 
@@ -7502,7 +7517,8 @@ async function saveProduct() {
 
     // Écriture explicite et ciblée dans Realtime Database. L'appel await
     // garantit que le succès n'est annoncé qu'après résolution de Firebase.
-    await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
+    if (window.supabaseClient && window.saveProductToSupabase) await window.saveProductToSupabase(productToSave);
+    else await firebaseDb.ref('storedData/products/' + idx).set(productToSave);
   } catch (firebaseError) {
     console.error('[saveProduct] Échec de l’upload externe ou de l’écriture RTDB pour le produit ' + productToSave.id + ':', firebaseError);
     if (isNewProduct) {
@@ -7922,12 +7938,28 @@ function saveSettings() {
   renderAll();
 }
 
-function changePwd() {
+async function changePwd() {
   const np = document.getElementById('new-pwd').value;
-  if (!np) return;
-  DB.set('admin_pwd',np);
-  document.getElementById('new-pwd').value='';
-  showToast('Mot de passe modifié !');
+  const confirmation = document.getElementById('new-pwd-confirm').value;
+  if (!np || np.length < 6) { showToast('Le nouveau mot de passe doit contenir au moins 6 caractères.', '⚠️'); return false; }
+  if (np !== confirmation) { showToast('Les deux mots de passe ne correspondent pas.', '⚠️'); return false; }
+  try {
+    if (!window.supabaseClient?.auth) throw new Error('Supabase Auth indisponible.');
+    const { data: sessionData } = await window.supabaseClient.auth.getSession();
+    if (!sessionData?.session) throw new Error('Session Supabase administrateur absente. Reconnectez-vous avec Supabase Auth.');
+    const { error } = await window.supabaseClient.auth.updateUser({ password: np });
+    if (error) throw error;
+    // Maintient le fallback local synchronisé pour les ouvertures hors ligne.
+    DB.set('admin_pwd', np);
+    document.getElementById('new-pwd').value='';
+    document.getElementById('new-pwd-confirm').value='';
+    showToast('Mot de passe mis à jour avec succès', '✅');
+    return true;
+  } catch (error) {
+    console.error('[Admin] Mise à jour du mot de passe impossible :', error);
+    showToast(error.message || 'Erreur lors de la mise à jour du mot de passe.', '❌');
+    return false;
+  }
 }
 
 function clearAllData() {
@@ -8596,9 +8628,6 @@ async function uploadLookbookVideo() {
   if (status) status.textContent = 'Enregistrement de l’URL...';
 
   try {
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-      throw new Error('Firebase Realtime Database indisponible.');
-    }
     const entry = {
       id: 'lb_' + Date.now(),
       titleFR, titleEN, descFR, descEN,
@@ -8608,7 +8637,11 @@ async function uploadLookbookVideo() {
       date: new Date().toISOString()
     };
     const nextLookbook = [...lookbook, entry];
-    await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
+    if (window.saveLookbookToSupabase && window.supabaseClient) await window.saveLookbookToSupabase(entry);
+    else {
+      if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Realtime Database indisponible.');
+      await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
+    }
     lookbook = nextLookbook;
     cacheSet('lookbook', lookbook);
 
@@ -8639,12 +8672,12 @@ async function deleteLookbookVideo(id) {
   const nextLookbook = lookbook.filter(v => v.id !== id);
 
   try {
-    if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) {
-      throw new Error('Firebase Realtime Database indisponible.');
+    if (window.deleteLookbookFromSupabase && window.supabaseClient) await window.deleteLookbookFromSupabase(id);
+    else {
+      if (typeof firebase === 'undefined' || !initFirebase() || !firebaseDb) throw new Error('Realtime Database indisponible.');
+      // Fallback legacy : réécriture de la collection Firebase.
+      await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
     }
-    // Réécriture de la petite collection de métadonnées pour conserver des
-    // index contigus et éviter qu’un prochain ajout n’écrase une entrée.
-    await firebaseDb.ref('storedData/lookbook').set(nextLookbook);
     lookbook = nextLookbook;
     cacheSet('lookbook', lookbook);
     if (firebaseStorage && entry?.storagePath) {
@@ -10868,7 +10901,8 @@ saveProduct = async function() {
       };
       try {
         // Cette seconde écriture est attendue avant la confirmation finale.
-        await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
+        if (window.supabaseClient && window.saveProductToSupabase) await window.saveProductToSupabase(products[idx]);
+        else await firebaseDb.ref('storedData/products/' + idx).set(products[idx]);
       } catch (firebaseError) {
         console.error('[saveProduct] Échec Firebase pour la configuration de gravure :', firebaseError);
         showToast('Échec Firebase : la configuration du produit n’a pas été enregistrée.', '❌');
@@ -13108,10 +13142,17 @@ let adminSessionStart = null;
 let adminSessionTimer = null;
 // No auto-timeout — just require password on every open
 
-function loginAdmin() {
+async function loginAdmin() {
   const pwd   = document.getElementById('admin-pwd').value;
   const saved = DB.get('admin_pwd','admin123');
-  if (pwd === saved) {
+  let supabaseLoginOk = false;
+  if (window.supabaseClient?.auth && ADMIN_EMAIL) {
+    try {
+      const { error } = await window.supabaseClient.auth.signInWithPassword({ email: ADMIN_EMAIL, password: pwd });
+      if (!error) supabaseLoginOk = true;
+    } catch (error) { console.warn('[Admin] Connexion Supabase indisponible :', error); }
+  }
+  if (supabaseLoginOk || pwd === saved) {
     adminLoggedIn = true;
     adminSessionStart = Date.now();
     DB.set('adminSession', { token: 'sess_' + Date.now(), expiry: Date.now() + 999999999 }); // No timeout
@@ -13119,7 +13160,7 @@ function loginAdmin() {
     showAdminPanel();
     startAdminSessionTimer();
   } else {
-    showToast('Mot de passe incorrect', '❌');
+    showToast('Mot de passe administrateur incorrect', '❌');
     document.getElementById('admin-pwd').value = '';
     // Shake effect
     const box = document.querySelector('.login-box');
@@ -13134,6 +13175,7 @@ function startAdminSessionTimer() {
 }
 
 function logoutAdmin() {
+  if (window.supabaseClient?.auth) window.supabaseClient.auth.signOut().catch(error => console.warn('[Admin] Déconnexion Supabase impossible :', error));
   adminLoggedIn = false;
   adminSessionStart = null;
   clearInterval(adminSessionTimer);
@@ -13846,16 +13888,17 @@ window.addEventListener('load', function() {
     if(!name||!comment||!rating){ if(window.showToast)window.showToast('Nom, note et commentaire requis','⚠️'); return false; }
     if(file && (!file.type.startsWith('image/') || file.size>8*1024*1024)){ if(window.showToast)window.showToast('La photo doit être une image de 8 Mo maximum.','⚠️'); return false; }
     try {
-      if(typeof firebase==='undefined' || !firebase.apps.length) throw new Error('Firebase indisponible.');
-      const app=firebase.app();
-      const storage=typeof firebase.storage==='function' ? firebase.storage(app) : null;
       let imageUrl=null;
       if(file){
-        if(!storage) throw new Error('Firebase Storage indisponible pour cette image.');
-        const safeName=file.name.replace(/[^a-z0-9._-]/gi,'-');
-        const ref=storage.ref().child(`reviews/${productId||'general'}/${Date.now()}-${safeName}`);
-        const snap=await ref.put(file,{contentType:file.type,cacheControl:'public,max-age=31536000'});
-        imageUrl=await snap.ref.getDownloadURL();
+        if(window.supabaseClient) imageUrl=await window.uploadSupabaseMedia(file,'review-images',productId||'general');
+        else {
+          if(typeof firebase==='undefined' || !firebase.apps.length) throw new Error('Firebase indisponible.');
+          const storage=typeof firebase.storage==='function' ? firebase.storage(firebase.app()) : null;
+          if(!storage) throw new Error('Storage indisponible pour cette image.');
+          const safeName=file.name.replace(/[^a-z0-9._-]/gi,'-');
+          const snap=await storage.ref().child(`reviews/${productId||'general'}/${Date.now()}-${safeName}`).put(file,{contentType:file.type,cacheControl:'public,max-age=31536000'});
+          imageUrl=await snap.ref.getDownloadURL();
+        }
       }
       const review={name,authorName:name,productId:productId||'general',rating,stars:rating,comment,textFR:comment,textEN:'',imageUrl,photoUrl:imageUrl,date:new Date().toISOString(),approved:false,pending:true,verified:false};
       const pending=Array.isArray(window.pendingReviews)?window.pendingReviews:[];
@@ -13864,14 +13907,17 @@ window.addEventListener('load', function() {
       pending.unshift(savedReview);
       window.pendingReviews=pending;
       window.reviews=[...current, savedReview];
-      if(typeof firebaseDb==='undefined'||!firebaseDb) throw new Error('Realtime Database indisponible.');
-      await firebaseDb.ref('storedData/reviews').set([...current, savedReview]);
+      if(window.supabaseClient) await window.saveReviewToSupabase(savedReview);
+      else {
+        if(typeof firebaseDb==='undefined'||!firebaseDb) throw new Error('Realtime Database indisponible.');
+        await firebaseDb.ref('storedData/reviews').set([...current, savedReview]);
+      }
       if(typeof DB!=='undefined')DB.set('reviews',[...current, savedReview]);
       if(window.showToast)window.showToast('Avis soumis pour modération','✅');
       return true;
     } catch(e) {
-      console.error('[Reviews] Firebase upload error:',e);
-      if(window.showToast)window.showToast('Avis non envoyé : vérifiez la configuration Firebase Realtime Database/Storage.','❌');
+      console.error('[Reviews] Upload error:',e);
+      if(window.showToast)window.showToast('Avis non envoyé : vérifiez la configuration Supabase.','❌');
       return false;
     }
   }
@@ -14281,8 +14327,18 @@ window.enableSmartPush=enableSmartPush;
 
   async function persist(list){
     const clean=normalise(list);
-    if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Firebase Realtime Database indisponible.');
-    await firebaseDb.ref('storedData/reviews').set(clean);
+    if(window.supabaseClient) {
+      const existing = await window.supabaseClient.from('reviews').select('id');
+      if(existing.error) throw existing.error;
+      const keep = new Set(clean.map(review=>String(review.id)));
+      const removed = (existing.data || []).filter(row=>!keep.has(String(row.id)));
+      await Promise.all(removed.map(row=>window.supabaseClient.from('reviews').delete().eq('id', row.id)));
+      await Promise.all(clean.map(review=>window.saveReviewToSupabase(review)));
+    }
+    else {
+      if(typeof firebaseDb==='undefined'||!firebaseDb)throw new Error('Realtime Database indisponible.');
+      await firebaseDb.ref('storedData/reviews').set(clean);
+    }
     window.reviews=clean;
     window.pendingReviews=clean.filter(isPending);
     if(typeof reviews!=='undefined')reviews=clean;
@@ -14294,7 +14350,8 @@ window.enableSmartPush=enableSmartPush;
   async function uploadImage(file,productId){
     if(!file)return '';
     if(!/^image\/(jpeg|png|webp|gif)$/i.test(file.type)||file.size>8*1024*1024)throw new Error('La photo doit être une image JPG, PNG, WEBP ou GIF de 8 Mo maximum.');
-    if(typeof firebaseStorage==='undefined'||!firebaseStorage)throw new Error('Firebase Storage est indisponible pour cette image.');
+    if(window.supabaseClient) return window.uploadSupabaseMedia(file,'review-images',productId||'general');
+    if(typeof firebaseStorage==='undefined'||!firebaseStorage)throw new Error('Storage indisponible pour cette image.');
     const safe=file.name.replace(/[^a-z0-9._-]/gi,'-');
     const ref=firebaseStorage.ref().child(`reviews/${productId||'general'}/${Date.now()}-${safe}`);
     const snapshot=await ref.put(file,{contentType:file.type,cacheControl:'public,max-age=31536000'});
@@ -14323,6 +14380,59 @@ window.enableSmartPush=enableSmartPush;
       return {...p,imgs:urls};
     });
   }
+
+  function normaliseHybridProducts(value, source) {
+    return rows(value).filter(p => p && typeof p === 'object' && (p.id || p.product_id)).map((p, index) => {
+      const product = {...p, id:p.id || p.product_id || `${source}-${index}`,
+        catId:p.catId || p.cat_id || p.categoryId || p.category_id || p.category || 'uncategorized', source:p.source || source};
+      const list = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+      product.imgs = [...list(p.imgs), ...list(p.images), p.image, p.imageUrl, p.image_url, p.img,
+        p.supabaseStorageUrl, p.supabase_storage_url, p.storageUrl, p.storage_url, p.publicUrl, p.public_url]
+        .filter(v => typeof v === 'string' && v.trim());
+      return product;
+    });
+  }
+  function mergeHybridProducts(firebaseProducts, supabaseProducts) {
+    const merged = new Map();
+    [...firebaseProducts, ...supabaseProducts].forEach(product => {
+      if (!product || !product.id) return;
+      const key = String(product.id), existing = merged.get(key);
+      // Firebase reste prioritaire en cas d’identifiant partage.
+      merged.set(key, existing ? {...product, ...existing} : product);
+    });
+    return [...merged.values()];
+  }
+  // Une source indisponible ne bloque jamais l’autre.
+  window.loadCombinedCatalogue = async function loadCombinedCatalogue() {
+    const firebaseRead = (async () => {
+      if (typeof initFirebase === 'function') initFirebase();
+      if (typeof firebaseDb === 'undefined' || !firebaseDb) return [];
+      const snap = await firebaseDb.ref('storedData/products').once('value');
+      return normaliseHybridProducts(snap.val(), 'firebase');
+    })();
+    const supabaseRead = (async () => {
+      if (!supabaseClient) return [];
+      const result = await supabaseClient.from('products').select('*');
+      if (result.error) throw result.error;
+      return normaliseHybridProducts(result.data, 'supabase');
+    })();
+    const sources = [firebaseRead, supabaseRead];
+    const received = [[], []];
+    const applyPartial = () => {
+      const partial = mergeHybridProducts(received[0], received[1]);
+      if (partial.length) {
+        products = partial;
+        try { saveLocal(); sanitizeData(); renderAll(); } catch (e) { console.warn('[Catalogue] Rendu partiel impossible :', e); }
+      }
+    };
+    sources.forEach((promise, index) => promise.then(value => { received[index] = value; applyPartial(); }).catch(() => {}));
+    const results = await Promise.allSettled(sources);
+    const firebaseProducts = results[0].status === 'fulfilled' ? results[0].value : [];
+    const supabaseProducts = results[1].status === 'fulfilled' ? results[1].value : [];
+    const combined = mergeHybridProducts(firebaseProducts, supabaseProducts);
+    if (combined.length) { products = combined; try { saveLocal(); } catch (e) {} }
+    return combined;
+  };
 
   async function preloadCriticalViewport(productList){
     const urls = new Set();
@@ -14384,31 +14494,20 @@ window.enableSmartPush=enableSmartPush;
 
       const localProducts = Array.isArray(products)?products:[];
 
-      // Firebase data must arrive before the first-view images are preloaded.
-      // This is the only startup product read; the normal realtime listeners
-      // continue updating the page after startup.
-      let remoteProducts = [];
-      try{
-        if(typeof initFirebase==='function')initFirebase();
-        if(typeof firebaseDb!=='undefined'&&firebaseDb){
-          const snap = await Promise.race([
-            firebaseDb.ref('storedData/products').once('value'),
-            new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firebase startup read timeout (3s)')),3000))
-          ]);
-          remoteProducts = normaliseStartupProducts(snap.val());
+      // Firebase et Supabase partent en parallele ; le splash reste limite a 4 s.
+      const combinedPromise = window.loadCombinedCatalogue().then(combined => {
+        if (combined.length) {
+          try { sanitizeData(); renderAll(); } catch (e) { console.warn('[Startup] Rendu hybride impossible :', e); }
         }
-      }catch(e){
-        console.warn('[Startup] Firebase startup read unavailable; using cached catalogue.', e.message);
-      }
-
-      if(remoteProducts.length){
-        products = remoteProducts;
-        try{saveLocal();}catch(e){}
-        try{renderAll();}catch(e){console.warn('[Startup] Firebase catalogue render failed:',e);}
-      }
+        return combined;
+      }).catch(error => { console.warn('[Startup] Catalogue hybride indisponible :', error); return []; });
+      const combinedWithinSplash = await Promise.race([
+        combinedPromise,
+        new Promise(resolve => setTimeout(() => resolve(null), 4000))
+      ]);
       mark('products');
-
-      const firstViewProducts = remoteProducts.length ? remoteProducts : localProducts;
+      const firstViewProducts = Array.isArray(combinedWithinSplash) && combinedWithinSplash.length
+        ? combinedWithinSplash : (Array.isArray(products) && products.length ? products : localProducts);
       await preloadCriticalViewport(firstViewProducts).catch(e=>{
         console.warn('[Startup] First-view image preload failed:',e);
       });
@@ -14437,6 +14536,106 @@ window.enableSmartPush=enableSmartPush;
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initReliabilityStartup,{once:true});else initReliabilityStartup();
 
+})();
+</script>
+<script>
+/* Supabase backend bridge: Firebase remains the legacy read/fallback source. */
+(function () {
+  'use strict';
+  const sb = () => window.supabaseClient || null;
+  const list = value => Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
+  const productRow = p => ({
+    id: String(p.id), name_fr: p.nameFR || p.name || '', name_en: p.nameEN || '',
+    description_fr: p.descFR || '', description_en: p.descEN || '', price: Number(p.price || 0),
+    stock: Number(p.stock || 0), category_id: p.catId || 'uncategorized',
+    product_type: p.type === 'bundle' ? 'bundle' : 'single', volume: p.volume || null,
+    volumes: list(p.volumes), sizes: list(p.sizes), colors: list(p.colors), bundle_items: list(p.bundleItems),
+    images: list(p.imgs || p.images), videos: list(p.videos || p.videoUrls),
+    engraving: p.engraving || {}, is_essential: !!p.isEssential, active: p.active !== false,
+    source: 'supabase', legacy_data: p
+  });
+  window.uploadSupabaseMedia = async function (file, bucket, folder) {
+    if (!sb() || !file) return null;
+    const safe = String(file.name || 'media').replace(/[^a-z0-9._-]/gi, '-');
+    const path = `${folder || 'uploads'}/${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)}-${safe}`;
+    const { error } = await sb().storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type, cacheControl: '31536000' });
+    if (error) throw error;
+    return sb().storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  };
+  window.saveProductToSupabase = async function (product) {
+    if (!sb() || !product || !product.id) return false;
+    const { error } = await sb().from('products').upsert(productRow(product), { onConflict: 'id' });
+    if (error) throw error;
+    return true;
+  };
+  window.deleteProductFromSupabase = async function (id) {
+    if (!sb() || !id) return false;
+    const { error } = await sb().from('products').delete().eq('id', String(id));
+    if (error) throw error;
+    return true;
+  };
+  window.saveLookbookToSupabase = async function (entry) {
+    if (!sb() || !entry) return false;
+    const row = { id:String(entry.id), title_fr:entry.titleFR || '', title_en:entry.titleEN || '', description_fr:entry.descFR || '', description_en:entry.descEN || '', video_url:entry.videoUrl || null, video_type:entry.videoType || 'direct', media_url:entry.mediaUrl || null, thumbnail_url:entry.thumbnailUrl || null, storage_path:entry.storagePath || null, active:entry.active !== false, legacy_data:entry };
+    const { error } = await sb().from('lookbook').upsert(row, { onConflict:'id' });
+    if (error) throw error;
+    return true;
+  };
+  window.deleteLookbookFromSupabase = async function (id) {
+    if (!sb()) return false;
+    const { error } = await sb().from('lookbook').delete().eq('id', String(id));
+    if (error) throw error;
+    return true;
+  };
+  window.saveReviewToSupabase = async function (review) {
+    if (!sb() || !review) return false;
+    const row = { id:String(review.id || 'rv' + Date.now()), product_id:review.productId || 'general', author_name:review.authorName || review.name || 'Client', rating:Number(review.rating || review.stars || 0), comment:review.comment || review.textFR || '', image_url:review.imageUrl || null, photo_url:review.photoUrl || review.imageUrl || null, status:review.status || (review.approved ? 'approved' : 'pending'), verified:!!review.verified, legacy_data:review };
+    const { error } = await sb().from('reviews').upsert(row, { onConflict:'id' });
+    if (error) throw error;
+    return true;
+  };
+  window.loadSupabaseLookbook = async function () {
+    if (!sb()) return [];
+    const { data, error } = await sb().from('lookbook').select('*').order('created_at', { ascending:false });
+    if (error) throw error;
+    return (data || []).map(r => ({ id:r.id, titleFR:r.title_fr, titleEN:r.title_en, descFR:r.description_fr, descEN:r.description_en, videoUrl:r.video_url, videoType:r.video_type, mediaUrl:r.media_url, thumbnailUrl:r.thumbnail_url, storagePath:r.storage_path, active:r.active, date:r.created_at }));
+  };
+  window.loadSupabaseReviews = async function () {
+    if (!sb()) return [];
+    const { data, error } = await sb().from('reviews').select('*').order('created_at', { ascending:false });
+    if (error) throw error;
+    return (data || []).map(r => ({ id:r.id, productId:r.product_id, name:r.author_name, authorName:r.author_name, rating:r.rating, stars:r.rating, comment:r.comment, textFR:r.comment, imageUrl:r.image_url, photoUrl:r.photo_url, status:r.status, approved:r.status === 'approved', pending:r.status === 'pending', verified:r.verified, date:r.created_at }));
+  };
+  window.addEventListener('load', () => setTimeout(() => {
+    if (window.loadSupabaseLookbook && window.supabaseClient) {
+      window.loadSupabaseLookbook().then(items => {
+        if (items.length) { window.lookbook = items; try { cacheSet('lookbook', items); renderLookbook(); if (typeof renderLookbookAdmin === 'function') renderLookbookAdmin(); } catch (e) { console.warn('[Lookbook] Rendu Supabase impossible :', e); } }
+      }).catch(error => console.warn('[Lookbook] Lecture Supabase impossible :', error));
+    }
+    if (window.loadSupabaseReviews && window.supabaseClient) {
+      window.loadSupabaseReviews().then(items => {
+        if (items.length) { window.reviews = items; window.pendingReviews = items.filter(r => r.pending); try { renderHomeReviews(); if (typeof renderAdminReviews === 'function') renderAdminReviews(); } catch (e) { console.warn('[Reviews] Rendu Supabase impossible :', e); } }
+      }).catch(error => console.warn('[Reviews] Lecture Supabase impossible :', error));
+    }
+    if (typeof window.saveProduct === 'function' && !window.saveProduct.__supabaseBridge) {
+      const original = window.saveProduct;
+      const wrapped = async function () {
+        const result = await original.apply(this, arguments);
+        if (result !== false) {
+          const id = window.__lastSavedProductId || window.editingProductId || window.products?.[window.products.length - 1]?.id;
+          const product = window.products?.find(p => String(p.id) === String(id));
+          if (product) await window.saveProductToSupabase(product);
+        }
+        return result;
+      };
+      wrapped.__supabaseBridge = true; window.saveProduct = wrapped;
+    }
+    if (typeof window.deleteProduct === 'function' && !window.deleteProduct.__supabaseBridge) {
+      const original = window.deleteProduct;
+      const wrapped = function (id) { const result = original.apply(this, arguments); Promise.resolve(result).then(() => window.deleteProductFromSupabase(id).catch(console.warn)); return result; };
+      wrapped.__supabaseBridge = true; window.deleteProduct = wrapped;
+    }
+  }, 1200));
 })();
 </script>
 </body>
