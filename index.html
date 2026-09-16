@@ -2990,7 +2990,7 @@ img,svg,video,iframe{max-width:100%}
               <div style="margin-top:8px"><label class="admin-label">Label (EN)</label><input class="admin-input" id="p-engraving-label-en" placeholder="Your personalized engraving"></div>
             </div>
             <div style="margin-top:18px;display:flex;gap:10px">
-              <button class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
+              <button id="save-product-btn" class="admin-btn" onclick="saveProduct()">💾 Enregistrer</button>
               <button class="admin-btn admin-btn-ghost" onclick="resetProductForm()">↩ Réinitialiser</button>
             </div>
           </div>
@@ -7489,6 +7489,9 @@ async function saveProduct() {
     return false;
   }
 
+  const saveButton = document.getElementById('save-product-btn');
+  if (saveButton?.disabled) return false;
+  if (saveButton) saveButton.disabled = true;
   let idx = -1;
   let previousProduct = null;
   let productToSave;
@@ -7499,6 +7502,7 @@ async function saveProduct() {
     if (idx === -1) {
       console.error('[saveProduct] Produit à modifier introuvable :', editingProductId);
       showToast('Produit introuvable.', '❌');
+      if (saveButton) saveButton.disabled = false;
       return false;
     }
     previousProduct = products[idx];
@@ -7527,24 +7531,33 @@ async function saveProduct() {
       products[idx] = previousProduct;
     }
     showToast('Échec : image non hébergée ou produit non enregistré. Vérifiez la configuration de l’hébergeur et la connexion.', '❌');
+    if (saveButton) saveButton.disabled = false;
     return false;
   }
 
-  if (isNewProduct) { products.push(productToSave); window.__lastSavedProductId = productToSave.id; if (typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(productToSave); }
-  else products[idx] = productToSave;
-
+  // Le bouton reste verrouillé pendant l'écriture et le rechargement async.
+  // Le backend devient l'unique source de vérité : ne pas pousser manuellement
+  // le produit si le catalogue va être rechargé depuis Firebase/Supabase.
+  window.__lastSavedProductId = productToSave.id;
+  if (typeof window.emilPublishNewProduct === 'function') window.emilPublishNewProduct(productToSave);
   editingProductId = null;
   document.getElementById('edit-banner').style.display = 'none';
-
-  // Le cache est facultatif : cacheSet filtre les images Base64 et gère le quota.
-  cacheSet('products', products);
-
   resetProductForm();
-  renderAdminProducts();
-  renderAdminDashboard();
+  if (typeof window.loadCombinedCatalogue === 'function') {
+    await window.loadCombinedCatalogue();
+    sanitizeData();
+    renderAll();
+  } else {
+    // Fallback legacy uniquement si le rechargement hybride n'est pas disponible.
+    if (isNewProduct) products.push(productToSave);
+    else products[idx] = productToSave;
+    cacheSet('products', products);
+    renderAdminProducts();
+    renderAdminDashboard();
+  }
+  if (saveButton) saveButton.disabled = false;
   return true;
 }
-
 function editProduct(id) {
   const p=getProd(id); if (!p) return;
   editingProductId = id;
@@ -7578,36 +7591,39 @@ function editProduct(id) {
   document.getElementById('prod-add-tab').style.display='block';
 }
 
-function deleteProduct(id) {
-  if (!confirm('Supprimer ce produit ?')) return;
-  const idx = products.findIndex(p=>p.id===id);
-  if (idx > -1) {
-    products.splice(idx, 1);
-    if (typeof firebaseDb !== 'undefined' && firebaseDb) {
-      // Suppression CIBLÉE : on supprime uniquement l'entrée du produit dans son
-      // nœud d'index (storedData/products/<idx>) au lieu de réécrire tout le
-      // catalogue avec .set(products). Un set() global sur un gros catalogue
-      // (images en base64, etc.) dépasse la taille de write autorisée par
-      // Firebase et déclenche l'erreur "INTERNAL ERROR ... Write too large".
-      // remove() ne touche que ce nœud précis, donc c'est instantané et léger,
-      // quelle que soit la taille du reste du catalogue.
-      firebaseDb.ref('storedData/products/' + idx).remove()
-        .catch(e => console.warn('[Firebase] Échec suppression ciblée du produit:', e && e.message));
-    }
-  }
-  // Le cache local est mis à jour dans un bloc try/catch dédié : si le
-  // localStorage est saturé (QuotaExceededError), on ne bloque jamais
-  // l'interface — le produit reste supprimé visuellement et en mémoire,
-  // seul le cache hors-ligne peut rester légèrement désynchronisé.
+async function deleteProduct(id) {
+  if (!id || !confirm('Supprimer ce produit ?')) return false;
   try {
-    DB.set('products', products);
-  } catch(e) {
-    console.warn('[Cache] Échec DB.set("products") après suppression (quota ?):', e && e.message);
+    // Suppression strictement basée sur l'identifiant unique, jamais sur l'index.
+    if (window.supabaseClient && window.deleteProductFromSupabase) {
+      await window.deleteProductFromSupabase(id);
+    } else if (typeof firebaseDb !== 'undefined' && firebaseDb) {
+      const snapshot = await firebaseDb.ref('storedData/products').once('value');
+      const stored = snapshot.val() || {};
+      const keys = Object.keys(stored).filter(key => stored[key] && String(stored[key].id) === String(id));
+      if (!keys.length) throw new Error('Produit introuvable dans Firebase : ' + id);
+      await Promise.all(keys.map(key => firebaseDb.ref('storedData/products/' + key).remove()));
+    } else {
+      throw new Error('Aucun backend disponible.');
+    }
+    if (typeof window.loadCombinedCatalogue === 'function') {
+      await window.loadCombinedCatalogue();
+      sanitizeData();
+      renderAll();
+    } else {
+      products = (products || []).filter(p => String(p.id) !== String(id));
+      cacheSet('products', products);
+      renderAdminProducts();
+      renderAdminDashboard();
+    }
+    showToast('Produit supprimé','🗑');
+    return true;
+  } catch (error) {
+    console.error('[deleteProduct] Échec de la suppression par ID :', error);
+    showToast('Échec : produit non supprimé.', '❌');
+    return false;
   }
-  renderAdminProducts(); renderAdminDashboard();
-  showToast('Produit supprimé','🗑');
 }
-
 function resetProductForm() {
   editingProductId=null; currentImgs=[];
 	  ['p-name-fr','p-name-en','p-price','p-stock','p-desc-fr','p-desc-en','p-bundle-items','p-sizes','p-colors','p-volumes'].forEach(id=>{
@@ -14400,7 +14416,10 @@ window.enableSmartPush=enableSmartPush;
       // Firebase reste prioritaire en cas d’identifiant partage.
       merged.set(key, existing ? {...product, ...existing} : product);
     });
-    return [...merged.values()];
+    const allProducts = [...merged.values()];
+    // Déduplication stricte par identifiant unique avant tout rendu.
+    const uniqueProducts = Array.from(new Map(allProducts.map(p => [String(p.id), p])).values());
+    return uniqueProducts;
   }
   // Une source indisponible ne bloque jamais l’autre.
   window.loadCombinedCatalogue = async function loadCombinedCatalogue() {
@@ -14620,19 +14639,17 @@ window.enableSmartPush=enableSmartPush;
     if (typeof window.saveProduct === 'function' && !window.saveProduct.__supabaseBridge) {
       const original = window.saveProduct;
       const wrapped = async function () {
-        const result = await original.apply(this, arguments);
-        if (result !== false) {
-          const id = window.__lastSavedProductId || window.editingProductId || window.products?.[window.products.length - 1]?.id;
-          const product = window.products?.find(p => String(p.id) === String(id));
-          if (product) await window.saveProductToSupabase(product);
-        }
-        return result;
+        // saveProduct effectue déjà l'unique écriture et recharge le catalogue.
+        return await original.apply(this, arguments);
       };
       wrapped.__supabaseBridge = true; window.saveProduct = wrapped;
     }
     if (typeof window.deleteProduct === 'function' && !window.deleteProduct.__supabaseBridge) {
       const original = window.deleteProduct;
-      const wrapped = function (id) { const result = original.apply(this, arguments); Promise.resolve(result).then(() => window.deleteProductFromSupabase(id).catch(console.warn)); return result; };
+      const wrapped = async function (id) {
+        // deleteProduct gère déjà le backend, l'attente et le rechargement.
+        return await original.apply(this, arguments);
+      };
       wrapped.__supabaseBridge = true; window.deleteProduct = wrapped;
     }
   }, 1200));
