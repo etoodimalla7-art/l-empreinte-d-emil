@@ -5544,8 +5544,12 @@ function fmt(value) {
 const getCat = id => categories.find(c => c.id === id);
 const getProd = id => products.find(p => p.id === id);
 const catName = c => lang==='fr' ? c.nameFR : c.nameEN;
-const prodName = p => lang==='fr' ? p.nameFR : p.nameEN;
-const prodDesc = p => lang==='fr' ? p.descFR : p.descEN;
+const prodName = p => (lang === 'en'
+  ? (p.title_en || p.title_fr || p.title || p.nameEN || p.name_en || p.name)
+  : (p.title_fr || p.title || p.nameFR || p.name_fr || p.name)) || 'Produit';
+const prodDesc = p => (lang === 'en'
+  ? (p.description_en || p.description_fr || p.description || p.descEN || p.desc_en || p.descFR || p.desc_fr)
+  : (p.description_fr || p.description || p.descFR || p.desc_fr)) || '';
 const catSlogan = c => lang==='fr' ? (c.sloganFR||'') : (c.sloganEN||'');
 
 function showToast(msg, icon='✅') {
@@ -14401,6 +14405,17 @@ window.enableSmartPush=enableSmartPush;
     return rows(value).filter(p => p && typeof p === 'object' && (p.id || p.product_id)).map((p, index) => {
       const product = {...p, id:p.id || p.product_id || `${source}-${index}`,
         catId:p.catId || p.cat_id || p.categoryId || p.category_id || p.category || 'uncategorized', source:p.source || source};
+      // Uniformiser les noms et descriptions provenant de Supabase/Firebase.
+      product.title = p.title_fr || p.title || p.name || p.nameFR || p.name_fr || 'Sans titre';
+      product.title_fr = p.title_fr || p.title || p.nameFR || p.name_fr || '';
+      product.title_en = p.title_en || p.nameEN || p.name_en || '';
+      product.description = p.description_fr || p.description || p.descFR || p.desc_fr || '';
+      product.description_fr = p.description_fr || p.description || p.descFR || p.desc_fr || '';
+      product.description_en = p.description_en || p.descEN || p.desc_en || '';
+      product.nameFR = product.title_fr;
+      product.nameEN = product.title_en;
+      product.descFR = product.description_fr;
+      product.descEN = product.description_en;
       const list = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
       product.imgs = [...list(p.imgs), ...list(p.images), p.image, p.imageUrl, p.image_url, p.img,
         p.supabaseStorageUrl, p.supabase_storage_url, p.storageUrl, p.storage_url, p.publicUrl, p.public_url]
@@ -14563,16 +14578,25 @@ window.enableSmartPush=enableSmartPush;
   'use strict';
   const sb = () => window.supabaseClient || null;
   const list = value => Array.isArray(value) ? value : (value && typeof value === 'object' ? Object.values(value) : []);
-  const productRow = p => ({
-    id: String(p.id), name_fr: p.nameFR || p.name || '', name_en: p.nameEN || '',
-    description_fr: p.descFR || '', description_en: p.descEN || '', price: Number(p.price || 0),
+  const productRow = p => {
+    const titleFR = p.title_fr || p.title || p.nameFR || p.name_fr || p.name || '';
+    const titleEN = p.title_en || p.nameEN || p.name_en || '';
+    const descriptionFR = p.description_fr || p.description || p.descFR || p.desc_fr || '';
+    const descriptionEN = p.description_en || p.descEN || p.desc_en || '';
+    return {
+    id: String(p.id),
+    title: titleFR || 'Sans titre', title_fr: titleFR, title_en: titleEN,
+    description: descriptionFR, description_fr: descriptionFR, description_en: descriptionEN,
+    name_fr: titleFR, name_en: titleEN,
+    price: Number(p.price || 0),
     stock: Number(p.stock || 0), category_id: p.catId || 'uncategorized',
     product_type: p.type === 'bundle' ? 'bundle' : 'single', volume: p.volume || null,
     volumes: list(p.volumes), sizes: list(p.sizes), colors: list(p.colors), bundle_items: list(p.bundleItems),
     images: list(p.imgs || p.images), videos: list(p.videos || p.videoUrls),
     engraving: p.engraving || {}, is_essential: !!p.isEssential, active: p.active !== false,
     source: 'supabase', legacy_data: p
-  });
+    };
+  };
   window.uploadSupabaseMedia = async function (file, bucket, folder) {
     if (!sb() || !file) return null;
     const safe = String(file.name || 'media').replace(/[^a-z0-9._-]/gi, '-');
