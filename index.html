@@ -7270,7 +7270,7 @@ function renderAdminDashboard() {
     <div class="stat-card"><div class="stat-label">Chiffre d'affaires</div><div class="stat-value">${(totalRev / 1000).toFixed(0)}k</div><div class="stat-sub">FCFA</div></div>
     <div class="stat-card"><div class="stat-label">Produits</div><div class="stat-value">${validProducts.length}</div><div class="stat-sub">${inStock} en stock</div></div>
     <div class="stat-card"><div class="stat-label">Catégories</div><div class="stat-value">${validCategories.length}</div></div>
-    <div class="stat-card"><div class="stat-label">Épuisés</div><div class="stat-value" style="color:var(--danger)">${outOfStock}</div><div class="stat-sub">produits hors stock</div></div>`;
+    <div class="stat-card"><div class="stat-label">Épuisés</div><div class="stat-value" style="color:var(--danger)">${outOfStock}</div><div class="stat-sub">produits hors stock</div></div><div class="stat-card" id="admin-pending-reviews-card" role="button" tabindex="0" onclick="openPendingReviewsAdmin()" onkeydown="if(event.key==='Enter'||event.key===' ')openPendingReviewsAdmin()" style="cursor:pointer"><div class="stat-label">Avis à modérer</div><div class="stat-value" id="admin-pending-reviews-count">${(Array.isArray(window.pendingReviews)?window.pendingReviews:[]).filter(r => String(r?.status || '').toLowerCase() === 'pending').length}</div><div class="stat-sub">Ouvrir l'onglet En attente</div></div>`;
 
   document.getElementById('orders-dash-table').innerHTML = orders.slice(0, 6).map(o => `
     <tr class="order-row-clickable" onclick="openOrderDetail('${o.id}')">
@@ -14697,7 +14697,7 @@ window.enableSmartPush=enableSmartPush;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const status = review => String(review?.status || '').trim().toLowerCase();
   const pending = review => status(review) === 'pending';
-  const approved = review => status(review) === 'approved';
+  const approved = review => { const value = status(review); return value === 'approved' || (!value && review?.approved !== false && review?.pending !== true); }
   const normalise = review => ({
     ...review,
     id: String(review.id || ('rv_' + Date.now())),
@@ -14721,6 +14721,7 @@ window.enableSmartPush=enableSmartPush;
     window.pendingReviews = clean.filter(pending);
     try { reviews = clean; pendingReviews = clean.filter(pending); } catch (_) {}
     try { if (typeof DB !== 'undefined') DB.set('reviews', clean); } catch (_) {}
+    updatePendingBadge();
     return clean;
   };
   const toast = (message, icon) => { if (typeof window.showToast === 'function') window.showToast(message, icon); };
@@ -14745,15 +14746,23 @@ window.enableSmartPush=enableSmartPush;
   function resetPublicForm(prefix) {
     ['name','text'].forEach(key => { const el = q('#' + prefix + '-' + key); if (el) el.value = ''; });
     const stars = q('#' + prefix + '-stars'); if (stars) stars.value = '0';
-    const file = q('#' + prefix + '-photo'); if (file) { file.value = ''; file.type = ''; file.type = 'file'; }
-    const box = file?.closest('.public-review-form, .emil-product-review');
+    const file = q('#' + prefix + '-photo');
+    if (file) { file.value = ''; try { file.type = ''; file.type = 'file'; } catch (_) {} }
+    const box = file?.closest('.public-review-form, .emil-product-review') || q('#' + prefix + '-text')?.closest('.public-review-form, .emil-product-review');
     if (box) {
+      box.querySelectorAll('.pub-star').forEach(star => star.classList.remove('active'));
+      box.querySelectorAll('.review-photo-preview, .emil-review-preview, [data-review-preview], .photo-preview, .upload-preview, .dropzone-preview').forEach(preview => {
+        preview.removeAttribute('src'); preview.innerHTML = ''; preview.style.display = 'none';
+      });
       const title = q('#' + prefix + '-photo-title', box); const info = q('#' + prefix + '-photo-info', box);
       if (title) title.textContent = 'Ajouter une photo';
-      if (info) info.textContent = 'Cliquez pour sélectionner · JPG, PNG ou WebP';
-      box.querySelectorAll('.pub-star').forEach(star => star.classList.remove('active'));
+      if (info) info.textContent = 'Photo prête à envoyer · Glissez votre image ici';
+      box.querySelectorAll('[data-dropzone], .dropzone, .emil-review-dropzone, .review-photo-label, [id$="-photo-label"]').forEach(zone => {
+        zone.classList.remove('has-file','is-uploaded','active','dragover'); zone.style.background = ''; zone.style.borderColor = ''; const strong = zone.querySelector('strong'); const span = zone.querySelector('span'); if (strong) strong.textContent = 'Ajouter une photo'; if (span) span.textContent = 'Glissez votre image ici ou cliquez pour la sélectionner · JPG, PNG ou WebP';
+      });
     }
-    const sent = q('#' + prefix + '-sent'); if (sent) { sent.classList.remove('show'); clearTimeout(sent.__emilTimer); sent.__emilTimer = setTimeout(() => sent.classList.remove('show'), 4000); }
+    const sent = q('#' + prefix + '-sent');
+    if (sent) { clearTimeout(sent.__emilTimer); sent.__emilTimer = setTimeout(() => sent.classList.remove('show'), 4000); }
   }
   function resetGeneralForm() { resetPublicForm('pub-rv'); }
   window.resetPublicReviewForm = resetGeneralForm;
@@ -14786,8 +14795,13 @@ window.enableSmartPush=enableSmartPush;
     target.innerHTML = list.length ? list.map(r => `<div class="review-card"><div class="review-stars">${'★'.repeat(r.rating)}<span class="star empty">${'★'.repeat(5-r.rating)}</span></div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis"></a>` : ''}<div class="review-text">${esc(r.comment)}</div><div class="review-author"><div class="review-avatar">${esc(r.name.slice(0,1).toUpperCase())}</div><div class="review-author-name">${esc(r.name)}</div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>';
   };
   window.renderHomeReviews = function () {
-    const list = all().filter(approved);
-    ['#reviews-container','#home-reviews-grid'].map(q).filter(Boolean).forEach(el => { el.innerHTML = list.length ? list.map(r => `<div class="review-card"><div class="review-stars">${'★'.repeat(r.rating)}<span class="star empty">${'★'.repeat(5-r.rating)}</span></div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis"></a>` : ''}<div class="review-text">${esc(r.comment)}</div><div class="review-author"><div class="review-avatar">${esc(r.name.slice(0,1).toUpperCase())}</div><div class="review-author-name">${esc(r.name)}</div></div></div>`).join('') : '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>'; });
+    const list = all().filter(approved).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+    const homeLimit = window.matchMedia && window.matchMedia('(max-width: 767px)').matches ? 3 : 4;
+    const card = r => `<div class="review-card"><div class="review-stars">${'★'.repeat(r.rating)}<span class="star empty">${'★'.repeat(5-r.rating)}</span></div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis"></a>` : ''}<div class="review-text">${esc(r.comment)}</div><div class="review-author"><div class="review-avatar">${esc(r.name.slice(0,1).toUpperCase())}</div><div class="review-author-name">${esc(r.name)}</div></div></div>`;
+    const home = q('#reviews-container');
+    if (home) home.innerHTML = list.length ? list.slice(0, homeLimit).map(card).join('') : '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>';
+    const full = q('#home-reviews-grid');
+    if (full) full.innerHTML = list.length ? list.map(card).join('') : '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>';
   };
 
   window.renderAdminReviews = function () {
@@ -14799,10 +14813,26 @@ window.enableSmartPush=enableSmartPush;
   };
   async function moderate(id, nextStatus) { const list = all(); const index = list.findIndex(r => r.id === String(id)); if (index < 0) return false; list[index] = {...list[index], status:nextStatus, approved:nextStatus === 'approved', pending:nextStatus === 'pending'}; try { await saveRow(list[index]); setState(list); window.renderAdminReviews(); window.renderHomeReviews(); toast(nextStatus === 'approved' ? 'Avis approuvé et publié.' : 'Avis supprimé.', '✅'); return true; } catch (e) { console.error('[Reviews] moderation failed:', e); toast('Opération refusée : erreur Supabase.', '❌'); return false; } }
   window.approveReview = id => moderate(id, 'approved');
+  window.openPendingReviewsAdmin = function () {
+    const nav = document.querySelector('.admin-nav-item[data-section="reviews-admin"]');
+    if (nav && typeof window.adminNav === 'function') window.adminNav(nav);
+    if (typeof window.switchReviewTab === 'function') {
+      const pendingTab = document.querySelector('#admin-reviews-admin .tab-btn[onclick*="pending"]');
+      if (pendingTab) window.switchReviewTab(pendingTab, 'pending');
+    }
+    document.querySelector('#admin-reviews-admin')?.scrollIntoView({ behavior:'smooth', block:'start' });
+    if (typeof window.renderAdminReviews === 'function') window.renderAdminReviews();
+  };
+  function updatePendingBadge() {
+    const badge = document.getElementById('admin-pending-reviews-count');
+    if (badge) badge.textContent = all().filter(pending).length;
+  }
+  window.updatePendingReviewBadge = updatePendingBadge;
+
   window.deleteReview = async id => { if (!confirm('Supprimer cet avis ?')) return false; if (!window.supabaseClient) return false; try { const result = await window.supabaseClient.from('reviews').delete().eq('id', String(id)); if (result.error) throw result.error; setState(all().filter(r => r.id !== String(id))); window.renderAdminReviews(); window.renderHomeReviews(); toast('Avis supprimé.', '🗑'); return true; } catch (e) { toast('Suppression refusée : erreur Supabase.', '❌'); return false; } };
 
-  window.addEventListener('load', () => setTimeout(async () => { window.submitPublicReview = submitPublicReviewFixed; window.submitReview = submitPublicReviewFixed; try { if (!window.supabaseClient) return; const result = await window.supabaseClient.from('reviews').select('*').order('created_at', {ascending:false}); if (result.error) throw result.error; const loaded = (result.data || []).map(row => normalise({...row, productId:row.product_id || 'general', productTitle:row.product_title, authorName:row.author_name, imageUrl:row.image_url, comment:row.comment || row.review, created_at:row.created_at})); setState(loaded);
-      window.pendingReviews = loaded.filter(r => String(r.status || '').toLowerCase() === 'pending'); window.renderHomeReviews(); window.renderAdminReviews(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
+  window.addEventListener('load', () => setTimeout(async () => { window.submitPublicReview = submitPublicReviewFixed; window.submitReview = submitPublicReviewFixed; try { if (!window.supabaseClient) return; const result = await window.supabaseClient.from('reviews').select('*').order('created_at', {ascending:false}); if (result.error) throw result.error; const loaded = (result.data || []).map(row => normalise({...row, productId:row.product_id || 'general', productTitle:row.product_title, authorName:row.author_name, imageUrl:row.image_url, comment:row.comment || row.review, created_at:row.created_at})); const existing = all(); const merged = new Map(existing.map(item => [String(item.id), item])); loaded.forEach(item => merged.set(String(item.id), item)); setState([...merged.values()]);
+      window.pendingReviews = [...merged.values()].filter(r => String(r.status || '').toLowerCase() === 'pending'); window.renderHomeReviews(); window.renderAdminReviews(); if (typeof renderAdminDashboard === 'function') renderAdminDashboard(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
 })();
 </script>
 </body>
