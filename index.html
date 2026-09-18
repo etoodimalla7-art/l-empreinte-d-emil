@@ -6923,6 +6923,9 @@ function buildAndOpenReceipt(name, phone, city, address, items, subtotal, fee, t
     <div class="thanks">© L'Empreinte D'Emil · ${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'}</div>
   </div>
 </div>
+
+
+
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -9337,7 +9340,10 @@ function printOrderDetail(orderId) {
   </div>
   <div class="footer"><div style="font-style:italic;color:#9A7530;font-size:14px">"${slogan}"</div><div style="margin-top:6px">${lang==='fr'?'Merci pour votre confiance !':'Thank you for your trust!'} — L'Empreinte D'Emil</div></div>
   <div class="no-print"><button class="print-btn" onclick="window.print()">${lang==='fr'?'🖨️ Imprimer / Sauvegarder PDF':'🖨️ Print / Save PDF'}</button></div>
-</div></body></html>`;
+</div>
+
+
+</body></html>`;
 
   const w = window.open('','_blank');
   if (!w) { showToast(lang==='fr'?'Autorisez les popups':'Allow popups','⚠️'); return; }
@@ -13933,6 +13939,7 @@ window.addEventListener('load', function() {
         await firebaseDb.ref('storedData/reviews').set([...current, savedReview]);
       }
       if(typeof DB!=='undefined')DB.set('reviews',[...current, savedReview]);
+      if(typeof window.resetPublicReviewForm==='function')window.resetPublicReviewForm(prefix);
       if(window.showToast)window.showToast('Avis soumis pour modération','✅');
       return true;
     } catch(e) {
@@ -14677,6 +14684,124 @@ window.enableSmartPush=enableSmartPush;
       wrapped.__supabaseBridge = true; window.deleteProduct = wrapped;
     }
   }, 1200));
+})();
+</script>
+
+
+
+<script id="emil-reviews-critical-fix">
+(function () {
+  'use strict';
+  const q = (selector, root = document) => root.querySelector(selector);
+  const rows = value => Array.isArray(value) ? value.filter(Boolean) : Object.values(value || {}).filter(Boolean);
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const status = review => String(review?.status || '').trim().toLowerCase();
+  const pending = review => status(review) === 'pending';
+  const approved = review => status(review) === 'approved';
+  const normalise = review => ({
+    ...review,
+    id: String(review.id || ('rv_' + Date.now())),
+    name: String(review.name || review.author_name || review.authorName || 'Client'),
+    authorName: String(review.authorName || review.author_name || review.name || 'Client'),
+    productId: review.productId || review.product_id || 'general',
+    productTitle: review.productTitle || review.product_title || (review.productId && typeof getProd === 'function' ? (getProd(review.productId)?.nameFR || getProd(review.productId)?.name || '') : '') || 'Boutique en général',
+    rating: Math.max(1, Math.min(5, Number(review.rating || review.stars || 0))),
+    stars: Math.max(1, Math.min(5, Number(review.rating || review.stars || 0))),
+    comment: String(review.comment || review.review || review.textFR || review.text || ''),
+    textFR: String(review.textFR || review.comment || review.review || review.text || ''),
+    imageUrl: review.imageUrl || review.image_url || review.photoUrl || review.photo_url || null,
+    photoUrl: review.photoUrl || review.photo_url || review.imageUrl || review.image_url || null,
+    created_at: review.created_at || review.createdAt || review.date || new Date().toISOString(),
+    date: review.date || review.created_at || review.createdAt || new Date().toISOString()
+  });
+  const all = () => rows(window.reviews || (typeof reviews !== 'undefined' ? reviews : [])).map(normalise);
+  const setState = list => {
+    const clean = list.map(normalise);
+    window.reviews = clean;
+    window.pendingReviews = clean.filter(pending);
+    try { reviews = clean; pendingReviews = clean.filter(pending); } catch (_) {}
+    try { if (typeof DB !== 'undefined') DB.set('reviews', clean); } catch (_) {}
+    return clean;
+  };
+  const toast = (message, icon) => { if (typeof window.showToast === 'function') window.showToast(message, icon); };
+
+  async function saveRow(review) {
+    if (!window.supabaseClient) throw new Error('Supabase indisponible.');
+    const r = normalise(review);
+    const product = r.productId && typeof getProd === 'function' ? getProd(r.productId) : null;
+    const row = {
+      id: r.id, author_name: r.authorName, name: r.authorName,
+      product_id: r.productId || 'general', product_title: r.productTitle || product?.nameFR || 'Boutique en général',
+      rating: r.rating, comment: r.comment, review: r.comment,
+      image_url: r.imageUrl || null, status: r.status || 'pending',
+      created_at: r.created_at || new Date().toISOString(), verified: !!r.verified
+    };
+    const result = await window.supabaseClient.from('reviews').upsert(row, { onConflict: 'id' });
+    if (result.error) throw result.error;
+    return row;
+  }
+  window.saveReviewToSupabase = saveRow;
+
+  function resetPublicForm(prefix) {
+    ['name','text'].forEach(key => { const el = q('#' + prefix + '-' + key); if (el) el.value = ''; });
+    const stars = q('#' + prefix + '-stars'); if (stars) stars.value = '0';
+    const file = q('#' + prefix + '-photo'); if (file) { file.value = ''; file.type = ''; file.type = 'file'; }
+    const box = file?.closest('.public-review-form, .emil-product-review');
+    if (box) {
+      const title = q('#' + prefix + '-photo-title', box); const info = q('#' + prefix + '-photo-info', box);
+      if (title) title.textContent = 'Ajouter une photo';
+      if (info) info.textContent = 'Cliquez pour sélectionner · JPG, PNG ou WebP';
+      box.querySelectorAll('.pub-star').forEach(star => star.classList.remove('active'));
+    }
+    const sent = q('#' + prefix + '-sent'); if (sent) { sent.classList.remove('show'); clearTimeout(sent.__emilTimer); sent.__emilTimer = setTimeout(() => sent.classList.remove('show'), 4000); }
+  }
+  function resetGeneralForm() { resetPublicForm('pub-rv'); }
+  window.resetPublicReviewForm = resetGeneralForm;
+
+  async function submitPublicReviewFixed() {
+    const name = q('#pub-rv-name')?.value.trim();
+    const comment = q('#pub-rv-text')?.value.trim();
+    const rating = Number(q('#pub-rv-stars')?.value || 0);
+    const productId = q('#pub-rv-product')?.value || 'general';
+    const file = q('#pub-rv-photo')?.files?.[0];
+    if (!name || !comment || !rating) { toast('Nom, note et commentaire requis', '⚠️'); return false; }
+    try {
+      const imageUrl = file && window.uploadSupabaseMedia ? await window.uploadSupabaseMedia(file, 'review-images', productId) : null;
+      const product = productId !== 'general' && typeof getProd === 'function' ? getProd(productId) : null;
+      const review = normalise({ id:'rv_' + Date.now() + '_' + Math.random().toString(36).slice(2,7), name, authorName:name, productId, productTitle:product?.nameFR || 'Boutique en général', rating, comment, imageUrl, status:'pending', approved:false, pending:true, created_at:new Date().toISOString(), verified:false });
+      const saved = await saveRow(review);
+      setState([saved, ...all().filter(item => item.id !== review.id)]);
+      resetGeneralForm();
+      const sent = q('#pub-rv-sent'); if (sent) { sent.classList.add('show'); clearTimeout(sent.__emilTimer); sent.__emilTimer = setTimeout(() => sent.classList.remove('show'), 4000); }
+      toast('Merci. Votre avis a été envoyé pour modération.', '✅');
+      return false;
+    } catch (error) { console.error('[Reviews] submission failed:', error); toast('Avis non envoyé : vérifiez la configuration Supabase.', '❌'); return false; }
+  }
+  window.submitPublicReview = submitPublicReviewFixed;
+  window.submitReview = submitPublicReviewFixed;
+
+  window.renderProductReviews = async function (productId, target) {
+    const list = all().filter(r => approved(r) && r.productId === productId);
+    if (!target) return;
+    target.innerHTML = list.length ? list.map(r => `<div class="review-card"><div class="review-stars">${'★'.repeat(r.rating)}<span class="star empty">${'★'.repeat(5-r.rating)}</span></div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis"></a>` : ''}<div class="review-text">${esc(r.comment)}</div><div class="review-author"><div class="review-avatar">${esc(r.name.slice(0,1).toUpperCase())}</div><div class="review-author-name">${esc(r.name)}</div></div></div>`).join('') : '<div style="font-size:12px;color:var(--muted);margin-top:10px">Aucun avis approuvé pour ce produit.</div>';
+  };
+  window.renderHomeReviews = function () {
+    const list = all().filter(approved);
+    ['#reviews-container','#home-reviews-grid'].map(q).filter(Boolean).forEach(el => { el.innerHTML = list.length ? list.map(r => `<div class="review-card"><div class="review-stars">${'★'.repeat(r.rating)}<span class="star empty">${'★'.repeat(5-r.rating)}</span></div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis"></a>` : ''}<div class="review-text">${esc(r.comment)}</div><div class="review-author"><div class="review-avatar">${esc(r.name.slice(0,1).toUpperCase())}</div><div class="review-author-name">${esc(r.name)}</div></div></div>`).join('') : '<div style="color:var(--muted);font-size:13px;grid-column:1/-1;text-align:center;padding:32px">Aucun avis pour le moment</div>'; });
+  };
+
+  window.renderAdminReviews = function () {
+    const el = q('#admin-reviews-list'); if (!el) return;
+    const tab = typeof currentReviewTab !== 'undefined' ? currentReviewTab : 'approved';
+    const query = (q('#rv-search')?.value || '').toLowerCase();
+    const list = all().filter(r => tab === 'pending' ? pending(r) : approved(r)).filter(r => !query || (r.name + ' ' + r.comment).toLowerCase().includes(query));
+    el.innerHTML = list.length ? list.map(r => `<div class="review-admin-card" style="border-color:${pending(r) ? 'rgba(230,126,34,.3)' : ''}"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><strong>${esc(r.name)}</strong><div style="font-size:11px;color:var(--muted)">${esc(r.productTitle)} · ${new Date(r.created_at).toLocaleDateString('fr-FR')}</div></div><div style="display:flex;gap:6px">${pending(r) ? `<button class="admin-btn admin-btn-sm admin-btn-success" onclick="approveReview('${esc(r.id)}')">✅ Approuver</button>` : ''}<button class="admin-btn admin-btn-sm admin-btn-danger" onclick="deleteReview('${esc(r.id)}')">🗑 Supprimer</button></div></div><div style="margin-top:10px;font-size:12px;font-style:italic">« ${esc(r.comment)} »</div>${r.imageUrl ? `<a href="${esc(r.imageUrl)}" target="_blank" rel="noopener"><img class="review-photo" src="${esc(r.imageUrl)}" alt="Photo jointe à l'avis" style="max-width:180px;max-height:130px;object-fit:cover;margin-top:10px"></a>` : ''}</div>`).join('') : '<div style="color:var(--muted);font-size:13px;text-align:center;padding:32px">Aucun avis dans cet onglet.</div>';
+  };
+  async function moderate(id, nextStatus) { const list = all(); const index = list.findIndex(r => r.id === String(id)); if (index < 0) return false; list[index] = {...list[index], status:nextStatus, approved:nextStatus === 'approved', pending:nextStatus === 'pending'}; try { await saveRow(list[index]); setState(list); window.renderAdminReviews(); window.renderHomeReviews(); toast(nextStatus === 'approved' ? 'Avis approuvé et publié.' : 'Avis supprimé.', '✅'); return true; } catch (e) { console.error('[Reviews] moderation failed:', e); toast('Opération refusée : erreur Supabase.', '❌'); return false; } }
+  window.approveReview = id => moderate(id, 'approved');
+  window.deleteReview = async id => { if (!confirm('Supprimer cet avis ?')) return false; if (!window.supabaseClient) return false; try { const result = await window.supabaseClient.from('reviews').delete().eq('id', String(id)); if (result.error) throw result.error; setState(all().filter(r => r.id !== String(id))); window.renderAdminReviews(); window.renderHomeReviews(); toast('Avis supprimé.', '🗑'); return true; } catch (e) { toast('Suppression refusée : erreur Supabase.', '❌'); return false; } };
+
+  window.addEventListener('load', () => setTimeout(async () => { window.submitPublicReview = submitPublicReviewFixed; window.submitReview = submitPublicReviewFixed; try { if (!window.supabaseClient) return; const result = await window.supabaseClient.from('reviews').select('*').order('created_at', {ascending:false}); if (result.error) throw result.error; const loaded = (result.data || []).map(row => normalise({...row, productId:row.product_id, productTitle:row.product_title, authorName:row.author_name, imageUrl:row.image_url, comment:row.comment || row.review, created_at:row.created_at})); setState(loaded); window.renderHomeReviews(); window.renderAdminReviews(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
 })();
 </script>
 </body>
