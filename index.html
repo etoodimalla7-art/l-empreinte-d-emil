@@ -14639,7 +14639,7 @@ window.enableSmartPush=enableSmartPush;
   };
   window.saveReviewToSupabase = async function (review) {
     if (!sb() || !review) return false;
-    const row = { id:String(review.id || 'rv' + Date.now()), product_id:review.productId === 'general' ? null : (review.productId || null), author_name:review.authorName || review.name || 'Client', rating:Number(review.rating || review.stars || 0), comment:review.comment || review.textFR || '', image_url:review.imageUrl || null, status:review.status || (review.approved ? 'approved' : 'pending'), created_at:review.created_at || review.date || new Date().toISOString() };
+    const row = { id:String(review.id || 'rv' + Date.now()), product_id:(review.productId && review.productId !== 'general') ? review.productId : 'general', author_name:review.authorName || review.name || 'Client', rating:Number(review.rating || review.stars || 0), comment:review.comment || review.textFR || '', image_url:review.imageUrl || null, status:review.status || (review.approved ? 'approved' : 'pending'), created_at:review.created_at || review.date || new Date().toISOString() };
     const { error } = await sb().from('reviews').upsert(row, { onConflict:'id' });
     if (error) throw error;
     return true;
@@ -14664,7 +14664,7 @@ window.enableSmartPush=enableSmartPush;
     }
     if (window.loadSupabaseReviews && window.supabaseClient) {
       window.loadSupabaseReviews().then(items => {
-        if (items.length) { window.reviews = items; window.pendingReviews = items.filter(r => r.pending); try { renderHomeReviews(); if (typeof renderAdminReviews === 'function') renderAdminReviews(); } catch (e) { console.warn('[Reviews] Rendu Supabase impossible :', e); } }
+        window.reviews = items; window.pendingReviews = items.filter(r => String(r.status || '').toLowerCase() === 'pending'); try { renderHomeReviews(); if (typeof renderAdminReviews === 'function') renderAdminReviews(); } catch (e) { console.warn('[Reviews] Rendu Supabase impossible :', e); }
       }).catch(error => console.warn('[Reviews] Lecture Supabase impossible :', error));
     }
     if (typeof window.saveProduct === 'function' && !window.saveProduct.__supabaseBridge) {
@@ -14703,8 +14703,8 @@ window.enableSmartPush=enableSmartPush;
     id: String(review.id || ('rv_' + Date.now())),
     name: String(review.name || review.author_name || review.authorName || 'Client'),
     authorName: String(review.authorName || review.author_name || review.name || 'Client'),
-    productId: review.productId || review.product_id || 'general',
-    productTitle: review.productTitle || review.product_title || (review.productId && typeof getProd === 'function' ? (getProd(review.productId)?.nameFR || getProd(review.productId)?.name || '') : '') || 'Boutique en général',
+    productId: (review.productId && review.productId !== 'general' ? review.productId : (review.product_id && review.product_id !== 'general' ? review.product_id : 'general')),
+    productTitle: ((review.productId === 'general' || review.product_id === 'general' || !review.productId && !review.product_id) ? 'Boutique en général' : (review.productTitle || review.product_title || (typeof getProd === 'function' ? (getProd(review.productId || review.product_id)?.nameFR || getProd(review.productId || review.product_id)?.name || '') : ''))) || 'Boutique en général',
     rating: Math.max(1, Math.min(5, Number(review.rating || review.stars || 0))),
     stars: Math.max(1, Math.min(5, Number(review.rating || review.stars || 0))),
     comment: String(review.comment || review.review || review.textFR || review.text || ''),
@@ -14732,7 +14732,7 @@ window.enableSmartPush=enableSmartPush;
     const row = {
       id: r.id, author_name: r.authorName,
       rating: r.rating, comment: r.comment,
-      product_id: r.productId === 'general' ? null : (r.productId || null),
+      product_id:(r.productId && r.productId !== 'general') ? r.productId : 'general',
       image_url: r.imageUrl || null, status: r.status || 'pending',
       created_at: r.created_at || new Date().toISOString()
     };
@@ -14801,7 +14801,8 @@ window.enableSmartPush=enableSmartPush;
   window.approveReview = id => moderate(id, 'approved');
   window.deleteReview = async id => { if (!confirm('Supprimer cet avis ?')) return false; if (!window.supabaseClient) return false; try { const result = await window.supabaseClient.from('reviews').delete().eq('id', String(id)); if (result.error) throw result.error; setState(all().filter(r => r.id !== String(id))); window.renderAdminReviews(); window.renderHomeReviews(); toast('Avis supprimé.', '🗑'); return true; } catch (e) { toast('Suppression refusée : erreur Supabase.', '❌'); return false; } };
 
-  window.addEventListener('load', () => setTimeout(async () => { window.submitPublicReview = submitPublicReviewFixed; window.submitReview = submitPublicReviewFixed; try { if (!window.supabaseClient) return; const result = await window.supabaseClient.from('reviews').select('*').order('created_at', {ascending:false}); if (result.error) throw result.error; const loaded = (result.data || []).map(row => normalise({...row, productId:row.product_id, productTitle:row.product_title, authorName:row.author_name, imageUrl:row.image_url, comment:row.comment || row.review, created_at:row.created_at})); setState(loaded); window.renderHomeReviews(); window.renderAdminReviews(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
+  window.addEventListener('load', () => setTimeout(async () => { window.submitPublicReview = submitPublicReviewFixed; window.submitReview = submitPublicReviewFixed; try { if (!window.supabaseClient) return; const result = await window.supabaseClient.from('reviews').select('*').order('created_at', {ascending:false}); if (result.error) throw result.error; const loaded = (result.data || []).map(row => normalise({...row, productId:row.product_id || 'general', productTitle:row.product_title, authorName:row.author_name, imageUrl:row.image_url, comment:row.comment || row.review, created_at:row.created_at})); setState(loaded);
+      window.pendingReviews = loaded.filter(r => String(r.status || '').toLowerCase() === 'pending'); window.renderHomeReviews(); window.renderAdminReviews(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
 })();
 </script>
 </body>
