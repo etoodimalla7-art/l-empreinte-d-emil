@@ -66,7 +66,7 @@ function esc(str) {
 /* FINAL FUNCTIONAL FIXES: resilient offline checkout, country switch, detailed fallback and push diagnostics */
 (function(){
   'use strict';
-  const $=(s,r=document)=>r.querySelector(s);
+  const $=(s,r=document)=>(r && typeof r.querySelector === 'function' ? r : document).querySelector(s);
   const esc2=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const isCameroon=()=>{const raw=(typeof window.getFullPhone==='function'?window.getFullPhone():$('#c-phone')?.value||'').replace(/\s/g,'');return raw.startsWith('+237')||(!raw.startsWith('+')&&raw.startsWith('237'));};
   function money(n){return typeof window.fmt==='function'?window.fmt(Number(n)||0):(Number(n)||0).toLocaleString('fr-FR')+' FCFA';}
@@ -13971,7 +13971,7 @@ window.addEventListener('load', () => setTimeout(() => {
 /* FINAL SPECIFICATIONS OVERRIDE — single-file deployment */
 (function(){
   'use strict';
-  const q = (s, r=document) => r.querySelector(s);
+  const q = (s, r=document) => (r && typeof r.querySelector === 'function' ? r : document).querySelector(s);
   // Configuration Notch Pay: renseigner uniquement des URLs HTTPS publiques de votre backend.
   // Ne jamais placer la clé secrète Notch Pay dans ce fichier public.
   const NOTCHPAY_CONFIG = {
@@ -14320,7 +14320,7 @@ window.enableSmartPush=enableSmartPush;
 </style>
 <script>
 (function(){'use strict';
-  const $=(selector,root=document)=>root.querySelector(selector);
+  const $=(selector,root=document)=>(root && typeof root.querySelector === 'function' ? root : document).querySelector(selector);
   const rows=value=>Array.isArray(value)?value.filter(Boolean):Object.values(value||{}).filter(Boolean);
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const normalise=value=>rows(value).filter(r=>r&&typeof r==='object').map((r,i)=>({
@@ -14639,7 +14639,7 @@ window.enableSmartPush=enableSmartPush;
   };
   window.saveReviewToSupabase = async function (review) {
     if (!sb() || !review) return false;
-    const row = { id:String(review.id || 'rv' + Date.now()), product_id:review.productId || 'general', author_name:review.authorName || review.name || 'Client', rating:Number(review.rating || review.stars || 0), comment:review.comment || review.textFR || '', image_url:review.imageUrl || null, photo_url:review.photoUrl || review.imageUrl || null, status:review.status || (review.approved ? 'approved' : 'pending'), verified:!!review.verified, legacy_data:review };
+    const row = { id:String(review.id || 'rv' + Date.now()), product_id:review.productId === 'general' ? null : (review.productId || null), author_name:review.authorName || review.name || 'Client', rating:Number(review.rating || review.stars || 0), comment:review.comment || review.textFR || '', image_url:review.imageUrl || null, status:review.status || (review.approved ? 'approved' : 'pending'), created_at:review.created_at || review.date || new Date().toISOString() };
     const { error } = await sb().from('reviews').upsert(row, { onConflict:'id' });
     if (error) throw error;
     return true;
@@ -14692,7 +14692,7 @@ window.enableSmartPush=enableSmartPush;
 <script id="emil-reviews-critical-fix">
 (function () {
   'use strict';
-  const q = (selector, root = document) => root.querySelector(selector);
+  const q = (selector, root = document) => (root && typeof root.querySelector === 'function' ? root : document).querySelector(selector);
   const rows = value => Array.isArray(value) ? value.filter(Boolean) : Object.values(value || {}).filter(Boolean);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   const status = review => String(review?.status || '').trim().toLowerCase();
@@ -14730,11 +14730,11 @@ window.enableSmartPush=enableSmartPush;
     const r = normalise(review);
     const product = r.productId && typeof getProd === 'function' ? getProd(r.productId) : null;
     const row = {
-      id: r.id, author_name: r.authorName, name: r.authorName,
-      product_id: r.productId || 'general', product_title: r.productTitle || product?.nameFR || 'Boutique en général',
-      rating: r.rating, comment: r.comment, review: r.comment,
+      id: r.id, author_name: r.authorName,
+      rating: r.rating, comment: r.comment,
+      product_id: r.productId === 'general' ? null : (r.productId || null),
       image_url: r.imageUrl || null, status: r.status || 'pending',
-      created_at: r.created_at || new Date().toISOString(), verified: !!r.verified
+      created_at: r.created_at || new Date().toISOString()
     };
     const result = await window.supabaseClient.from('reviews').upsert(row, { onConflict: 'id' });
     if (result.error) throw result.error;
