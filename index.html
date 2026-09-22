@@ -6066,14 +6066,22 @@ function openProduct(id) {
       ${imgs.map((img,i)=>`<div class="product-thumb-item ${i===0?'active':''}" onclick="switchImg('${img}',this)"><img src="${img}" alt=""></div>`).join('')}
     </div>` : '';
 
-  const bundleHTML = p.type==='bundle' && p.bundleItems?.length ? `
+  const asList = value => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') { try { const parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? Object.values(parsed) : [value]); } catch (_) { return value.trim() ? [value] : []; } }
+    return value && typeof value === 'object' ? Object.values(value) : [];
+  };
+  const bundleItems = asList(p.bundle_items ?? p.bundleItems).map(item => typeof item === 'object' ? (item.name || item.label || item.title || JSON.stringify(item)) : String(item)).filter(Boolean);
+  const isBundle = p.is_bundle === true || p.is_bundle === 'true' || p.type === 'bundle' || bundleItems.length > 0;
+  const bundleHTML = isBundle && bundleItems.length ? `
     <div class="bundle-items">
-      <h4>${t('bundle_includes')}</h4>
-      ${p.bundleItems.map(item=>`<div class="bundle-item-row"><div class="bundle-dot"></div>${item}</div>`).join('')}
+      <h4>Ce pack contient :</h4>
+      ${bundleItems.map(item=>`<div class="bundle-item-row"><div class="bundle-dot"></div>${esc(item)}</div>`).join('')}
     </div>` : '';
 
 	  selectedSize = null;
 	  selectedColor = null;
+	  selectedVolume = null;
 	  
 	  let variantsHTML = '';
 	  if (p.sizes && p.sizes.length > 0) {
@@ -6094,6 +6102,25 @@ function openProduct(id) {
 	        </div>
 	      </div>`;
 	  }
+	  const variantValues = asList(p.variants ?? p.volumes ?? p.options).map((variant, index) => {
+	    if (variant && typeof variant === 'object') {
+	      const value = variant.name ?? variant.label ?? variant.value ?? variant.volume ?? variant.size ?? `Variante ${index + 1}`;
+	      return { value: String(value), price: Number(variant.price ?? variant.amount ?? p.price) || 0 };
+	    }
+	    const text = String(variant ?? '').trim();
+	    const separator = text.lastIndexOf(':');
+	    const parsedPrice = separator > -1 ? Number(text.slice(separator + 1).replace(/[^0-9.-]/g, '')) : Number(p.price);
+	    return { value: separator > -1 ? text.slice(0, separator).trim() : text, price: parsedPrice || Number(p.price) || 0 };
+	  }).filter(variant => variant.value);
+	  if (variantValues.length > 0) {
+	    variantsHTML += `
+	      <div class="variant-selector">
+	        <label class="variant-label">${lang==='fr'?'Choisir une contenance / variante':'Select Size / Variant'} *</label>
+	        <div class="variant-options">
+	          ${variantValues.map(variant => `<div class="variant-opt" data-price="${variant.price}" onclick="selectVariant(this, 'volume', ${JSON.stringify(variant.value)})">${esc(variant.value)}${variant.price ? ` — ${fmt(variant.price)}` : ''}</div>`).join('')}
+	        </div>
+	      </div>`;
+	  }
 
 	  document.getElementById('pm-body').innerHTML = `
 	    <div class="product-detail-grid">
@@ -6104,7 +6131,7 @@ function openProduct(id) {
 	      <div class="product-detail-info">
 	        <div class="product-detail-cat">${cat?catName(cat):''} ${p.type==='bundle'?'· '+t('bundle_badge'):''}</div>
 	        <div class="product-detail-name">${prodName(p)} ${p.isEssential ? '<span class="promo-badge">3 pour 1000</span>' : ''}</div>
-	        <div class="product-detail-price">${fmt(p.price || 0)}</div>
+	        <div class="product-detail-price" id="pm-price">${fmt(p.price || 0)}</div>
 	        <div class="product-detail-desc">${prodDesc(p)}</div>
 	        ${bundleHTML}
 	        ${variantsHTML}
@@ -6141,6 +6168,12 @@ function selectVariant(el, type, value) {
   el.classList.add('active');
   if (type === 'size') selectedSize = value;
   if (type === 'color') selectedColor = value;
+  if (type === 'volume') {
+    selectedVolume = value;
+    const price = Number(el.dataset.price);
+    const priceEl = document.getElementById('pm-price');
+    if (priceEl && Number.isFinite(price) && price > 0) priceEl.textContent = fmt(price);
+  }
 }
 
 function addFromModal(id) {
@@ -6153,16 +6186,17 @@ function addFromModal(id) {
     showToast(lang==='fr'?'Veuillez sélectionner une couleur':'Please select a color', '⚠️');
     return;
   }
-  if (p.volumes && p.volumes.length > 0 && !selectedVolume) {
+  const modalVariants = Array.isArray(p.variants) && p.variants.length ? p.variants : (Array.isArray(p.volumes) && p.volumes.length ? p.volumes : (Array.isArray(p.options) ? p.options : []));
+  if (modalVariants.length > 0 && !selectedVolume) {
     showToast(lang==='fr'?'Veuillez sélectionner une contenance':'Please select a volume', '⚠️');
     return;
   }
   
-  // Récupérer le prix spécifique si volume sélectionné
+  // Récupérer le prix spécifique si une variante est sélectionnée.
   let finalPrice = p.price;
-  if (selectedVolume && p.volumes) {
-    const vol = p.volumes.find(v => v.name === selectedVolume);
-    if (vol) finalPrice = vol.price;
+  if (selectedVolume && modalVariants.length) {
+    const vol = modalVariants.find(v => (typeof v === 'object' ? (v.name ?? v.label ?? v.value ?? v.volume) : String(v).split(':')[0].trim()) === selectedVolume);
+    if (vol) finalPrice = typeof vol === 'object' ? (Number(vol.price) || finalPrice) : (Number(String(vol).split(':').slice(1).join(':')) || finalPrice);
   }
   
   addToCart(id, pmQty, selectedSize, selectedColor, selectedVolume, finalPrice);
@@ -7470,22 +7504,29 @@ async function saveProduct() {
   const price = parseInt(document.getElementById('p-price').value)||0;
   if (!nameFR||!price) { showToast('Remplissez les champs obligatoires','⚠️'); return false; }
 
+  const bundleItems = document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const volumes = document.getElementById('p-volumes').value.split(',').map(s=>{
+    const parts = s.split(':');
+    if (parts.length < 2) return null;
+    return { name: parts[0].trim(), price: parseInt(parts.slice(1).join(':').trim()) || 0 };
+  }).filter(Boolean);
+  const isBundle = document.getElementById('p-type').value === 'bundle' || bundleItems.length > 0;
   const data = {
     nameFR, nameEN: document.getElementById('p-name-en').value.trim(),
     catId: document.getElementById('p-cat').value,
     type: document.getElementById('p-type').value,
+    is_bundle: isBundle,
     price, stock: parseInt(document.getElementById('p-stock').value)||0,
     descFR: document.getElementById('p-desc-fr').value.trim(),
     descEN: document.getElementById('p-desc-en').value.trim(),
-    bundleItems: document.getElementById('p-bundle-items').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    bundleItems,
+    bundle_items: bundleItems,
     isEssential: document.getElementById('p-is-essential').checked,
     sizes: document.getElementById('p-sizes').value.split(',').map(s=>s.trim()).filter(Boolean),
     colors: document.getElementById('p-colors').value.split(',').map(s=>s.trim()).filter(Boolean),
-    volumes: document.getElementById('p-volumes').value.split(',').map(s=>{
-      const parts = s.split(':');
-      if (parts.length < 2) return null;
-      return { name: parts[0].trim(), price: parseInt(parts[1].trim()) || 0 };
-    }).filter(Boolean),
+    volumes,
+    variants: volumes,
+    options: volumes,
   };
 
   // Supabase est la source d’écriture principale ; Firebase reste le fallback legacy.
@@ -14142,7 +14183,29 @@ window.addEventListener('load', () => setTimeout(() => {
   const notifTexts={morning:['Une nouvelle signature vous attend. Découvrez les pièces qui donnent du caractère à votre journée.','Le style commence maintenant. Une sélection rare vous attend.'],noon:['Votre pause mérite une touche d’exception. Découvrez nos nouveautés.','Une envie de nouveauté ? Votre prochaine pièce signature est ici.'],afternoon:['L’élégance n’attend pas. Profitez de notre sélection du moment.','Un détail peut tout changer. Explorez les arrivages d’Emil.'],evening:['Ce soir, choisissez la pièce que l’on remarquera demain.','Votre style mérite mieux que l’ordinaire.'],idle:['Vous nous manquez. Revenez découvrir votre sélection personnelle.','Votre prochaine signature est peut-être déjà dans votre panier.']};
   const pick=a=>a[Math.floor(Math.random()*a.length)];
   function notifyLocal(kind='idle', product){ if(!('Notification' in window)||Notification.permission!=='granted') return; const title='L’Empreinte d’Emil'; const body=product?`${product.name||'Nouveauté'} — découvrez-la maintenant.`:pick(notifTexts[kind]||notifTexts.idle); const n=new Notification(title,{body,icon:product?.image||'https://i.postimg.cc/HLdg7Tb5/logo.png',badge:'https://i.postimg.cc/HLdg7Tb5/logo.png',tag:'emil-'+kind}); n.onclick=()=>{window.focus();n.close();}; }
-  window.emilNotifyProduct = product => notifyLocal('afternoon', product);
+  window.emilNotifyProduct = async function(product){
+    try {
+      const title = 'Nouveau produit — L’Empreinte d’Emil';
+      const body = product ? `${product.nameFR || product.name || product.nameEN || 'Une nouvelle pièce'} est disponible.` : 'Une nouvelle pièce est disponible.';
+      const image = productImage(product);
+      const payload = {
+        app_id: window.ONESIGNAL_APP_ID || window.__EMIL_ONESIGNAL_APP_ID__,
+        headings: { fr: title, en: title },
+        contents: { fr: body, en: body },
+        included_segments: ['Subscribed Users'],
+        url: window.location.origin + '/',
+        chrome_web_image: image,
+        big_picture: image,
+        data: { productId: product?.id || null }
+      };
+      const response = await fetch('/api/notifications/product', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) });
+      if (!response.ok) throw new Error('OneSignal broadcast HTTP ' + response.status);
+    } catch (error) {
+      console.warn('[OneSignal] Broadcast du nouveau produit échoué, création conservée :', error);
+    } finally {
+      notifyLocal('afternoon', product);
+    }
+  };
   function scheduleLocalNotifications(){ const now=new Date(), key=now.toISOString().slice(0,10), sent=JSON.parse(localStorage.getItem('emil-notif-day')||'{}'); [['morning',9],['noon',12],['afternoon',15],['evening',18],['evening',21]].forEach(([kind,h],i)=>{const t=new Date(now);t.setHours(h,0,0,0);if(t<=now)t.setDate(t.getDate()+1);const id=key+'-'+h;if(!sent[id])setTimeout(()=>{notifyLocal(kind);sent[id]=1;localStorage.setItem('emil-notif-day',JSON.stringify(sent));},Math.min(2147483647,Math.max(1000,t-now)));}); setTimeout(()=>notifyLocal('idle'),30*60*1000); }
   async function enableSmartPush(){
   try{
@@ -14597,8 +14660,8 @@ window.enableSmartPush=enableSmartPush;
     name_fr: titleFR, name_en: titleEN,
     price: Number(p.price || 0),
     stock: Number(p.stock || 0), category_id: p.catId || 'uncategorized',
-    product_type: p.type === 'bundle' ? 'bundle' : 'single', volume: p.volume || null,
-    volumes: list(p.volumes), sizes: list(p.sizes), colors: list(p.colors), bundle_items: list(p.bundleItems),
+    product_type: p.type === 'bundle' ? 'bundle' : 'single', type: p.type || 'single', is_bundle: p.is_bundle === true || p.is_bundle === 'true' || p.type === 'bundle' || list(p.bundle_items || p.bundleItems).length > 0, volume: p.volume || null,
+    volumes: list(p.volumes), variants: list(p.variants || p.volumes), options: list(p.options || p.variants || p.volumes), sizes: list(p.sizes), colors: list(p.colors), bundle_items: list(p.bundle_items || p.bundleItems),
     images: list(p.imgs || p.images), videos: list(p.videos || p.videoUrls),
     engraving: p.engraving || {}, is_essential: !!p.isEssential, active: p.active !== false,
     source: 'supabase', legacy_data: p
