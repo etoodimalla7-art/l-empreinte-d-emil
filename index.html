@@ -14898,5 +14898,6 @@ window.enableSmartPush=enableSmartPush;
       window.pendingReviews = [...merged.values()].filter(r => String(r.status || '').toLowerCase() === 'pending'); window.renderHomeReviews(); window.renderAdminReviews(); if (typeof renderAdminDashboard === 'function') renderAdminDashboard(); } catch (e) { console.warn('[Reviews] chargement Supabase impossible:', e); } }, 700));
 })();
 </script>
+<script src="emil-patch.js"></script>
 </body>
 </html>
