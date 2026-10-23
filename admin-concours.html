@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Admin — Concours</title>
+<link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
+<style>
+:root { --gold:#C9A84C; --gold-light:#E8C97A; --noir:#0A0A0A; --dark:#111111; --dark-2:#1A1A1A; --dark-3:#222222; --muted:#888888; --light:#F5F0E8; --danger:#C0392B; --success:#27AE60; --font-display:'Cormorant Garamond',serif; --font-body:'Jost',sans-serif; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background: var(--noir); color: var(--light); font-size: 14px; }
+.container { max-width: 1000px; margin: 0 auto; padding: 20px 16px; }
+.nav { background: var(--dark-2); border-bottom: 1px solid rgba(201,168,76,.15); padding: 16px; }
+.nav-inner { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto; }
+.nav-logo { font-family: var(--font-display); color: var(--gold); font-size: 20px; text-decoration: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: .2s; text-decoration: none; }
+.btn-primary { background: var(--gold); color: var(--noir); }
+.btn-primary:hover { background: var(--gold-light); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.3); }
+.btn-danger:hover { background: rgba(192,57,43,.1); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid rgba(245,240,232,.15); }
+.btn-ghost:hover { color: var(--light); border-color: rgba(245,240,232,.3); }
+.svg-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.login-box { max-width: 380px; margin: 80px auto; background: var(--dark-2); border: 1px solid rgba(201,168,76,.2); border-radius: 12px; padding: 32px; text-align: center; }
+.login-box h2 { font-family: var(--font-display); font-size: 24px; color: var(--gold); margin-bottom: 20px; }
+.input-group { margin-bottom: 16px; text-align: left; }
+.input-group label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
+.input-group input, .input-group textarea, .input-group select { width: 100%; background: var(--dark-3); border: 1px solid rgba(201,168,76,.2); border-radius: 6px; padding: 12px; color: var(--light); font-size: 14px; font-family: inherit; outline: none; }
+.input-group input:focus, .input-group textarea:focus { border-color: var(--gold); }
+.hidden { display: none !important; }
+.tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid rgba(201,168,76,.1); padding-bottom: 12px; overflow-x: auto; }
+.tab { padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted); border-radius: 6px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; border: none; background: none; font-family: inherit; }
+.tab.active { background: var(--gold); color: var(--noir); }
+.tab:hover:not(.active) { background: rgba(201,168,76,.1); color: var(--gold); }
+.panel { display: none; }
+.panel.active { display: block; animation: fade .3s; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.card { background: var(--dark-2); border: 1px solid rgba(201,168,76,.1); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
+.card-img { width: 60px; height: 60px; border-radius: 6px; background: var(--dark-3); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.card-body { flex: 1; }
+.card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.card-meta { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">L'EMPREINTE D'EMIL · Admin Concours</a>
+    <div style="display:flex;gap:8px;">
+      <a href="concours.html" class="btn btn-ghost" target="_blank">Voir la page</a>
+      <button class="btn btn-danger" onclick="logout()" id="btn-logout" style="display:none">Déconnexion</button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <!-- LOGIN -->
+  <div id="login-view" class="login-box">
+    <h2>Accès Administrateur</h2>
+    <div class="input-group">
+      <label>Mot de passe</label>
+      <input type="password" id="pwd" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Se connecter</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="admin-view" class="hidden">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('lots')">
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path></svg> Lots
+      </button>
+      <button class="tab" onclick="switchTab('quiz')">
+        <svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> Questions
+      </button>
+      <button class="tab" onclick="switchTab('share')">
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Partage
+      </button>
+      <button class="tab" onclick="switchTab('parts')">
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Participants
+      </button>
+    </div>
+
+    <!-- LOTS -->
+    <div id="panel-lots" class="panel active">
+      <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="font-size:14px;color:var(--gold);margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em">Ajouter un lot</h3>
+        <div class="input-group"><label>Nom du lot</label><input id="lot-name" placeholder="Ex: Parfum Oud Royal 50ml"></div>
+        <div class="input-group"><label>Description</label><textarea id="lot-desc" rows="2"></textarea></div>
+        <div class="input-group"><label>URL de l'image (optionnel)</label><input id="lot-img" placeholder="https://..."></div>
+        <div class="input-group"><label>Rang</label>
+          <select id="lot-rank">
+            <option value="first">1er Prix</option>
+            <option value="second">2e Prix</option>
+            <option value="third">3e Prix</option>
+            <option value="consolation">Lot de consolation</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addLot()">Ajouter le lot</button>
+      </div>
+      <div id="lots-list"></div>
+    </div>
+
+    <!-- QUIZ -->
+    <div id="panel-quiz" class="panel">
+      <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:16px;margin-bottom:20px">
+        <h3 style="font-size:14px;color:var(--gold);margin-bottom:12px;text-transform:uppercase;letter-spacing:.1em">Ajouter une question</h3>
+        <div class="input-group"><label>Question</label><input id="q-text" placeholder="Ex: Quelle est la capitale du Cameroun ?"></div>
+        <div id="q-answers">
+          <div class="input-group"><label>Réponse 1</label><input placeholder="Réponse 1"></div>
+          <div class="input-group"><label>Réponse 2</label><input placeholder="Réponse 2"></div>
+        </div>
+        <button class="btn btn-ghost" style="width:100%;margin-bottom:10px" onclick="addAnswer()">+ Ajouter une réponse</button>
+        <div class="input-group"><label>Numéro de la bonne réponse (ex: 1)</label><input id="q-correct" type="number" min="1"></div>
+        <button class="btn btn-primary" style="width:100%" onclick="addQuiz()">Ajouter la question</button>
+      </div>
+      <div id="quiz-list"></div>
+    </div>
+
+    <!-- SHARE -->
+    <div id="panel-share" class="panel">
+      <div style="background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:8px;padding:16px">
+        <div class="input-group"><label>Lien à partager</label><input id="share-link" placeholder="https://lempreinte-demil.onrender.com/concours.html"></div>
+        <div class="input-group"><label>Message WhatsApp pré-rempli</label><textarea id="share-msg" rows="3"></textarea></div>
+        <button class="btn btn-primary" style="width:100%" onclick="saveShare()">Enregistrer</button>
+      </div>
+    </div>
+
+    <!-- PARTICIPANTS -->
+    <div id="panel-parts" class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span style="font-size:13px;color:var(--muted)" id="part-count">0 participants</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="loadParticipants()">Rafraîchir</button>
+          <button class="btn btn-ghost" onclick="exportCSV()">Exporter CSV</button>
+        </div>
+      </div>
+      <div id="parts-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
+  authDomain: 'lempreinte-d-emil.firebaseapp.com',
+  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'lempreinte-d-emil',
+  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
+  messagingSenderId: '979069264735',
+  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea'
+};
+let db = null;
+try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); } catch(e) { console.error(e); }
+
+const DEFAULT_PWD = 'emil2026';
+let isLogged = false;
+let lots = [], quiz = [], parts = [];
+
+function esc(s) { return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function checkPwd(pwd) {
+  if (!db) return pwd === DEFAULT_PWD;
+  try {
+    const snap = await db.ref('concours/adminPassword').once('value');
+    return pwd === (snap.val() || DEFAULT_PWD);
+  } catch(e) { return pwd === DEFAULT_PWD; }
+}
+
+async function doLogin() {
+  const pwd = document.getElementById('pwd').value;
+  if (await checkPwd(pwd)) {
+    isLogged = true;
+    document.getElementById('login-view').classList.add('hidden');
+    document.getElementById('admin-view').classList.remove('hidden');
+    document.getElementById('btn-logout').style.display = 'inline-flex';
+    loadAll();
+  } else {
+    alert('Mot de passe incorrect');
+  }
+}
+function logout() { location.reload(); }
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.closest('.tab').classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'parts') loadParticipants();
+}
+
+async function loadAll() {
+  if (!db) return;
+  const [l, q, s] = await Promise.all([
+    db.ref('concours/lots').once('value'),
+    db.ref('concours/quiz').once('value'),
+    db.ref('concours/shareConfig').once('value')
+  ]);
+  lots = l.val() ? Object.values(l.val()) : [];
+  quiz = q.val() ? Object.values(q.val()) : [];
+  const share = s.val() || { link: '', message: '' };
+  document.getElementById('share-link').value = share.link || window.location.origin + '/concours.html';
+  document.getElementById('share-msg').value = share.message || '🎉 Je participe au jeu concours L\'Empreinte D\'Emil ! Inscris-toi aussi :';
+  renderLots(); renderQuiz(); loadParticipants();
+}
+
+function renderLots() {
+  const el = document.getElementById('lots-list');
+  const trophy = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>`;
+  el.innerHTML = lots.length ? lots.map((lot, i) => `
+    <div class="card">
+      <div class="card-img">${lot.img ? `<img src="${esc(lot.img)}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">` : trophy}</div>
+      <div class="card-body"><div class="card-title">${esc(lot.name)}</div><div class="card-meta">${esc(lot.desc)}</div></div>
+      <button class="btn btn-danger" onclick="delLot(${i})">✕</button>
+    </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--muted)">Aucun lot</div>';
+}
+
+async function addLot() {
+  const name = document.getElementById('lot-name').value.trim();
+  if (!name) return alert('Nom requis');
+  lots.push({ name, desc: document.getElementById('lot-desc').value.trim(), img: document.getElementById('lot-img').value.trim(), rank: document.getElementById('lot-rank').value });
+  await db.ref('concours/lots').set(lots);
+  document.getElementById('lot-name').value = ''; document.getElementById('lot-desc').value = ''; document.getElementById('lot-img').value = '';
+  renderLots();
+}
+async function delLot(i) { if (confirm('Supprimer ?')) { lots.splice(i, 1); await db.ref('concours/lots').set(lots); renderLots(); } }
+
+function addAnswer() {
+  const wrap = document.getElementById('q-answers');
+  const idx = wrap.children.length + 1;
+  wrap.insertAdjacentHTML('beforeend', `<div class="input-group"><label>Réponse ${idx}</label><input placeholder="Réponse ${idx}"></div>`);
+}
+function renderQuiz() {
+  const el = document.getElementById('quiz-list');
+  el.innerHTML = quiz.length ? quiz.map((q, i) => `
+    <div class="card">
+      <div class="card-body"><div class="card-title">Q${i+1}. ${esc(q.question)}</div><div class="card-meta">Bonne réponse: ${esc(q.answers[q.correct])}</div></div>
+      <button class="btn btn-danger" onclick="delQuiz(${i})">✕</button>
+    </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--muted)">Aucune question</div>';
+}
+async function addQuiz() {
+  const question = document.getElementById('q-text').value.trim();
+  const correct = parseInt(document.getElementById('q-correct').value) - 1;
+  const answers = Array.from(document.querySelectorAll('#q-answers input')).map(i => i.value.trim()).filter(Boolean);
+  if (!question || answers.length < 2 || isNaN(correct) || correct < 0 || correct >= answers.length) return alert('Vérifiez les champs');
+  quiz.push({ question, answers, correct });
+  await db.ref('concours/quiz').set(quiz);
+  document.getElementById('q-text').value = ''; document.getElementById('q-correct').value = '';
+  document.getElementById('q-answers').innerHTML = '<div class="input-group"><label>Réponse 1</label><input placeholder="Réponse 1"></div><div class="input-group"><label>Réponse 2</label><input placeholder="Réponse 2"></div>';
+  renderQuiz();
+}
+async function delQuiz(i) { if (confirm('Supprimer ?')) { quiz.splice(i, 1); await db.ref('concours/quiz').set(quiz); renderQuiz(); } }
+
+async function saveShare() {
+  await db.ref('concours/shareConfig').set({ link: document.getElementById('share-link').value.trim(), message: document.getElementById('share-msg').value.trim() });
+  alert('Enregistré');
+}
+
+async function loadParticipants() {
+  if (!db) return;
+  const snap = await db.ref('concours/participants').once('value');
+  const val = snap.val();
+  parts = val ? Object.values(val) : [];
+  parts.sort((a, b) => new Date(b.date) - new Date(a.date));
+  document.getElementById('part-count').textContent = parts.length + ' participants';
+  document.getElementById('parts-list').innerHTML = parts.length ? parts.map(p => `
+    <div class="card">
+      <div class="card-img" style="font-size:20px;font-weight:bold">${esc(p.name[0].toUpperCase())}</div>
+      <div class="card-body">
+        <div class="card-title">${esc(p.name)} · ${esc(p.phone)}</div>
+        <div class="card-meta">${esc(p.city)} · ${new Date(p.date).toLocaleDateString('fr-FR')} · ${p.shares}/5 partages</div>
+      </div>
+      <button class="btn btn-danger" onclick="delPart('${esc(p.id)}')">✕</button>
+    </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--muted)">Aucun participant</div>';
+}
+
+async function delPart(id) { if (confirm('Supprimer ?')) { await db.ref('concours/participants/' + id).remove(); loadParticipants(); } }
+
+function exportCSV() {
+  if (!parts.length) return alert('Aucun participant');
+  const rows = [['ID', 'Nom', 'Téléphone', 'Ville', 'Email', 'Partages', 'Date']];
+  parts.forEach(p => rows.push([p.id, p.name, p.phone, p.city, p.email || '', p.shares, new Date(p.date).toLocaleString('fr-FR')]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'participants.csv'; a.click();
+}
+</script>
+</body>
+</html>
