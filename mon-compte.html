@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="theme-color" content="#0A0A0A">
 <title>Mon Compte — L'Empreinte D'Emil</title>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
@@ -12,127 +12,144 @@
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.18.0/firebase-database-compat.js"></script>
 <style>
-:root{--gold:#C9A84C;--gold-light:#E8C97A;--gold-dark:#9A7530;--noir:#0A0A0A;--dark:#111111;--dark-2:#1A1A1A;--dark-3:#222222;--dark-4:#2E2E2E;--muted:#888888;--light:#F5F0E8;--danger:#C0392B;--success:#27AE60;--font-display:'Cormorant Garamond',serif;--font-body:'Jost',sans-serif;--transition:.3s cubic-bezier(.25,.46,.45,.94);--shadow:0 8px 32px rgba(0,0,0,.4);--shadow-gold:0 4px 24px rgba(201,168,76,.3)}
+:root{--gold:#C9A84C;--gold-light:#E8C97A;--gold-dark:#9A7530;--noir:#0A0A0A;--dark:#111111;--dark-2:#1A1A1A;--dark-3:#222222;--dark-4:#2E2E2E;--muted:#888888;--light:#F5F0E8;--danger:#C0392B;--success:#27AE60;--font-display:'Cormorant Garamond',serif;--font-body:'Jost',sans-serif;--transition:.3s cubic-bezier(.25,.46,.45,.94);--shadow:0 8px 32px rgba(0,0,0,.4)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--font-body);background:var(--noir);color:var(--light);font-size:14px;line-height:1.6;overflow-x:hidden}
 img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-.container{max-width:1200px;margin:0 auto;padding:0 20px}
+input,textarea,select{font-family:inherit;font-size:16px}
+.container{max-width:1200px;margin:0 auto;padding:0 16px}
 .hidden{display:none!important}
 
-.nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);border-bottom:1px solid rgba(201,168,76,.15);padding:16px 0}
-.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1200px;margin:0 auto;padding:0 20px}
-.nav-logo{font-family:var(--font-display);font-size:20px;font-weight:600;color:var(--gold);letter-spacing:.05em;line-height:1.1}
+/* SVG */
+.svg-icon{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);border-bottom:1px solid rgba(201,168,76,.15);padding:12px 0}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1200px;margin:0 auto;padding:0 16px;flex-wrap:wrap}
+.nav-logo{font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--gold);letter-spacing:.05em;line-height:1.1}
 .nav-logo em{font-style:italic;font-weight:300}
-.nav-logo small{display:block;font-size:10px;letter-spacing:.2em;font-weight:300;color:rgba(201,168,76,.6);margin-top:2px}
-.nav-links{display:flex;gap:8px;align-items:center}
-.nav-links a{padding:8px 14px;font-size:12px;font-weight:500;color:var(--muted);border-radius:6px;transition:var(--transition);letter-spacing:.05em;text-transform:uppercase}
+.nav-logo small{display:block;font-size:9px;letter-spacing:.2em;font-weight:300;color:rgba(201,168,76,.6);margin-top:2px}
+.nav-links{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nav-links a{padding:6px 12px;font-size:11px;font-weight:600;color:var(--muted);border-radius:6px;transition:var(--transition);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .nav-links a:hover{color:var(--gold);background:rgba(201,168,76,.08)}
-@media(max-width:720px){.nav-links a{padding:6px 10px;font-size:11px}}
+.nav-links a.active { color: var(--gold); }
 
-.hero{padding:60px 0 40px;text-align:center;background:linear-gradient(135deg,var(--noir),var(--dark-2));border-bottom:1px solid rgba(201,168,76,.1)}
-.hero-title{font-family:var(--font-display);font-size:clamp(36px,6vw,64px);font-weight:300;line-height:1;margin-bottom:10px}
+/* HERO */
+.hero{padding:48px 0 32px;text-align:center;background:linear-gradient(135deg,var(--noir),var(--dark-2));border-bottom:1px solid rgba(201,168,76,.1)}
+.hero-title{font-family:var(--font-display);font-size:clamp(32px,6vw,56px);font-weight:300;line-height:1;margin-bottom:8px}
 .hero-title em{font-style:italic;color:var(--gold)}
-.hero-sub{font-size:14px;color:var(--muted);max-width:480px;margin:0 auto}
+.hero-sub{font-size:13px;color:var(--muted);max-width:480px;margin:0 auto}
 
-.tabs-bar{display:flex;gap:6px;margin:30px auto;max-width:600px;padding:4px;background:var(--dark-2);border-radius:10px;border:1px solid rgba(201,168,76,.12)}
-.tab-btn{flex:1;padding:12px 16px;border-radius:7px;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:var(--transition)}
+/* TABS */
+.tabs-bar{display:flex;gap:4px;margin:24px auto;max-width:600px;padding:4px;background:var(--dark-2);border-radius:10px;border:1px solid rgba(201,168,76,.12);overflow-x:auto}
+.tab-btn{flex:1;padding:10px 14px;border-radius:7px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .tab-btn.active{background:var(--gold);color:var(--noir)}
 .tab-btn:hover:not(.active){color:var(--gold);background:rgba(201,168,76,.08)}
 
-.tab-panel{display:none;padding-bottom:60px}
+.tab-panel{display:none;padding-bottom:48px}
 .tab-panel.active{display:block;animation:fadeUp .3s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
-/* FAVORITES GRID */
-.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
-.fav-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;overflow:hidden;transition:var(--transition);position:relative}
+/* FAVORITES */
+.fav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+@media(min-width:560px){.fav-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}}
+.fav-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;overflow:hidden;transition:var(--transition);position:relative;display:flex;flex-direction:column}
 .fav-card:hover{border-color:rgba(201,168,76,.35);transform:translateY(-3px);box-shadow:var(--shadow)}
 .fav-img{aspect-ratio:1;background:var(--dark-3);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
 .fav-img img{width:100%;height:100%;object-fit:cover}
-.fav-img-placeholder{font-size:44px;opacity:.4}
-.fav-heart{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;background:rgba(10,10,10,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;font-size:18px;color:#e74c3c;cursor:pointer;transition:var(--transition);z-index:2;border:1px solid rgba(231,76,60,.3)}
+.fav-img-placeholder{color:var(--muted);opacity:.4}
+.fav-img-placeholder svg{width:40px;height:40px}
+.fav-heart{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(10,10,10,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;color:#e74c3c;cursor:pointer;transition:var(--transition);z-index:2;border:1px solid rgba(231,76,60,.3)}
 .fav-heart:hover{background:#e74c3c;color:#fff;transform:scale(1.1)}
-.fav-info{padding:14px}
-.fav-name{font-family:var(--font-display);font-size:16px;font-weight:500;margin-bottom:4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fav-price{font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:10px}
-.fav-actions{display:flex;gap:6px}
-.fav-actions button{flex:1;padding:9px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:6px;transition:var(--transition)}
+.fav-heart svg{width:16px;height:16px;fill:currentColor}
+.fav-info{padding:12px;display:flex;flex-direction:column;flex:1}
+.fav-name{font-family:var(--font-display);font-size:15px;font-weight:500;margin-bottom:4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fav-price{font-family:var(--font-display);font-size:16px;color:var(--gold);margin-bottom:10px;font-weight:600}
+.fav-stats{display:flex;gap:6px;font-size:10px;color:var(--muted);margin-bottom:8px;align-items:center;flex-wrap:wrap}
+.fav-stars{color:var(--gold);letter-spacing:1px;display:flex;align-items:center;gap:2px}
+.fav-stars svg{width:12px;height:12px;fill:currentColor}
+.fav-badge{background:rgba(201,168,76,.12);color:var(--gold);padding:2px 6px;border-radius:8px;border:1px solid rgba(201,168,76,.25);display:inline-flex;align-items:center;gap:3px}
+.fav-badge svg{width:10px;height:10px}
+.fav-badge.success{background:rgba(39,174,96,.15);color:var(--success);border-color:rgba(39,174,96,.3)}
+.fav-actions{display:flex;gap:6px;margin-top:auto}
+.fav-actions button{flex:1;padding:8px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-radius:6px;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:4px}
+.fav-actions button svg{width:12px;height:12px}
 .fav-add{background:var(--gold);color:var(--noir)}
 .fav-add:hover{background:var(--gold-light)}
 .fav-view{background:var(--dark-3);color:var(--light);border:1px solid rgba(245,240,232,.1)}
 .fav-view:hover{border-color:var(--gold);color:var(--gold)}
-.fav-stats{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-bottom:8px;align-items:center}
-.fav-stars{color:var(--gold);font-size:12px;letter-spacing:1px}
-.fav-count-badge{font-size:10px;background:rgba(201,168,76,.12);color:var(--gold);padding:2px 8px;border-radius:10px;border:1px solid rgba(201,168,76,.25)}
 
 /* ORDERS */
 .orders-list{display:flex;flex-direction:column;gap:12px}
-.order-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:20px;transition:var(--transition)}
-.order-card:hover{border-color:rgba(201,168,76,.3)}
-.order-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:10px}
-.order-id{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.order-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:16px;transition:var(--transition)}
+.order-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.order-id{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .order-id strong{color:var(--gold);font-weight:600;font-size:13px;display:block;margin-top:2px;letter-spacing:normal;text-transform:none}
-.order-date{font-size:11px;color:var(--muted);text-align:right}
-.order-total{font-family:var(--font-display);font-size:20px;color:var(--gold);text-align:right;font-weight:600}
-.order-items{display:flex;flex-direction:column;gap:6px;margin:10px 0;padding:10px 0;border-top:1px solid rgba(245,240,232,.05);border-bottom:1px solid rgba(245,240,232,.05)}
-.order-item{display:flex;justify-content:space-between;font-size:12px;gap:10px}
+.order-date{font-size:10px;color:var(--muted);text-align:right}
+.order-total{font-family:var(--font-display);font-size:18px;color:var(--gold);text-align:right;font-weight:600}
+.order-status{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;background:rgba(39,174,96,.15);color:var(--success);border:1px solid rgba(39,174,96,.3)}
+.order-status svg{width:10px;height:10px}
+.order-items{display:flex;flex-direction:column;gap:4px;margin:8px 0;padding:8px 0;border-top:1px solid rgba(245,240,232,.05);border-bottom:1px solid rgba(245,240,232,.05)}
+.order-item{display:flex;justify-content:space-between;font-size:11px;gap:8px}
 .order-item-name{flex:1;color:var(--light);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .order-item-qty{color:var(--muted);flex-shrink:0}
 .order-item-price{color:var(--gold);font-weight:500;flex-shrink:0}
-.order-status{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:14px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
-.order-status.validated{background:rgba(39,174,96,.15);color:var(--success);border:1px solid rgba(39,174,96,.3)}
 
 /* REVIEWS */
-.reviews-list{display:flex;flex-direction:column;gap:12px}
-.review-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:18px}
-.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap}
-.review-stars{color:var(--gold);font-size:15px;letter-spacing:2px}
-.review-status{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.reviews-list{display:flex;flex-direction:column;gap:10px}
+.review-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.1);border-radius:12px;padding:16px}
+.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap}
+.review-stars{color:var(--gold);display:flex;gap:2px}
+.review-stars svg{width:14px;height:14px;fill:currentColor}
+.review-status{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;display:inline-flex;align-items:center;gap:3px}
 .review-status.approved{background:rgba(39,174,96,.15);color:var(--success);border:1px solid rgba(39,174,96,.3)}
 .review-status.pending{background:rgba(230,126,34,.15);color:#E67E22;border:1px solid rgba(230,126,34,.3)}
-.review-product{font-size:12px;color:var(--muted);margin-bottom:8px}
-.review-text{font-size:13px;color:var(--light);line-height:1.6;font-style:italic}
-.review-img{margin-top:10px;border-radius:6px;max-width:200px;max-height:150px;object-fit:cover}
+.review-product{font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.review-product svg{width:12px;height:12px}
+.review-text{font-size:12px;color:var(--light);line-height:1.5;font-style:italic}
 
 /* EMPTY */
-.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
-.empty-icon{font-size:56px;margin-bottom:16px;opacity:.5}
-.empty-title{font-family:var(--font-display);font-size:22px;color:var(--light);margin-bottom:6px}
-.empty-sub{font-size:13px;margin-bottom:20px}
+.empty-state{text-align:center;padding:48px 16px;color:var(--muted)}
+.empty-icon{margin:0 auto 16px;opacity:.4;color:var(--gold)}
+.empty-icon svg{width:56px;height:56px}
+.empty-title{font-family:var(--font-display);font-size:20px;color:var(--light);margin-bottom:4px}
+.empty-sub{font-size:12px;margin-bottom:16px}
 
-/* ACCOUNT INFO */
-.account-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:24px;max-width:520px;margin:0 auto}
-.account-avatar{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--noir);font-family:var(--font-display);font-size:34px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
-.account-name{font-family:var(--font-display);font-size:24px;text-align:center;margin-bottom:4px}
-.account-phone{text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px}
-.account-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
-.account-stat{background:var(--dark-3);border-radius:10px;padding:14px;text-align:center}
-.account-stat-num{font-family:var(--font-display);font-size:28px;color:var(--gold);font-weight:600;line-height:1}
-.account-stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:6px}
-.account-actions{display:flex;gap:10px;flex-wrap:wrap}
+/* ACCOUNT */
+.account-card{background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:20px;max-width:480px;margin:0 auto}
+.account-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--noir);font-family:var(--font-display);font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.account-name{font-family:var(--font-display);font-size:22px;text-align:center;margin-bottom:2px}
+.account-phone{text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px}
+.account-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.account-stat{background:var(--dark-3);border-radius:10px;padding:12px;text-align:center}
+.account-stat-num{font-family:var(--font-display);font-size:24px;color:var(--gold);font-weight:600;line-height:1}
+.account-stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:4px}
+.account-actions{display:flex;gap:8px;flex-wrap:wrap}
+.account-actions .btn{flex:1;padding:10px 14px;font-size:11px}
 
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:8px;transition:var(--transition);text-decoration:none}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:8px;transition:var(--transition);text-decoration:none}
+.btn svg{width:14px;height:14px}
 .btn-primary{background:var(--gold);color:var(--noir)}
 .btn-primary:hover{background:var(--gold-light)}
 .btn-outline{background:transparent;color:var(--light);border:1px solid rgba(245,240,232,.2)}
 .btn-outline:hover{border-color:var(--gold);color:var(--gold)}
-.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(192,57,43,.3)}
-.btn-danger:hover{background:rgba(192,57,43,.1)}
 .btn-full{width:100%}
 
 /* LOGIN */
-.login-card{max-width:420px;margin:40px auto;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:16px;padding:32px}
-.login-title{font-family:var(--font-display);font-size:26px;text-align:center;margin-bottom:6px}
-.login-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:22px;line-height:1.5}
-.form-group{margin-bottom:14px}
-.form-label{display:block;font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
-.form-input{width:100%;background:var(--dark-3);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:12px 15px;color:var(--light);font-size:14px;outline:none;transition:var(--transition)}
+.login-card{max-width:400px;margin:32px auto;background:var(--dark-2);border:1px solid rgba(201,168,76,.15);border-radius:16px;padding:24px}
+.login-title{font-family:var(--font-display);font-size:22px;text-align:center;margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:20px;line-height:1.5}
+.form-group{margin-bottom:12px}
+.form-label{display:block;font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.form-input{width:100%;background:var(--dark-3);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:12px 14px;color:var(--light);font-size:14px;outline:none;transition:var(--transition)}
 .form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,.1)}
 .form-input::placeholder{color:var(--muted)}
 
-.footer{background:var(--dark-2);border-top:1px solid rgba(201,168,76,.1);padding:30px 0;text-align:center;color:var(--muted);font-size:12px;margin-top:60px}
+.footer{background:var(--dark-2);border-top:1px solid rgba(201,168,76,.1);padding:24px 0;text-align:center;color:var(--muted);font-size:11px;margin-top:40px}
+.footer a{color:var(--gold)}
 
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(19,18,14,.97);border:1px solid rgba(201,168,76,.5);border-radius:10px;padding:14px 22px;font-size:13px;z-index:9999;transition:transform .4s cubic-bezier(.25,.46,.45,.94);display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);box-shadow:0 12px 34px rgba(0,0,0,.5)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:rgba(19,18,14,.97);border:1px solid rgba(201,168,76,.5);border-radius:10px;padding:12px 20px;font-size:12px;z-index:9999;transition:transform .4s cubic-bezier(.25,.46,.45,.94);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 32px);box-shadow:0 12px 34px rgba(0,0,0,.5)}
 #toast.show{transform:translateX(-50%) translateY(0)}
 #toast .toast-icon{color:var(--gold);font-size:16px}
 </style>
@@ -143,9 +160,9 @@ img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">L'<em>EMPREINTE</em><small>D'EMIL · DOUALA</small></a>
     <div class="nav-links">
-      <a href="index.html">Boutique</a>
-      <a href="concours.html">Concours</a>
-      <a href="mon-compte.html" style="color:var(--gold)">Mon Compte</a>
+      <a href="index.html"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> Boutique</a>
+      <a href="concours.html"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> Concours</a>
+      <a href="mon-compte.html" class="active"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Compte</a>
     </div>
   </div>
 </nav>
@@ -157,7 +174,6 @@ img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button
   </div>
 </section>
 
-<!-- LOGIN VIEW -->
 <div class="container" id="login-view">
   <div class="login-card">
     <h2 class="login-title">Identification</h2>
@@ -171,11 +187,10 @@ img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button
       <input class="form-input" id="login-phone" type="tel" placeholder="6XX XXX XXX" autocomplete="tel">
     </div>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Accéder à mon compte →</button>
-    <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5">Vos favoris sont stockés sur cet appareil. L'historique commandes provient de votre navigateur.</p>
+    <p style="font-size:10px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.5">Vos favoris sont stockés sur cet appareil. L'historique commandes provient de votre navigateur.</p>
   </div>
 </div>
 
-<!-- ACCOUNT VIEW -->
 <div class="container hidden" id="account-view">
   <div class="account-card">
     <div class="account-avatar" id="acc-avatar">M</div>
@@ -187,15 +202,15 @@ img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button
       <div class="account-stat"><div class="account-stat-num" id="acc-reviews">0</div><div class="account-stat-lbl">Avis</div></div>
     </div>
     <div class="account-actions">
-      <button class="btn btn-outline" style="flex:1" onclick="doLogout()">Se déconnecter</button>
-      <a href="index.html" class="btn btn-primary" style="flex:1">Continuer les achats</a>
+      <button class="btn btn-outline" onclick="doLogout()"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg> Déconnexion</button>
+      <a href="index.html" class="btn btn-primary"><svg class="svg-icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Achats</a>
     </div>
   </div>
 
   <div class="tabs-bar">
-    <button class="tab-btn active" data-tab="favorites" onclick="switchTab('favorites')">❤️ Favoris</button>
-    <button class="tab-btn" data-tab="orders" onclick="switchTab('orders')">📦 Commandes</button>
-    <button class="tab-btn" data-tab="reviews" onclick="switchTab('reviews')">⭐ Mes Avis</button>
+    <button class="tab-btn active" data-tab="favorites" onclick="switchTab('favorites')"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg> Favoris</button>
+    <button class="tab-btn" data-tab="orders" onclick="switchTab('orders')"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path></svg> Commandes</button>
+    <button class="tab-btn" data-tab="reviews" onclick="switchTab('reviews')"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> Mes Avis</button>
   </div>
 
   <div class="tab-panel active" id="panel-favorites"><div id="fav-content"></div></div>
@@ -205,16 +220,15 @@ img{max-width:100%;display:block}a{color:var(--gold);text-decoration:none}button
 
 <footer class="footer">
   <div class="container">
-    <div style="font-family:var(--font-display);font-size:20px;color:var(--gold);margin-bottom:6px">L'EMPREINTE D'EMIL</div>
+    <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
     <div>© 2026 · Douala, Cameroun</div>
-    <div style="margin-top:12px"><a href="index.html">Boutique</a> · <a href="concours.html">Concours</a></div>
+    <div style="margin-top:10px;font-size:10px"><a href="index.html">Boutique</a> · <a href="concours.html">Concours</a></div>
   </div>
 </footer>
 
 <div id="toast"><span class="toast-icon">✦</span><span id="toast-msg"></span></div>
 
 <script>
-// Firebase config
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
   authDomain: 'lempreinte-d-emil.firebaseapp.com',
@@ -227,22 +241,26 @@ const FIREBASE_CONFIG = {
 let db = null;
 try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); } catch(e) { console.error(e); }
 
-// State
 let currentUser = null;
 let favorites = [];
 let allProducts = [];
 let userOrders = [];
 let userReviews = [];
 
-// Helpers
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmt(n){return (Number(n)||0).toLocaleString('fr-FR')+' FCFA';}
 function toast(msg,icon='✦'){const t=document.getElementById('toast');document.getElementById('toast-msg').textContent=msg;t.querySelector('.toast-icon').textContent=icon;t.classList.add('show');clearTimeout(window.__toastT);window.__toastT=setTimeout(()=>t.classList.remove('show'),3200);}
 function getCache(key,def){try{const v=localStorage.getItem('lemil_'+key);return v?JSON.parse(v):def;}catch(e){return def;}}
 
-// ═══════════════════════════════════════════════════════════
-// LOGIN
-// ═══════════════════════════════════════════════════════════
+// SVG const
+const SVG_HEART = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+const SVG_STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`;
+const SVG_BAG = `<svg viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path></svg>`;
+const SVG_PLACEHOLDER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`;
+const SVG_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+const SVG_CART = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+const SVG_BOX = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+
 function doLogin() {
   const name = document.getElementById('login-name').value.trim();
   const phone = document.getElementById('login-phone').value.trim();
@@ -270,11 +288,8 @@ function showAccount() {
   loadData();
 }
 
-// ═══════════════════════════════════════════════════════════
-// LOAD DATA
-// ═══════════════════════════════════════════════════════════
 async function loadData() {
-  // Load all products (from Firebase if possible, else cache)
+  // 1. Load products (critical fix: read from storedData/products)
   try {
     if (db) {
       const snap = await db.ref('storedData/products').once('value');
@@ -282,21 +297,22 @@ async function loadData() {
       if (val) allProducts = Object.values(val).filter(p => p && p.id);
     }
   } catch (e) { console.warn('Load products:', e); }
+  
+  // Fallback: local cache
   if (!allProducts.length) allProducts = getCache('products', []);
 
-  // Load favorites
+  // 2. Load favorites from local + remote
   favorites = getCache('favorites', []);
   if (db && currentUser) {
     try {
       const snap = await db.ref('clients/' + currentUser.id + '/favorites').once('value');
       const remote = snap.val() ? Object.values(snap.val()) : [];
-      // Merge
       const merged = [...new Set([...favorites, ...remote])];
       favorites = merged;
     } catch (e) { console.warn('Load remote favorites:', e); }
   }
 
-  // Load orders (from localStorage — those are the ones passed via WhatsApp)
+  // 3. Load orders
   userOrders = getCache('orders', []).filter(o => {
     if (!o.phone) return false;
     const oPhone = o.phone.replace(/\D/g, '');
@@ -304,7 +320,7 @@ async function loadData() {
     return oPhone.endsWith(uPhone.slice(-8)) || uPhone.endsWith(oPhone.slice(-8));
   });
 
-  // Load reviews (from Firebase if available)
+  // 4. Load reviews
   userReviews = [];
   if (db) {
     try {
@@ -316,7 +332,6 @@ async function loadData() {
       }
     } catch (e) { console.warn('Load reviews:', e); }
   }
-  // Also from local reviews cache
   const localRev = getCache('reviews', []);
   if (Array.isArray(localRev)) {
     const localMine = localRev.filter(r => r && r.name && r.name.toLowerCase().includes(currentUser.name.toLowerCase()));
@@ -336,20 +351,21 @@ function updateStats() {
   document.getElementById('acc-reviews').textContent = userReviews.length;
 }
 
-// ═══════════════════════════════════════════════════════════
-// FAVORITES
-// ═══════════════════════════════════════════════════════════
 function renderFavorites() {
   const el = document.getElementById('fav-content');
   if (!favorites.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">❤️</div><div class="empty-title">Aucun favori pour l'instant</div><div class="empty-sub">Ajoutez des produits en favoris depuis la boutique pour les retrouver ici.</div><a href="index.html" class="btn btn-primary">Explorer la boutique</a></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${SVG_HEART}</div><div class="empty-title">Aucun favori pour l'instant</div><div class="empty-sub">Ajoutez des produits en favoris depuis la boutique pour les retrouver ici.</div><a href="index.html" class="btn btn-primary">Explorer la boutique</a></div>`;
     return;
   }
+  
+  // Fix: match favorites with products correctly
   const favProducts = favorites.map(id => allProducts.find(p => String(p.id) === String(id))).filter(Boolean);
+  
   if (!favProducts.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">❤️</div><div class="empty-title">Vos favoris ne sont plus disponibles</div><div class="empty-sub">Certains produits ont peut-être été retirés.</div><a href="index.html" class="btn btn-primary">Voir la boutique</a></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${SVG_HEART}</div><div class="empty-title">Vos favoris ne sont plus disponibles</div><div class="empty-sub">Certains produits ont peut-être été retirés.</div><a href="index.html" class="btn btn-primary">Voir la boutique</a></div>`;
     return;
   }
+  
   el.innerHTML = `<div class="fav-grid">${favProducts.map(p => renderFavCard(p)).join('')}</div>`;
 }
 
@@ -357,17 +373,12 @@ function renderFavCard(p) {
   const name = p.nameFR || p.name || p.title || 'Produit';
   const price = p.price || 0;
   const img = (p.imgs && p.imgs[0]) || p.image || '';
-  // Order count for this product
   const orderCount = userOrders.reduce((sum, o) => {
     const item = (o.items || []).find(i => String(i.id) === String(p.id));
     return sum + (item ? (item.qty || 1) : 0);
   }, 0);
-  // Stars
   const prodReviews = userReviews.filter(r => String(r.productId) === String(p.id));
-  const avgStars = prodReviews.length
-    ? (prodReviews.reduce((s, r) => s + (r.stars || 0), 0) / prodReviews.length).toFixed(1)
-    : null;
-  // Total order count across all users (from cache)
+  const avgStars = prodReviews.length ? (prodReviews.reduce((s, r) => s + (r.stars || 0), 0) / prodReviews.length).toFixed(1) : null;
   const allOrders = getCache('orders', []);
   const totalOrders = allOrders.reduce((sum, o) => {
     const item = (o.items || []).find(i => String(i.id) === String(p.id));
@@ -376,20 +387,20 @@ function renderFavCard(p) {
 
   return `<div class="fav-card">
     <div class="fav-img">
-      ${img ? `<img src="${esc(img)}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<div class=\\'fav-img-placeholder\\'>🛍️</div>'">` : '<div class="fav-img-placeholder">🛍️</div>'}
-      <div class="fav-heart" onclick="removeFav('${esc(p.id)}')" title="Retirer des favoris">♥</div>
+      ${img ? `<img src="${esc(img)}" alt="${esc(name)}" onerror="this.parentElement.innerHTML='<div class=\\'fav-img-placeholder\\'>${SVG_PLACEHOLDER}</div>'">` : `<div class="fav-img-placeholder">${SVG_PLACEHOLDER}</div>`}
+      <div class="fav-heart" onclick="removeFav('${esc(p.id)}')" title="Retirer des favoris">${SVG_HEART}</div>
     </div>
     <div class="fav-info">
       <div class="fav-name">${esc(name)}</div>
       <div class="fav-stats">
-        ${avgStars ? `<span class="fav-stars">${'★'.repeat(Math.round(avgStars))}${'☆'.repeat(5-Math.round(avgStars))} ${avgStars}</span>` : ''}
-        ${totalOrders > 0 ? `<span class="fav-count-badge">${totalOrders} commande${totalOrders>1?'s':''}</span>` : ''}
-        ${orderCount > 0 ? `<span class="fav-count-badge" style="background:rgba(39,174,96,.15);color:var(--success);border-color:rgba(39,174,96,.3)">✓ Commandé</span>` : ''}
+        ${avgStars ? `<span class="fav-stars">${SVG_STAR} ${avgStars}</span>` : ''}
+        ${totalOrders > 0 ? `<span class="fav-badge">${SVG_BOX} ${totalOrders} cmd</span>` : ''}
+        ${orderCount > 0 ? `<span class="fav-badge success">${SVG_CHECK} Commandé</span>` : ''}
       </div>
       <div class="fav-price">${fmt(price)}</div>
       <div class="fav-actions">
-        <button class="fav-add" onclick="addToCart('${esc(p.id)}')">+ Panier</button>
-        <a class="fav-view" href="index.html?product=${esc(p.id)}" style="text-align:center;line-height:1.4">Voir</a>
+        <button class="fav-add" onclick="addToCart('${esc(p.id)}')">${SVG_CART} Panier</button>
+        <a class="fav-view" href="index.html?product=${esc(p.id)}">Voir</a>
       </div>
     </div>
   </div>`;
@@ -405,9 +416,7 @@ function removeFav(id) {
   updateStats();
   toast('Retiré des favoris', '💔');
 }
-
 function addToCart(id) {
-  // Add to the main cart localStorage (used by index.html)
   const cart = getCache('cart', []);
   const existing = cart.find(i => String(i.id) === String(id));
   if (existing) existing.qty = (existing.qty || 1) + 1;
@@ -416,13 +425,10 @@ function addToCart(id) {
   toast('Ajouté au panier !', '🛍️');
 }
 
-// ═══════════════════════════════════════════════════════════
-// ORDERS
-// ═══════════════════════════════════════════════════════════
 function renderOrders() {
   const el = document.getElementById('orders-content');
   if (!userOrders.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">Aucune commande trouvée</div><div class="empty-sub">Vos commandes passées via WhatsApp apparaîtront ici (uniquement sur cet appareil).</div><a href="index.html" class="btn btn-primary">Commander maintenant</a></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${SVG_BOX}</div><div class="empty-title">Aucune commande trouvée</div><div class="empty-sub">Vos commandes passées via WhatsApp apparaîtront ici (uniquement sur cet appareil).</div><a href="index.html" class="btn btn-primary">Commander maintenant</a></div>`;
     return;
   }
   el.innerHTML = `<div class="orders-list">${userOrders.map(o => renderOrderCard(o)).join('')}</div>`;
@@ -438,7 +444,7 @@ function renderOrderCard(o) {
         <div class="order-date">${date}</div>
       </div>
       <div style="text-align:right">
-        <div class="order-status validated">✓ ${esc(o.status || 'Reçue')}</div>
+        <div class="order-status">${SVG_CHECK} ${esc(o.status || 'Reçue')}</div>
         <div class="order-total">${fmt(o.total || 0)}</div>
       </div>
     </div>
@@ -449,17 +455,14 @@ function renderOrderCard(o) {
         return `<div class="order-item"><span class="order-item-name">${esc(name)}</span><span class="order-item-qty">× ${i.qty || 1}</span><span class="order-item-price">${fmt((i.price || 0) * (i.qty || 1))}</span></div>`;
       }).join('') || '<div class="order-item"><span class="order-item-name" style="color:var(--muted)">Détails non disponibles</span></div>'}
     </div>
-    <div style="font-size:12px;color:var(--muted)">Livraison : ${esc(o.city || '—')} · ${esc(o.address || '')}</div>
+    <div style="font-size:11px;color:var(--muted)">Livraison : ${esc(o.city || '—')} · ${esc(o.address || '')}</div>
   </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════
-// REVIEWS
-// ═══════════════════════════════════════════════════════════
 function renderReviews() {
   const el = document.getElementById('reviews-content');
   if (!userReviews.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">⭐</div><div class="empty-title">Aucun avis pour l'instant</div><div class="empty-sub">Vos avis laissés sur les produits apparaîtront ici.</div><a href="index.html" class="btn btn-primary">Voir les produits</a></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">${SVG_STAR}</div><div class="empty-title">Aucun avis pour l'instant</div><div class="empty-sub">Vos avis laissés sur les produits apparaîtront ici.</div><a href="index.html" class="btn btn-primary">Voir les produits</a></div>`;
     return;
   }
   el.innerHTML = `<div class="reviews-list">${userReviews.map(r => {
@@ -468,27 +471,21 @@ function renderReviews() {
     const status = r.pending ? 'pending' : 'approved';
     return `<div class="review-card">
       <div class="review-head">
-        <div class="review-stars">${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}</div>
-        <div class="review-status ${status}">${r.pending ? '⏳ En attente' : '✓ Publié'}</div>
+        <div class="review-stars">${Array(5).fill(0).map((_, i) => `<svg viewBox="0 0 24 24" fill="${i < stars ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="${i < stars ? 0 : 1}"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>`).join('')}</div>
+        <div class="review-status ${status}">${r.pending ? 'En attente' : 'Publié'}</div>
       </div>
-      ${p ? `<div class="review-product">📦 ${esc(p.nameFR || p.name || '')}</div>` : '<div class="review-product">Boutique en général</div>'}
+      ${p ? `<div class="review-product">${SVG_BOX} ${esc(p.nameFR || p.name || '')}</div>` : '<div class="review-product">Boutique en général</div>'}
       <div class="review-text">"${esc(r.textFR || r.comment || r.text || '')}"</div>
-      ${r.imageUrl ? `<img class="review-img" src="${esc(r.imageUrl)}" alt="Photo avis">` : ''}
+      ${r.imageUrl ? `<img class="review-img" src="${esc(r.imageUrl)}" alt="Photo avis" style="border-radius:6px;max-width:200px;margin-top:8px">` : ''}
     </div>`;
   }).join('')}</div>`;
 }
 
-// ═══════════════════════════════════════════════════════════
-// TABS
-// ═══════════════════════════════════════════════════════════
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tab));
 }
 
-// ═══════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('emil_user');
   if (saved) {
