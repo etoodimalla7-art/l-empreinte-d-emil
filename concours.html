@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <meta name="theme-color" content="#0A0A0A">
 <title>Jeu Concours — L'Empreinte D'Emil</title>
-<meta name="description" content="Participez au grand jeu concours L'Empreinte D'Emil. Gagnez des parfums de luxe, sacs et accessoires premium. Inscription gratuite.">
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,13 +27,10 @@ body{font-family:var(--font-body);background:var(--noir);color:var(--light);font
 img{max-width:100%;display:block}
 a{color:var(--gold);text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
-input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom auto sur iOS */
+input,textarea,select{font-family:inherit;font-size:16px}
 .container{max-width:1200px;margin:0 auto;padding:0 16px}
 .hidden{display:none!important}
-
-/* SVG ICONS */
 .svg-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.svg-icon-fill { width: 20px; height: 20px; fill: currentColor; flex-shrink: 0; }
 
 /* NAV */
 .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);border-bottom:1px solid rgba(201,168,76,.15);padding:12px 0}
@@ -119,7 +115,7 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
 .btn-outline{background:transparent;color:var(--light);border:1px solid rgba(245,240,232,.2)}
 .btn-outline:hover{border-color:var(--gold);color:var(--gold)}
 
-/* PROGRESS BAR */
+/* PROGRESS BAR (SHARE) */
 .progress-wrap{margin:20px 0}
 .progress-label{display:flex;justify-content:space-between;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
 .progress-track{height:10px;background:var(--dark-3);border-radius:5px;overflow:hidden;position:relative}
@@ -127,25 +123,28 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
 .progress-fill::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 2s infinite}
 @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
 
-.share-steps{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
-.share-step{display:flex;gap:12px;align-items:center;padding:14px;background:var(--dark-3);border:1px solid rgba(201,168,76,.1);border-radius:10px;transition:var(--transition)}
-.share-step.done{border-color:rgba(39,174,96,.4);background:rgba(39,174,96,.06)}
-.share-step.done .share-step-icon{background:var(--success);color:#fff;border-color:var(--success)}
-.share-step-icon{width:36px;height:36px;border-radius:50%;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;transition:var(--transition);font-size:14px}
-.share-step-body{flex:1;min-width:0}
-.share-step-title{font-size:12px;font-weight:600;margin-bottom:2px}
-.share-step-desc{font-size:10px;color:var(--muted)}
-.share-step-btn{padding:8px 14px;background:var(--gold);color:var(--noir);border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;transition:var(--transition);white-space:nowrap;display:flex;align-items:center;gap:4px}
-.share-step-btn svg{width:14px;height:14px}
-.share-step-btn:hover{background:var(--gold-light)}
-.share-step-btn:disabled{opacity:.4;cursor:not-allowed;background:var(--dark-4);color:var(--muted)}
+.share-box{background:var(--dark-3);border:1px solid rgba(201,168,76,.15);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px}
+.share-icon{width:56px;height:56px;background:rgba(201,168,76,.1);color:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.share-icon svg{width:28px;height:28px}
+.share-title{font-family:var(--font-display);font-size:18px;margin-bottom:6px}
+.share-desc{font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.share-btn{width:100%;padding:14px;background:#25D366;color:#fff;border-radius:8px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;transition:var(--transition);margin-bottom:10px}
+.share-btn:hover{background:#1ebc5a;transform:translateY(-1px);box-shadow:0 4px 20px rgba(37,211,102,.3)}
+.share-btn svg{width:18px;height:18px}
+.confirm-btn{width:100%;padding:12px;background:transparent;color:var(--gold);border:1px dashed var(--gold);border-radius:8px;font-size:11px;font-weight:600;letter-spacing:.05em;transition:var(--transition)}
+.confirm-btn:hover{background:rgba(201,168,76,.1)}
+.confirm-btn:disabled{opacity:.5;cursor:not-allowed;border-style:solid;background:var(--dark-4);color:var(--muted);border-color:var(--dark-4)}
 
-/* SUCCESS */
+/* SUCCESS & SCORE */
 .success-wrap{text-align:center;padding:16px 0}
 .success-icon{width:64px;height:64px;margin:0 auto 16px;color:var(--gold);animation:pop .6s cubic-bezier(.25,.46,.45,.94)}
 @keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 .success-title{font-family:var(--font-display);font-size:28px;font-weight:400;color:var(--gold);margin-bottom:8px}
 .success-msg{font-size:13px;color:var(--muted);line-height:1.6;max-width:400px;margin:0 auto 20px}
+.score-card{background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));border:1px solid rgba(201,168,76,.3);border-radius:12px;padding:20px;max-width:400px;margin:0 auto 20px;text-align:center}
+.score-num{font-family:var(--font-display);font-size:48px;color:var(--gold);font-weight:600;line-height:1}
+.score-total{font-size:16px;color:var(--muted)}
+.score-label{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:var(--gold);margin-top:8px;font-weight:600}
 .success-card{background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.3);border-radius:10px;padding:16px;max-width:400px;margin:0 auto 16px;text-align:left}
 .success-card-title{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--success);margin-bottom:8px}
 .success-card-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(245,240,232,.05)}
@@ -178,28 +177,17 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
 </head>
 <body>
 
-<!-- NAV -->
 <nav class="nav">
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">L'<em>EMPREINTE</em><small>D'EMIL · DOUALA</small></a>
     <div class="nav-links">
-      <a href="index.html">
-        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        Boutique
-      </a>
-      <a href="mon-compte.html">
-        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        Compte
-      </a>
-      <a href="concours.html" class="active">
-        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-        Concours
-      </a>
+      <a href="index.html"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> Boutique</a>
+      <a href="mon-compte.html"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Compte</a>
+      <a href="concours.html" class="active"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg> Concours</a>
     </div>
   </div>
 </nav>
 
-<!-- HERO -->
 <section class="hero">
   <div class="container hero-inner">
     <div class="hero-eyebrow">Jeu Concours Officiel</div>
@@ -209,7 +197,6 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
   </div>
 </section>
 
-<!-- LOTS -->
 <section class="section" id="lots-section">
   <div class="container">
     <div class="section-head">
@@ -218,21 +205,14 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
       <p class="section-sub">Des pièces d'exception sélectionnées par L'Empreinte D'Emil.</p>
     </div>
     <div class="lots-grid" id="lots-grid">
-      <div class="lots-empty">
-        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-        <p>Les lots seront bientôt dévoilés. Revenez vite !</p>
-      </div>
+      <div class="lots-empty"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path></svg><p>Les lots seront bientôt dévoilés. Revenez vite !</p></div>
     </div>
   </div>
 </section>
 
-<!-- COMMENT -->
 <section class="section" style="background:var(--dark-2)">
   <div class="container">
-    <div class="section-head">
-      <div class="section-label">Le Règlement</div>
-      <h2 class="section-title">Comment <em>Participer</em></h2>
-    </div>
+    <div class="section-head"><div class="section-label">Le Règlement</div><h2 class="section-title">Comment <em>Participer</em></h2></div>
     <div class="steps-grid">
       <div class="step-card"><div class="step-num">1</div><div class="step-title">Remplissez</div><div class="step-desc">Quelques infos de base et un mini-quiz.</div></div>
       <div class="step-card"><div class="step-num">2</div><div class="step-title">Partagez</div><div class="step-desc">Envoyez à 5 groupes WhatsApp.</div></div>
@@ -242,76 +222,54 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
   </div>
 </section>
 
-<!-- FORMULAIRE -->
 <section class="section" id="form-section">
   <div class="container">
-    <div class="section-head">
-      <div class="section-label">Inscription</div>
-      <h2 class="section-title">Participez <em>Maintenant</em></h2>
-    </div>
+    <div class="section-head"><div class="section-label">Inscription</div><h2 class="section-title">Participez <em>Maintenant</em></h2></div>
     <div class="form-card">
 
-      <!-- STEP 1 -->
       <div class="form-step active" id="step-1">
         <div class="form-title">Vos Informations</div>
         <p class="form-sub">Inscription gratuite, sans obligation d'achat. Réservé aux 18+.</p>
-        <div class="form-group">
-          <label class="form-label" for="f-name">Nom complet *</label>
-          <input class="form-input" id="f-name" type="text" placeholder="Ex : Marie Dupont" autocomplete="name">
-        </div>
+        <div class="form-group"><label class="form-label" for="f-name">Nom complet *</label><input class="form-input" id="f-name" type="text" placeholder="Ex : Marie Dupont" autocomplete="name"></div>
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label" for="f-phone">Téléphone WhatsApp *</label>
-            <input class="form-input" id="f-phone" type="tel" placeholder="6XX XXX XXX" autocomplete="tel">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="f-city">Ville *</label>
-            <input class="form-input" id="f-city" type="text" placeholder="Douala" autocomplete="address-level2">
-          </div>
+          <div class="form-group"><label class="form-label" for="f-phone">Téléphone WhatsApp *</label><input class="form-input" id="f-phone" type="tel" placeholder="6XX XXX XXX" autocomplete="tel"></div>
+          <div class="form-group"><label class="form-label" for="f-city">Ville *</label><input class="form-input" id="f-city" type="text" placeholder="Douala" autocomplete="address-level2"></div>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="f-email">Email (optionnel)</label>
-          <input class="form-input" id="f-email" type="email" placeholder="vous@exemple.com" autocomplete="email">
-        </div>
-        <div class="form-check">
-          <input type="checkbox" id="f-consent">
-          <label for="f-consent" style="cursor:pointer">J'accepte le règlement du concours et que mes données soient utilisées pour me contacter en cas de gain. Je certifie avoir 18 ans ou plus.</label>
-        </div>
-        <button class="btn btn-primary" id="btn-step-1" onclick="goToStep2()">Continuer →</button>
+        <div class="form-group"><label class="form-label" for="f-email">Email (optionnel)</label><input class="form-input" id="f-email" type="email" placeholder="vous@exemple.com" autocomplete="email"></div>
+        <div class="form-check"><input type="checkbox" id="f-consent"><label for="f-consent" style="cursor:pointer">J'accepte le règlement du concours et que mes données soient utilisées pour me contacter en cas de gain. Je certifie avoir 18 ans ou plus.</label></div>
+        <button class="btn btn-primary" onclick="goToStep2()">Continuer →</button>
       </div>
 
-      <!-- STEP 2 -->
       <div class="form-step" id="step-2">
         <div class="quiz-progress"><div class="quiz-progress-fill" id="quiz-fill" style="width:0%"></div></div>
         <div class="quiz-q-num" id="quiz-q-num"></div>
         <div class="quiz-question" id="quiz-question">Chargement…</div>
         <div class="quiz-options" id="quiz-options"></div>
-        <div class="quiz-nav">
-          <button class="btn btn-outline" id="quiz-prev" onclick="quizPrev()" style="visibility:hidden">← Retour</button>
-          <button class="btn btn-primary" id="quiz-next" onclick="quizNext()" disabled>Suivant →</button>
-        </div>
+        <div class="quiz-nav"><button class="btn btn-outline" id="quiz-prev" onclick="quizPrev()" style="visibility:hidden">← Retour</button><button class="btn btn-primary" id="quiz-next" onclick="quizNext()" disabled>Suivant →</button></div>
       </div>
 
-      <!-- STEP 3 -->
       <div class="form-step" id="step-3">
         <div class="form-title">Dernière étape : Partagez !</div>
-        <p class="form-sub">Pour valider votre participation, partagez votre lien à <strong>5 groupes WhatsApp</strong>. La barre avance à chaque partage confirmé.</p>
+        <p class="form-sub">Pour valider votre participation, partagez votre lien à <strong>5 groupes WhatsApp</strong> différents.</p>
+        <div class="share-box">
+          <div class="share-icon"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></div>
+          <div class="share-title">Partager sur WhatsApp</div>
+          <div class="share-desc">Envoyez ce message à au moins 5 groupes différents.</div>
+          <button class="share-btn" onclick="doShare()"><svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg> Partager</button>
+          <button class="confirm-btn" onclick="confirmShare()" id="share-confirm-btn">J'ai envoyé à 5 groupes ✓</button>
+        </div>
         <div class="progress-wrap">
           <div class="progress-label"><span>Progression</span><span id="progress-pct">0%</span></div>
           <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
         </div>
-        <div class="share-steps" id="share-steps"></div>
-        <p style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5">
-          ⓘ Après avoir cliqué sur <strong>Partager</strong>, WhatsApp s'ouvre avec un message pré-rempli. Choisissez un groupe, envoyez, puis revenez ici et cliquez sur <strong>J'ai partagé</strong>.
-        </p>
       </div>
 
-      <!-- STEP 4 -->
       <div class="form-step" id="step-4">
         <div class="success-wrap">
           <svg class="success-icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          <h2 class="success-title">Félicitations !</h2>
-          <p class="success-msg">Vous êtes officiellement inscrit(e) au grand jeu concours de L'Empreinte D'Emil. Nous vous contacterons sur WhatsApp si vous êtes tiré(e) au sort !</p>
+          <h2 class="success-title" id="success-title-text">Félicitations !</h2>
+          <div id="score-display-container"></div>
+          <p class="success-msg" id="success-msg-text">Votre participation est validée. Nous vous contacterons sur WhatsApp si vous êtes tiré(e) au sort !</p>
           <div class="success-card" id="success-card"></div>
           <a href="index.html" class="btn btn-outline" style="text-decoration:none">Retour à la boutique</a>
         </div>
@@ -321,138 +279,73 @@ input,textarea,select{font-family:inherit;font-size:16px} /* 16px évite le zoom
   </div>
 </section>
 
-<!-- FOOTER -->
 <footer class="footer">
   <div class="container">
     <div style="font-family:var(--font-display);font-size:18px;color:var(--gold);margin-bottom:4px">L'EMPREINTE D'EMIL</div>
     <div>© 2026 · Douala, Cameroun · Jeu concours gratuit sans obligation d'achat</div>
     <div class="footer-slogan">Signez votre passage, imposez votre style</div>
-    <div style="margin-top:12px;font-size:10px">
-      <a href="index.html">Boutique</a> · <a href="mon-compte.html">Mon Compte</a> · <a href="admin-concours.html" style="opacity:.3">Admin</a>
-    </div>
   </div>
 </footer>
 
 <div id="toast"><span class="toast-icon">✦</span><span id="toast-msg"></span></div>
 
 <script>
-const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k',
-  authDomain: 'lempreinte-d-emil.firebaseapp.com',
-  databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app',
-  projectId: 'lempreinte-d-emil',
-  storageBucket: 'lempreinte-d-emil.firebasestorage.app',
-  messagingSenderId: '979069264735',
-  appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea'
-};
+const FIREBASE_CONFIG = { apiKey: 'AIzaSyA65BPcrGTDxZb-kGzTGcLKnTbZ4jcf-8k', authDomain: 'lempreinte-d-emil.firebaseapp.com', databaseURL: 'https://lempreinte-d-emil-default-rtdb.europe-west1.firebasedatabase.app', projectId: 'lempreinte-d-emil', storageBucket: 'lempreinte-d-emil.firebasestorage.app', messagingSenderId: '979069264735', appId: '1:979069264735:web:7a0dc52ffd296ac7a5ccea' };
 let db = null;
-function initFB() {
-  try {
-    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
-    db = firebase.database();
-    return true;
-  } catch (e) { console.error('Firebase init:', e); return false; }
-}
+try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); db = firebase.database(); } catch(e) { console.error(e); }
 
-let lots = [];
-let quizQuestions = [];
-let shareConfig = { link: '', message: '' };
-let participants = [];
+let lots = [], quizQuestions = [], shareConfig = { link: '', message: '' }, quizSettings = { successMsg: '', failMsg: '', passScore: 3 };
 let formData = { name: '', phone: '', city: '', email: '' };
-let quizAnswers = [];
-let currentQuizIdx = 0;
-let selectedQuizOption = null;
-let sharedCount = 0;
-const TOTAL_SHARES_REQUIRED = 5;
-let lastShareClickTime = 0;
+let quizAnswers = [], currentQuizIdx = 0, selectedQuizOption = null, correctAnswersCount = 0;
+let isShared = false, lastShareClickTime = 0;
 
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function toast(msg, icon = '✦') {
-  const t = document.getElementById('toast');
-  document.getElementById('toast-msg').textContent = msg;
-  t.querySelector('.toast-icon').textContent = icon;
-  t.classList.add('show');
-  clearTimeout(window.__toastT);
-  window.__toastT = setTimeout(() => t.classList.remove('show'), 3200);
-}
-function showStep(n) {
-  document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active'));
-  document.getElementById('step-' + n).classList.add('active');
-  document.getElementById('form-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+function toast(msg, icon = '✦') { const t = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg; t.querySelector('.toast-icon').textContent = icon; t.classList.add('show'); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => t.classList.remove('show'), 3200); }
+function showStep(n) { document.querySelectorAll('.form-step').forEach(s => s.classList.remove('active')); document.getElementById('step-' + n).classList.add('active'); document.getElementById('form-section').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
 async function loadConfig() {
   if (!db) return;
   try {
-    const [lotsSnap, quizSnap, shareSnap] = await Promise.all([
-      db.ref('concours/lots').once('value'),
-      db.ref('concours/quiz').once('value'),
-      db.ref('concours/shareConfig').once('value')
+    const [lotsSnap, quizSnap, shareSnap, settingsSnap] = await Promise.all([
+      db.ref('concours/lots').once('value'), db.ref('concours/quiz').once('value'), db.ref('concours/shareConfig').once('value'), db.ref('concours/settings').once('value')
     ]);
     lots = lotsSnap.val() ? Object.values(lotsSnap.val()) : [];
     quizQuestions = quizSnap.val() ? Object.values(quizSnap.val()) : [];
-    shareConfig = shareSnap.val() || { link: window.location.href, message: '🎉 Je participe au jeu concours L\'Empreinte D\'Emil ! Inscris-toi aussi pour tenter de gagner des parfums de luxe :' };
-    if (!shareConfig.link) shareConfig.link = window.location.href;
-    renderLots();
-    updateParticipantCount();
-  } catch (e) { console.error('Load config:', e); }
+    shareConfig = shareSnap.val() || { link: window.location.href, message: '🎉 Je participe au jeu concours L\'Empreinte D\'Emil ! Inscris-toi aussi :' };
+    if (shareConfig.link === '') shareConfig.link = window.location.origin + window.location.pathname;
+    if (settingsSnap.val()) quizSettings = { ...quizSettings, ...settingsSnap.val() };
+    renderLots(); updateParticipantCount();
+  } catch (e) { console.error(e); }
 }
 
 async function updateParticipantCount() {
   if (!db) return;
-  try {
-    const snap = await db.ref('concours/participants').once('value');
-    const count = snap.val() ? Object.keys(snap.val()).length : 0;
-    const el = document.getElementById('hero-participant-count');
-    if (count > 0) el.textContent = count + ' personne' + (count > 1 ? 's' : '') + ' déjà inscrite' + (count > 1 ? 's' : '');
-  } catch (e) {}
+  try { const snap = await db.ref('concours/participants').once('value'); const count = snap.val() ? Object.keys(snap.val()).length : 0; const el = document.getElementById('hero-participant-count'); if (count > 0) el.textContent = count + ' personne' + (count > 1 ? 's' : '') + ' déjà inscrite' + (count > 1 ? 's' : ''); } catch (e) {}
 }
 
 function renderLots() {
   const grid = document.getElementById('lots-grid');
-  if (!lots.length) {
-    grid.innerHTML = `<div class="lots-empty"><svg class="svg-icon" viewBox="0 0 24 24"><path d="M20 12v10H4V12"></path><path d="M2 7h20v5H2z"></path><path d="M12 22V7"></path><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg><p>Les lots seront bientôt dévoilés. Revenez vite !</p></div>`;
-    return;
-  }
+  if (!lots.length) { grid.innerHTML = `<div class="lots-empty"><p>Les lots seront bientôt dévoilés.</p></div>`; return; }
   const rankLabel = { first: '1er Prix', second: '2e Prix', third: '3e Prix', consolation: 'Consolation' };
   const trophySvg = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>`;
-
   grid.innerHTML = lots.map((lot, i) => `
     <div class="lot-card">
-      <div class="lot-img">
-        ${lot.img ? `<img src="${esc(lot.img)}" alt="${esc(lot.name)}" onerror="this.parentElement.innerHTML='<div class=\\'lot-img-placeholder\\'>${trophySvg}</div>'">` : `<div class="lot-img-placeholder">${trophySvg}</div>`}
-        <div class="lot-rank ${lot.rank || (i === 0 ? 'first' : i === 1 ? 'second' : 'third')}">${trophySvg} ${rankLabel[lot.rank] || ('Lot ' + (i + 1))}</div>
-      </div>
-      <div class="lot-info">
-        <div class="lot-name">${esc(lot.name)}</div>
-        <div class="lot-desc">${esc(lot.desc || '')}</div>
-      </div>
+      <div class="lot-img">${lot.img ? `<img src="${esc(lot.img)}" alt="${esc(lot.name)}" onerror="this.parentElement.innerHTML='<div class=\\'lot-img-placeholder\\'>${trophySvg}</div>'">` : `<div class="lot-img-placeholder">${trophySvg}</div>`}
+      <div class="lot-rank ${lot.rank || (i === 0 ? 'first' : i === 1 ? 'second' : 'third')}">${trophySvg} ${rankLabel[lot.rank] || ('Lot ' + (i + 1))}</div></div>
+      <div class="lot-info"><div class="lot-name">${esc(lot.name)}</div><div class="lot-desc">${esc(lot.desc || '')}</div></div>
     </div>`).join('');
 }
 
 function goToStep2() {
-  const name = document.getElementById('f-name').value.trim();
-  const phone = document.getElementById('f-phone').value.trim();
-  const city = document.getElementById('f-city').value.trim();
-  const email = document.getElementById('f-email').value.trim();
-  const consent = document.getElementById('f-consent').checked;
-
+  const name = document.getElementById('f-name').value.trim(), phone = document.getElementById('f-phone').value.trim(), city = document.getElementById('f-city').value.trim(), email = document.getElementById('f-email').value.trim(), consent = document.getElementById('f-consent').checked;
   if (!name || name.length < 2) return toast('Entrez votre nom complet', '⚠️');
   if (!phone || phone.replace(/\D/g, '').length < 8) return toast('Numéro de téléphone invalide', '⚠️');
   if (!city) return toast('Entrez votre ville', '⚠️');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast('Email invalide', '⚠️');
   if (!consent) return toast('Vous devez accepter le règlement', '⚠️');
-
-  formData = { name, phone, city, email };
-  quizAnswers = [];
-  currentQuizIdx = 0;
-  selectedQuizOption = null;
-
-  if (quizQuestions.length === 0) {
-    showStep(3); renderShareSteps(); return;
-  }
-  showStep(2);
-  renderQuizQuestion();
+  formData = { name, phone, city, email }; quizAnswers = []; currentQuizIdx = 0; selectedQuizOption = null; correctAnswersCount = 0;
+  if (quizQuestions.length === 0) { showStep(3); return; }
+  showStep(2); renderQuizQuestion();
 }
 
 function renderQuizQuestion() {
@@ -461,10 +354,7 @@ function renderQuizQuestion() {
   document.getElementById('quiz-fill').style.width = ((currentQuizIdx + 1) / quizQuestions.length * 100) + '%';
   document.getElementById('quiz-q-num').textContent = 'Question ' + (currentQuizIdx + 1) + ' / ' + quizQuestions.length;
   document.getElementById('quiz-question').textContent = q.question;
-  const opts = document.getElementById('quiz-options');
-  opts.innerHTML = q.answers.map((a, i) =>
-    `<button class="quiz-option ${quizAnswers[currentQuizIdx] === i ? 'selected' : ''}" onclick="selectQuizAnswer(${i})">${esc(a)}</button>`
-  ).join('');
+  document.getElementById('quiz-options').innerHTML = q.answers.map((a, i) => `<button class="quiz-option ${quizAnswers[currentQuizIdx] === i ? 'selected' : ''}" onclick="selectQuizAnswer(${i})">${esc(a)}</button>`).join('');
   selectedQuizOption = quizAnswers[currentQuizIdx] !== undefined ? quizAnswers[currentQuizIdx] : null;
   document.getElementById('quiz-prev').style.visibility = currentQuizIdx === 0 ? 'hidden' : 'visible';
   document.getElementById('quiz-next').disabled = selectedQuizOption === null;
@@ -472,8 +362,7 @@ function renderQuizQuestion() {
 }
 
 function selectQuizAnswer(i) {
-  selectedQuizOption = i;
-  quizAnswers[currentQuizIdx] = i;
+  selectedQuizOption = i; quizAnswers[currentQuizIdx] = i;
   document.querySelectorAll('.quiz-option').forEach((el, idx) => el.classList.toggle('selected', idx === i));
   document.getElementById('quiz-next').disabled = false;
 }
@@ -481,81 +370,54 @@ function selectQuizAnswer(i) {
 function quizPrev() { if (currentQuizIdx > 0) { currentQuizIdx--; renderQuizQuestion(); } }
 function quizNext() {
   if (selectedQuizOption === null) return;
+  if (quizAnswers[currentQuizIdx] === quizQuestions[currentQuizIdx].correct) { if (!quizAnswers[currentQuizIdx].counted) { correctAnswersCount++; quizAnswers[currentQuizIdx].counted = true; } }
+  else { if (quizAnswers[currentQuizIdx].counted) { correctAnswersCount--; quizAnswers[currentQuizIdx].counted = false; } }
+  
   if (currentQuizIdx < quizQuestions.length - 1) { currentQuizIdx++; renderQuizQuestion(); }
-  else { showStep(3); renderShareSteps(); }
+  else { showStep(3); }
 }
 
-function renderShareSteps() {
-  const container = document.getElementById('share-steps');
-  const link = shareConfig.link || window.location.href;
+function doShare() {
+  const now = Date.now(); if (now - lastShareClickTime < 3000) return toast('Patientez un instant', '⏳'); lastShareClickTime = now;
   const msg = shareConfig.message || '🎉 Participe au jeu concours L\'Empreinte D\'Emil !';
-  const fullText = msg + ' ' + link;
-  const waSvg = `<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
-
-  container.innerHTML = Array.from({ length: TOTAL_SHARES_REQUIRED }, (_, i) => `
-    <div class="share-step" id="share-step-${i}">
-      <div class="share-step-icon">${i + 1}</div>
-      <div class="share-step-body">
-        <div class="share-step-title">Groupe WhatsApp ${i + 1}</div>
-        <div class="share-step-desc">Partagez votre lien à un groupe</div>
-      </div>
-      <button class="share-step-btn" onclick="shareToGroup(${i})" id="share-btn-${i}">${waSvg} Partager</button>
-    </div>`).join('');
-
-  sharedCount = 0;
-  updateProgress();
-}
-
-function shareToGroup(i) {
-  const now = Date.now();
-  if (now - lastShareClickTime < 3000) return toast('Patientez quelques secondes entre chaque partage', '⏳');
-  lastShareClickTime = now;
-  const link = shareConfig.link || window.location.href;
-  const msg = shareConfig.message || '🎉 Participe au jeu concours L\'Empreinte D\'Emil !';
-  const fullText = msg + ' ' + link;
+  const fullText = msg + ' ' + (shareConfig.link || window.location.href);
   window.open('https://wa.me/?text=' + encodeURIComponent(fullText), '_blank');
-  const step = document.getElementById('share-step-' + i);
-  const btn = document.getElementById('share-btn-' + i);
-  btn.outerHTML = `<button class="share-step-btn" onclick="confirmShare(${i})" id="share-btn-${i}" style="background:var(--success);color:#fff">✓ J'ai partagé</button>`;
 }
 
-function confirmShare(i) {
-  const step = document.getElementById('share-step-' + i);
-  if (!step || step.classList.contains('done')) return;
-  step.classList.add('done');
-  step.querySelector('.share-step-icon').textContent = '✓';
-  const btn = document.getElementById('share-btn-' + i);
-  if (btn) { btn.disabled = true; btn.textContent = '✓ Fait'; btn.style.background = 'var(--dark-4)'; btn.style.color = 'var(--muted)'; }
-  sharedCount++;
-  updateProgress();
-  if (sharedCount >= TOTAL_SHARES_REQUIRED) setTimeout(() => finishParticipation(), 800);
-}
-
-function updateProgress() {
-  const pct = Math.round(sharedCount / TOTAL_SHARES_REQUIRED * 100);
-  document.getElementById('progress-fill').style.width = pct + '%';
-  document.getElementById('progress-pct').textContent = pct + '%';
+function confirmShare() {
+  const btn = document.getElementById('share-confirm-btn');
+  btn.disabled = true; btn.textContent = '✓ Validé';
+  isShared = true;
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('progress-pct').textContent = '100%';
+  setTimeout(() => finishParticipation(), 1000);
 }
 
 async function finishParticipation() {
-  const participant = {
-    id: 'P' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase(),
-    ...formData, quizAnswers, shares: sharedCount, date: new Date().toISOString(), status: 'validated'
-  };
-  if (db) { try { await db.ref('concours/participants/' + participant.id).set(participant); } catch (e) { console.error(e); } }
+  const participant = { id: 'P' + Date.now() + Math.random().toString(36).slice(2, 6).toUpperCase(), ...formData, quizAnswers, score: correctAnswersCount, totalQuestions: quizQuestions.length, shares: 5, date: new Date().toISOString(), status: 'validated' };
+  if (db) { try { await db.ref('concours/participants/' + participant.id).set(participant); } catch (e) {} }
+  
+  const isSuccess = correctAnswersCount >= quizSettings.passScore;
+  document.getElementById('success-title-text').textContent = isSuccess ? 'Félicitations !' : 'Participation validée !';
+  document.getElementById('success-msg-text').textContent = isSuccess ? (quizSettings.successMsg || 'Vous êtes officiellement inscrit(e). Nous vous contacterons si vous gagnez.') : (quizSettings.failMsg || 'Merci pour votre participation. Tentez votre chance la prochaine fois !');
+  
+  if (quizQuestions.length > 0) {
+    document.getElementById('score-display-container').innerHTML = `
+      <div class="score-card">
+        <div class="score-num">${correctAnswersCount}<span class="score-total">/${quizQuestions.length}</span></div>
+        <div class="score-label">Votre score au quiz</div>
+      </div>`;
+  }
+
   document.getElementById('success-card').innerHTML = `
-    <div class="success-card-title">Votre participation</div>
+    <div class="success-card-title">Récapitulatif</div>
     <div class="success-card-row"><span>Numéro</span><span>${esc(participant.id)}</span></div>
     <div class="success-card-row"><span>Nom</span><span>${esc(participant.name)}</span></div>
-    <div class="success-card-row"><span>Téléphone</span><span>${esc(participant.phone)}</span></div>
-    <div class="success-card-row"><span>Ville</span><span>${esc(participant.city)}</span></div>
-    <div class="success-card-row"><span>Partages confirmés</span><span>${participant.shares} / ${TOTAL_SHARES_REQUIRED}</span></div>`;
-  showStep(4);
-  updateParticipantCount();
-  toast('Participation validée !', '🎉');
+    <div class="success-card-row"><span>Partages</span><span>Confirmé (5 groupes)</span></div>`;
+  showStep(4); updateParticipantCount(); toast('Participation validée !', '🎉');
 }
 
-document.addEventListener('DOMContentLoaded', async () => { initFB(); await loadConfig(); });
+document.addEventListener('DOMContentLoaded', async () => { loadConfig(); });
 </script>
 </body>
 </html>
