@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <title>Admin — Concours & Parrainage</title>
 <link rel="icon" type="image/png" href="https://i.postimg.cc/HLdg7Tb5/logo.png">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,35 +13,35 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-body); background: var(--noir); color: var(--light); font-size: 14px; line-height: 1.6; }
 .container { max-width: 1000px; margin: 0 auto; padding: 20px 16px; }
-.nav { background: var(--dark-2); border-bottom: 1px solid rgba(201,168,76,.15); padding: 16px; }
+.nav { background: var(--dark-2); border-bottom: 1px solid rgba(201,168,76,.15); padding: clamp(10px, 3vw, 16px); }
 .nav-inner { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto; flex-wrap: wrap; gap: 10px;}
-.nav-logo { font-family: var(--font-display); color: var(--gold); font-size: 20px; text-decoration: none; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: .2s; text-decoration: none; }
+.nav-logo { font-family: var(--font-display); color: var(--gold); font-size: clamp(16px, 4vw, 20px); text-decoration: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: clamp(8px, 2vw, 10px) clamp(14px, 4vw, 20px); border-radius: 6px; font-size: clamp(11px, 2.5vw, 13px); font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: .2s; text-decoration: none; }
 .btn-primary { background: var(--gold); color: var(--noir); }
 .btn-primary:hover { background: var(--gold-light); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.3); }
 .btn-danger:hover { background: rgba(192,57,43,.1); }
 .btn-ghost { background: transparent; color: var(--muted); border: 1px solid rgba(245,240,232,.15); }
 .btn-ghost:hover { color: var(--light); border-color: rgba(245,240,232,.3); }
-.login-box { max-width: 380px; margin: 80px auto; background: var(--dark-2); border: 1px solid rgba(201,168,76,.2); border-radius: 12px; padding: 32px; text-align: center; }
-.login-box h2 { font-family: var(--font-display); font-size: 24px; color: var(--gold); margin-bottom: 20px; }
+.login-box { max-width: 380px; margin: clamp(40px, 10vw, 80px) auto; background: var(--dark-2); border: 1px solid rgba(201,168,76,.2); border-radius: 12px; padding: clamp(20px, 5vw, 32px); text-align: center; }
+.login-box h2 { font-family: var(--font-display); font-size: clamp(20px, 5vw, 24px); color: var(--gold); margin-bottom: 20px; }
 .input-group { margin-bottom: 16px; text-align: left; }
 .input-group label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 6px; }
-.input-group input, .input-group textarea, .input-group select { width: 100%; background: var(--dark-3); border: 1px solid rgba(201,168,76,.2); border-radius: 6px; padding: 12px; color: var(--light); font-size: 14px; font-family: inherit; outline: none; }
+.input-group input, .input-group textarea, .input-group select { width: 100%; background: var(--dark-3); border: 1px solid rgba(201,168,76,.2); border-radius: 6px; padding: 12px; color: var(--light); font-size: 16px; font-family: inherit; outline: none; }
 .input-group input:focus, .input-group textarea:focus { border-color: var(--gold); }
 .hidden { display: none !important; }
-.tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid rgba(201,168,76,.1); padding-bottom: 12px; overflow-x: auto; }
-.tab { padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted); border-radius: 6px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; border: none; background: none; font-family: inherit; }
+.tabs { display: flex; gap: 6px; margin-bottom: 24px; border-bottom: 1px solid rgba(201,168,76,.1); padding-bottom: 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tab { padding: clamp(8px, 2vw, 10px) clamp(12px, 3vw, 16px); font-size: clamp(11px, 2.5vw, 13px); font-weight: 600; color: var(--muted); border-radius: 6px; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px; border: none; background: none; font-family: inherit; }
 .tab.active { background: var(--gold); color: var(--noir); }
 .tab:hover:not(.active) { background: rgba(201,168,76,.1); color: var(--gold); }
 .panel { display: none; }
 .panel.active { display: block; animation: fade .3s; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-.card { background: var(--dark-2); border: 1px solid rgba(201,168,76,.1); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; }
-.card-img { width: 60px; height: 60px; border-radius: 6px; background: var(--dark-3); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
-.card-body { flex: 1; }
-.card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.card-meta { font-size: 12px; color: var(--muted); }
+.card { background: var(--dark-2); border: 1px solid rgba(201,168,76,.1); border-radius: 8px; padding: clamp(12px, 3vw, 16px); margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.card-img { width: clamp(40px, 10vw, 60px); height: clamp(40px, 10vw, 60px); border-radius: 6px; background: var(--dark-3); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.card-body { flex: 1; min-width: 200px; }
+.card-title { font-weight: 600; font-size: clamp(12px, 3vw, 14px); margin-bottom: 4px; }
+.card-meta { font-size: clamp(11px, 2.5vw, 12px); color: var(--muted); }
 </style>
 </head>
 <body>
@@ -113,7 +113,7 @@ body { font-family: var(--font-body); background: var(--noir); color: var(--ligh
     </div>
 
     <div id="panel-parts" class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <span style="font-size:13px;color:var(--muted)" id="part-count">0 participants</span>
         <button class="btn btn-ghost" onclick="loadParticipants()">Rafraîchir</button>
       </div>
@@ -128,7 +128,7 @@ body { font-family: var(--font-body); background: var(--noir); color: var(--ligh
         <div class="input-group"><label>Valeur de 1000 points en FCFA (ex: 2000)</label><input id="ref-val-pts" type="number" placeholder="2000"></div>
         <button class="btn btn-primary" style="width:100%" onclick="saveRefConfig()">Enregistrer les règles</button>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <h3 style="font-size:14px;color:var(--gold);text-transform:uppercase">Historique des Parrainages</h3>
         <button class="btn btn-ghost" onclick="loadReferrals()">Rafraîchir</button>
       </div>
@@ -158,7 +158,6 @@ async function doLogin() {
     document.getElementById('admin-view').classList.remove('hidden');
     document.getElementById('btn-logout').style.display = 'inline-flex';
     loadAll(); loadReferrals();
-    // Zéro refresh : on écoute les nouveaux parrainages et participants en direct
     if(db){
       db.ref('concours/participants').on('value', () => loadParticipants());
       db.ref('referrals').on('value', () => loadReferrals());
@@ -287,7 +286,6 @@ async function saveRefConfig() {
   alert('Règles de parrainage enregistrées !');
 }
 
-// Initial load pour l'onglet parrainage
 if (isLogged) loadRefConfigAndList();
 </script>
 </body>
